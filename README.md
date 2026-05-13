@@ -67,15 +67,25 @@ port=50505
 
 ---
 
-## Official Installation
+## ⚙️ Installation
 
-Install the official package from [PyPI](https://pypi.org/project/alenia-nerve/):
+We highly recommend installing this tool inside an isolated virtual environment to comply with modern OS security standards (PEP 668) and avoid dependency conflicts.
 
 ```bash
+# 1. Create a virtual environment
+python3 -m venv alenia_env
+
+# 2. Activate it
+# On Linux/macOS:
+source alenia_env/bin/activate
+# On Windows:
+alenia_env\Scripts\activate
+
+# 3. Install the engine
 pip install alenia-nerve
 ```
 
-*(If you are using a modern Linux distribution with PEP 668 PEP-managed packages, append the `--break-system-packages` flag or run inside a virtual environment)*:
+Note for global installation: If you prefer a system-wide installation (e.g., inside Docker or specific CI/CD pipelines) and are aware of the risks, you can bypass the OS restriction flag:
 
 ```bash
 pip install alenia-nerve --break-system-packages
