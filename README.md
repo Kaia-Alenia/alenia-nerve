@@ -4,7 +4,7 @@
 [![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-darkviolet.svg)](https://github.com/Kaia-Alenia/alenia-nerve)
 [![License](https://img.shields.io/badge/License-Alenia%20Studios%20Tool%201.0-8a2be2.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blueviolet.svg)](#)
-[![Python](https://img.shields.io/badge/Python-3.7%2B-indigo.svg)](#)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-indigo.svg)](#)
 
 
 > **Sovereignty, Speed, and Complete Privacy.** Nerve is the cross-platform local inter-process communication engine designed by **Alenia Studios** to orchestrate game development tools locally, requiring zero cloud dependency.
