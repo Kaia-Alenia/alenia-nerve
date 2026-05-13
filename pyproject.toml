@@ -21,6 +21,11 @@ classifiers = [
 [project.scripts]
 nerve = "nerve.cli:main"
 
+[project.urls]
+Homepage = "https://github.com/Kaia-Alenia/alenia-nerve"
+"Bug Tracker" = "https://github.com/Kaia-Alenia/alenia-nerve/issues"
+
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
