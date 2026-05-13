@@ -4,18 +4,22 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "alenia-nerve"
-version = "1.2.1"
+version = "1.2.2"
 description = "Official ultra-fast cross-platform local communication engine for Alenia Studios, designed for sovereign creators."
 readme = "README.md"
 requires-python = ">=3.7"
+license = { text = "ALENIA STUDIOS TOOL LICENSE Version 1.0" }
 authors = [
     { name = "Alenia Studios" }
 ]
 classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: Other/Proprietary License",
     "Programming Language :: Python :: 3",
     "Operating System :: Unix",
     "Operating System :: Microsoft :: Windows",
-    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
 [project.scripts]
