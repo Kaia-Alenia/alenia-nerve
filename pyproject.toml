@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "alenia-nerve"
-version = "1.2.2"
+version = "1.3.1"
 description = "Official ultra-fast cross-platform local communication engine for Alenia Studios, designed for sovereign creators."
 readme = "README.md"
 requires-python = ">=3.10"
