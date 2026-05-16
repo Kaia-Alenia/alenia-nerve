@@ -1,11 +1,21 @@
-# Contributors
+# Contributors — alenia-nerve
 
-We want to express our deepest gratitude to everyone who contributes to Nerve! Your work, reviews, and bug reports make this project possible and help indie developers around the world build high-performance tools and pipelines.
+We deeply appreciate everyone who helps make Nerve better.
+
+---
 
 ## Core Team
 
-* **Alenia Studios** - Lead Maintainer and Publisher
+| Name | Role |
+|------|------|
+| **Alenia Studios** | Lead Maintainer & Publisher |
+
+---
 
 ## Community Contributors
 
-No community contributors yet. Be the first to appear here by submitting a Pull Request! We welcome and value all kinds of contributions, from small documentation updates to deep performance and latency optimization.
+Want to appear here? Check the [CONTRIBUTING.md](CONTRIBUTING.md) guide and submit a Pull Request!
+
+---
+
+*Thank you to everyone who reports bugs, suggests features, and spreads the word about Nerve.*

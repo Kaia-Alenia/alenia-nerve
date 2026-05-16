@@ -2,21 +2,19 @@
 
 ## Supported Versions
 
-Nerve provides active security updates and patches for the following Python versions:
+Nerve provides active security updates for the following versions:
 
 | Version | Supported |
 | ------- | --------- |
-| 3.12.x  | Yes       |
-| 3.11.x  | Yes       |
-| 3.10.x  | Yes       |
-| 3.9.x   | Yes       |
-| 3.8.x   | Yes       |
-| 3.7.x   | Yes       |
-| < 3.7   | No        |
+| 1.3.x   | Yes       |
+| 1.2.x   | Yes       |
+| < 1.2   | No        |
+
+**Minimum Python version required: 3.10**
 
 ## Reporting a Vulnerability
 
-We take the security of Nerve seriously. If you discover a security vulnerability or a dependency injection vector, please do not disclose it publicly. 
+We take the security of Nerve seriously. If you discover a security vulnerability or a dependency injection vector, please do not disclose it publicly.
 
 Please report any vulnerability privately by sending an email to our core team:
 

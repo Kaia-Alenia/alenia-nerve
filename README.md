@@ -25,7 +25,7 @@ Nerve is fully cross-platform and dynamically adapts to the host operating syste
 
 ---
 
-## v1.2.0 Stability & Identity Updates
+## v1.3.1 Stability & Identity Updates
 
 Nerve has been heavily upgraded to offer production-grade resilience and studio identity:
 * **Industrial Auto-Reconnection**: `NexusClient` features automatic background reconnection loops. If the connection drops or the Hub restarts, the client attempts connection every 2 seconds indefinitely, preserving the host application from crashes and registering back smoothly as soon as the Hub comes online.
@@ -64,6 +64,28 @@ port=50505
 * **Line-Based Framing**: Robust packet handling using newline delimiters (`\n`) to prevent data collision or buffer merging under heavy throughput.
 * **Hub-Client Architecture**: A single central coordinator (`NexusHub`) directs intelligent message routing to specific registered nodes (`NexusClient`).
 * **Console Command Interface (CLI)**: Spawn and manage the hub globally from any terminal with a simple command.
+
+---
+
+## 🌍 Where Nerve Shines: Global Use Cases
+
+Nerve is not just for game development. It is a zero-dependency, ultra-fast solution for any **Local Inter-Process Communication (IPC)** problem in Python. Here is where you can leverage its power:
+
+### 1. Local Microservices (Desktop Applications)
+* **The Context:** You are building a modern desktop app with a frontend in Electron, Tauri, or Flutter, and a heavy backend in Python for AI or data processing.
+* **Why Nerve:** Instead of spawning a local HTTP server (like Flask or FastAPI) that consumes network ports and adds overhead, use Nerve to pass messages via native sockets at sub-millisecond speeds. It supports native bi-directional pushing without polling.
+
+### 2. AI Pipelines & Real-Time Data Processing
+* **The Context:** You have a local AI pipeline where one process captures video or audio, another process (running PyTorch or TensorFlow) analyzes the data, and a third process logs results.
+* **Why Nerve:** If the AI model crashes due to VRAM exhaustion, the capture process doesn't die. Nerve handles automatic reconnection seamlessly. Line-based framing ensures high-speed message passing without buffer corruption.
+
+### 3. Local DevOps & Automation Orchestration
+* **The Context:** You run multiple background automation scripts on your workstation or server (e.g., log cleaners, disk monitors, auto-backup scripts) and need them to coordinate.
+* **Why Nerve:** No need to write to shared lock-prone files or setup a local database just to share state. Scripts can broadcast events and a dedicated logger client can aggregate all outputs into a single clean stream.
+
+### 4. Polyglot Bridge (Multi-Language Integration)
+* **The Context:** Part of your system is in Python due to its rich ecosystem, but performance-critical parts are written in C++, Rust, or Go.
+* **Why Nerve:** The protocol is extremely simple: JSON strings delimited by a newline (`\n`). Any language that can open a standard network or Unix socket can connect to the Nerve Hub and talk to your Python nodes without complex C-bindings or heavy RPC frameworks.
 
 ---
 
@@ -133,7 +155,14 @@ payload = {"progress": 100, "status": "COMPLETED"}
 client.send("other_tool_id", payload)
 ```
 
-### 3. Listen for Incoming Stream
+### 3. Broadcast to All Nodes
+Broadcast any payload to every other client currently connected to the hub:
+
+```python
+client.broadcast({"event": "asset_ready", "path": "/assets/knight.png"})
+```
+
+### 4. Listen for Incoming Stream
 Register an asynchronous callback function to listen to data streams in real-time:
 
 ```python
@@ -142,6 +171,27 @@ def handle_incoming(data):
 
 client.listen(handle_incoming)
 ```
+
+### 5. List Connected Nodes
+Query the hub for all currently registered client IDs:
+
+```python
+nodes = client.list_clients()
+print(nodes)  # ['renderer', 'monitor', 'logger']
+```
+
+---
+
+## 👥 Contributors
+
+We want to express our deepest gratitude to everyone who contributes to Nerve! Your work, reviews, and bug reports make this project possible.
+
+* **Alenia Studios** - Lead Maintainer and Publisher
+
+Want to appear here? Check our [CONTRIBUTING.md](CONTRIBUTING.md) guide and submit a Pull Request! See [CONTRIBUTORS.md](CONTRIBUTORS.md) for the full list.
+
+See [CHANGELOG.md](CHANGELOG.md) for the full version history.
+
 
 ---
 
