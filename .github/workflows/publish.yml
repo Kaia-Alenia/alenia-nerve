@@ -32,6 +32,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           print-hash: true
+          skip-existing: true
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
