@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.3.3] — 2026-06-15
+
+### Fixed
+- `NexusClient`: Resolved socket and file descriptor leaks by closing sockets on failed connection attempts.
+- `NexusClient`: Solved a critical race condition in `list_clients()` by routing responses through the listener thread.
+- `NexusClient`: Prevented infinite reconnect loops on explicit disconnection.
+- `NexusHub`: Prevented thread and socket leaks on stop by closing all active client sockets.
+- `NexusHub`: Protected Unix socket creation via umask to ensure secure permissions.
+- `NexusHub`: Replaced busy sleep in heartbeats with Event synchronization.
+
+### Changed
+- Removed emojis from `README.md` to adhere to clean presentation guidelines.
+- Added GitGem verification badge to `README.md`.
+
+---
+
 ## [1.3.2] — 2026-05-16
 
 ### Added
