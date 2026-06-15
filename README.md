@@ -5,6 +5,7 @@
 [![License](https://img.shields.io/badge/License-Alenia%20Studios%20Tool%201.0-8a2be2.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blueviolet.svg)](#)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-indigo.svg)](#)
+[![GitGem](https://gitgem.org/api/badge/github/Kaia-Alenia/alenia-nerve.svg)](https://gitgem.org/github/Kaia-Alenia/alenia-nerve)
 
 
 > **Sovereignty, Speed, and Complete Privacy.** Nerve is the cross-platform local inter-process communication engine designed by **Alenia Studios** to orchestrate game development tools locally, requiring zero cloud dependency.
@@ -67,7 +68,7 @@ port=50505
 
 ---
 
-## 🌍 Where Nerve Shines: Global Use Cases
+## Where Nerve Shines: Global Use Cases
 
 Nerve is not just for game development. It is a zero-dependency, ultra-fast solution for any **Local Inter-Process Communication (IPC)** problem in Python. Here is where you can leverage its power:
 
@@ -89,7 +90,7 @@ Nerve is not just for game development. It is a zero-dependency, ultra-fast solu
 
 ---
 
-## ⚙️ Installation
+## Installation
 
 We highly recommend installing this tool inside an isolated virtual environment to comply with modern OS security standards (PEP 668) and avoid dependency conflicts.
 
@@ -182,7 +183,7 @@ print(nodes)  # ['renderer', 'monitor', 'logger']
 
 ---
 
-## 👥 Contributors
+## Contributors
 
 We want to express our deepest gratitude to everyone who contributes to Nerve! Your work, reviews, and bug reports make this project possible.
 
