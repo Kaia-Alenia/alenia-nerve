@@ -26,7 +26,7 @@ Nerve is fully cross-platform and dynamically adapts to the host operating syste
 
 ---
 
-## v1.3.1 Stability & Identity Updates
+## v1.3.3 Concurrency, Security & Stability Updates
 
 Nerve has been heavily upgraded to offer production-grade resilience and studio identity:
 * **Industrial Auto-Reconnection**: `NexusClient` features automatic background reconnection loops. If the connection drops or the Hub restarts, the client attempts connection every 2 seconds indefinitely, preserving the host application from crashes and registering back smoothly as soon as the Hub comes online.
