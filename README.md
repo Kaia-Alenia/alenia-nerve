@@ -196,12 +196,9 @@ See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 ---
 
-## License and Intellectual Property
+## License
 
-This software is distributed under the **ALENIA STUDIOS TOOL LICENSE Version 1.0**.
-
-* **For the Indie Community**: 100% free for both commercial and non-commercial game development.
-* **No AI Training**: Standalone scraping, training, or inclusion of this codebase in Artificial Intelligence datasets is strictly prohibited.
+This software is distributed under the **GNU General Public License v3 (GPL v3)**. See [LICENSE](LICENSE) for more details.
 
 ---
 *Crafted with passion by Alenia Studios to power sovereign game creators.*
