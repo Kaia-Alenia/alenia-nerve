@@ -395,7 +395,22 @@ class NexusHub:
         """
         self._running = False
         self._stop_event.set()
+        
+        # Unblock accept() gracefully on platforms where close() doesn't interrupt it (e.g., macOS)
         if self._server:
+            try:
+                if self.is_windows:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.connect(self.address)
+                    s.close()
+                else:
+                    if isinstance(self.address, str) and os.path.exists(self.address):
+                        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                        s.connect(self.address)
+                        s.close()
+            except Exception:
+                pass
+
             try:
                 self._server.close()
             except OSError:

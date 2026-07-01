@@ -66,7 +66,10 @@ def make_client(**kwargs) -> NexusClient:
 def start_hub_thread(hub: NexusHub) -> threading.Thread:
     t = threading.Thread(target=hub.start, daemon=True)
     t.start()
-    time.sleep(0.15)
+    for _ in range(20):
+        if getattr(hub, "_running", False):
+            break
+        time.sleep(0.05)
     return t
 
 

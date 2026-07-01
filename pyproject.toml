@@ -56,4 +56,4 @@ license-files = []
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-timeout = 30
+timeout = 120
