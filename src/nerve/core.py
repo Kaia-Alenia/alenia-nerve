@@ -39,6 +39,7 @@ class NexusHub:
         on_disconnect: Optional[Callable[[str], None]] = None,
         heartbeat_interval: float = 5.0,
         config_path: str = "nerve.config",
+        auth_token: Optional[str] = None,
     ) -> None:
         self.verbose = verbose
         self.on_connect = on_connect
@@ -53,6 +54,7 @@ class NexusHub:
         self._stop_event = threading.Event()
         self.is_windows = platform.system() == "Windows"
         config = load_external_config(config_path)
+        self.auth_token = auth_token or config.get("auth_token")
         if self.is_windows:
             host = str(config.get("host", "127.0.0.1"))
             port = int(config.get("port", 50505))
@@ -83,13 +85,27 @@ class NexusHub:
         except OSError:
             return False
 
+    def _send_raw_bytes_to(self, client_id: str, raw_bytes: bytes) -> bool:
+        with self._lock:
+            conn = self._clients.get(client_id)
+            lock = self._write_locks.get(conn) if conn else None
+        if conn is None or lock is None:
+            return False
+        try:
+            with lock:
+                conn.sendall(raw_bytes)
+            return True
+        except OSError:
+            return False
+
     def broadcast(self, payload: Any, exclude: Optional[str] = None) -> None:
+        raw_bytes = (json.dumps(payload) + "\n").encode("utf-8")
         with self._lock:
             targets = list(self._clients.keys())
         for client_id in targets:
             if client_id == exclude:
                 continue
-            self._send_to(client_id, payload)
+            self._send_raw_bytes_to(client_id, raw_bytes)
 
     def _start_heartbeat(self) -> None:
         if self.heartbeat_interval <= 0:
@@ -179,6 +195,13 @@ class NexusHub:
                         if not raw_id or not isinstance(raw_id, str):
                             self._log("91", "Register message missing valid 'id' field.")
                             continue
+                            
+                        if self.auth_token:
+                            client_token = msg.get("token")
+                            if not client_token or client_token != self.auth_token:
+                                self._log("91", "Authentication failed for client registration.")
+                                break
+
                         client_id = raw_id
                         with self._lock:
                             if raw_id in self._clients:
@@ -341,11 +364,13 @@ class NexusClient:
         self,
         retry_interval: float = 2.0,
         config_path: str = "nerve.config",
+        auth_token: Optional[str] = None,
     ) -> None:
         self.retry_interval = retry_interval
         self.client_id = None
         self.is_windows = platform.system() == "Windows"
         config = load_external_config(config_path)
+        self.auth_token = auth_token or config.get("auth_token")
 
         if self.is_windows:
             host = str(config.get("host", "127.0.0.1"))
@@ -383,7 +408,10 @@ class NexusClient:
                         sock.close()
                         return
                     self._socket = sock
-                self._send_raw({"type": "register", "id": client_id})
+                reg_msg = {"type": "register", "id": client_id}
+                if self.auth_token:
+                    reg_msg["token"] = self.auth_token
+                self._send_raw(reg_msg)
                 print(f"[NERVE] Connected to hub as '{client_id}'.")
                 return
             except OSError as exc:

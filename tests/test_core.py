@@ -51,16 +51,16 @@ def make_hub(**kwargs) -> NexusHub:
             return NexusHub(**kwargs)
 
 
-def make_client() -> NexusClient:
+def make_client(**kwargs) -> NexusClient:
     if IS_WINDOWS:
         with patch("nerve.core.load_external_config", return_value={"port": TCP_PORT}):
-            return NexusClient()
+            return NexusClient(**kwargs)
     else:
         with patch(
             "nerve.core.load_external_config",
             return_value={"socket_path": SOCK_PATH},
         ):
-            return NexusClient()
+            return NexusClient(**kwargs)
 
 
 def start_hub_thread(hub: NexusHub) -> threading.Thread:
@@ -377,6 +377,53 @@ class TestNexusHubMessaging:
         self._send(sock, {"type": "teleport", "dest": "moon"})
         time.sleep(0.1)
         assert self.hub._running is True
+        sock.close()
+
+
+class TestAuthentication:
+    def setup_method(self):
+        self.hub = make_hub(heartbeat_interval=0, auth_token="secret_token")
+        self.hub_thread = start_hub_thread(self.hub)
+
+    def teardown_method(self):
+        self.hub.stop()
+        self.hub_thread.join(timeout=2)
+        if not IS_WINDOWS and os.path.exists(SOCK_PATH):
+            os.remove(SOCK_PATH)
+
+    def _raw_connect(self) -> socket.socket:
+        if IS_WINDOWS:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect(("127.0.0.1", TCP_PORT))
+        else:
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.connect(SOCK_PATH)
+        return sock
+
+    def _send(self, sock: socket.socket, msg: dict):
+        sock.sendall((json.dumps(msg) + "\n").encode())
+
+    def test_successful_authentication_with_token(self):
+        client = make_client(auth_token="secret_token")
+        client.connect("auth_client")
+        time.sleep(0.1)
+        assert "auth_client" in self.hub.connected_clients
+        client.disconnect()
+        
+    def test_unsuccessful_authentication_wrong_token(self):
+        # We need a custom client thread here or raw connect, because NexusClient 
+        # connect will block and retry if the hub drops connection on bad token.
+        sock = self._raw_connect()
+        self._send(sock, {"type": "register", "id": "bad_token_client", "token": "wrong_token"})
+        time.sleep(0.1)
+        assert "bad_token_client" not in self.hub.connected_clients
+        sock.close()
+
+    def test_unsuccessful_authentication_missing_token(self):
+        sock = self._raw_connect()
+        self._send(sock, {"type": "register", "id": "no_token_client"})
+        time.sleep(0.1)
+        assert "no_token_client" not in self.hub.connected_clients
         sock.close()
 
 
