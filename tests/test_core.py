@@ -33,14 +33,27 @@ SOCK_PATH = "/tmp/nerve_test.sock"
 TCP_PORT = 59876
 
 
+def _short_unix_socket_path(prefix: str) -> str:
+    """Build a short AF_UNIX path safe for macOS path length limits."""
+    unique = f"{os.getpid()}_{time.monotonic_ns() & 0xFFFFFF:x}"
+    filename = f"{prefix}_{unique}.sock"
+    for base in (os.environ.get("RUNNER_TEMP"), "/tmp", tempfile.gettempdir()):
+        if not base or not os.path.isdir(base):
+            continue
+        candidate = os.path.join(base, filename)
+        if len(candidate.encode("utf-8")) < 100:
+            return candidate
+    return os.path.join("/tmp", f"n_{unique}.sock")
+
+
 @pytest.fixture(autouse=True)
-def setup_dynamic_addresses(tmp_path):
+def setup_dynamic_addresses():
     global SOCK_PATH, TCP_PORT
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind(("127.0.0.1", 0))
     TCP_PORT = s.getsockname()[1]
     s.close()
-    SOCK_PATH = str(tmp_path / "nerve_test.sock")
+    SOCK_PATH = _short_unix_socket_path("nerve_test")
     yield
     if not IS_WINDOWS and os.path.exists(SOCK_PATH):
         try:
@@ -168,7 +181,7 @@ class TestNexusHubLifecycle:
     def test_hub_cleans_socket_file_on_start(self, tmp_path):
         if IS_WINDOWS:
             pytest.skip("Unix sockets only")
-        stale_path = str(tmp_path / "stale.sock")
+        stale_path = _short_unix_socket_path("stale")
         with patch(
             "nerve.core.load_external_config",
             return_value={"socket_path": stale_path},
