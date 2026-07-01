@@ -1,10 +1,11 @@
-
 import json
 import os
 import platform
 import socket
 import threading
 import time
+import ssl
+from collections import deque
 from typing import Any, Callable, Dict, Optional, Tuple, Union, List
 
 
@@ -28,7 +29,7 @@ def load_external_config(config_path: str = "nerve.config") -> Dict[str, Any]:
             raw = fh.read()
         try:
             return json.loads(raw)
-        except Exception:
+        except json.JSONDecodeError:
             pass
         config = {}
         for line in raw.splitlines():
@@ -39,7 +40,7 @@ def load_external_config(config_path: str = "nerve.config") -> Dict[str, Any]:
                 key, _, val = line.partition("=")
                 config[key.strip()] = val.strip()
         return config
-    except Exception:
+    except OSError:
         return {}
 
 
@@ -59,6 +60,11 @@ class NexusHub:
         heartbeat_interval: float = 5.0,
         config_path: str = "nerve.config",
         auth_token: Optional[str] = None,
+        max_connections: Optional[int] = None,
+        rate_limit_messages_per_sec: Optional[float] = None,
+        ssl_context: Optional["ssl.SSLContext"] = None,
+        ssl_cert: Optional[str] = None,
+        ssl_key: Optional[str] = None,
     ) -> None:
         """
         Initialize the NexusHub server.
@@ -86,6 +92,20 @@ class NexusHub:
         self.is_windows: bool = platform.system() == "Windows"
         config = load_external_config(config_path)
         self.auth_token = auth_token or config.get("auth_token")
+        
+        raw_max = max_connections if max_connections is not None else config.get("max_connections")
+        self.max_connections = int(raw_max) if raw_max is not None else None
+        
+        raw_rate = rate_limit_messages_per_sec if rate_limit_messages_per_sec is not None else config.get("rate_limit_messages_per_sec")
+        self.rate_limit_messages_per_sec = float(raw_rate) if raw_rate is not None else None
+        
+        self.ssl_context = ssl_context
+        if self.ssl_context is None:
+            cert = ssl_cert or config.get("ssl_cert")
+            key = ssl_key or config.get("ssl_key")
+            if cert and key:
+                self.ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                self.ssl_context.load_cert_chain(certfile=cert, keyfile=key)
         if self.is_windows:
             host = str(config.get("host", "127.0.0.1"))
             port = int(config.get("port", 50505))
@@ -116,8 +136,12 @@ class NexusHub:
         if conn is None or lock is None:
             return False
         try:
+            serialized = json.dumps(payload) + "\n"
+        except (TypeError, ValueError):
+            return False
+        try:
             with lock:
-                conn.sendall((json.dumps(payload) + "\n").encode("utf-8"))
+                conn.sendall(serialized.encode("utf-8"))
             return True
         except OSError:
             return False
@@ -135,21 +159,18 @@ class NexusHub:
         except OSError:
             return False
 
-    def broadcast(self, payload: Any, exclude: Optional[str] = None) -> None:
-        """
-        Send a payload to all connected clients, optionally excluding a specific client.
-
-        Args:
-            payload (Any): The message payload to broadcast. Must be JSON serializable.
-            exclude (Optional[str], optional): Client ID to exclude from broadcast. Defaults to None.
-        """
-        raw_bytes = (json.dumps(payload) + "\n").encode("utf-8")
+    def broadcast(self, payload: Any, exclude: Optional[str] = None) -> bool:
+        try:
+            raw_bytes = (json.dumps(payload) + "\n").encode("utf-8")
+        except (TypeError, ValueError):
+            return False
         with self._lock:
             targets = list(self._clients.keys())
         for client_id in targets:
             if client_id == exclude:
                 continue
             self._send_raw_bytes_to(client_id, raw_bytes)
+        return True
 
     def _start_heartbeat(self) -> None:
         if self.heartbeat_interval <= 0:
@@ -201,10 +222,14 @@ class NexusHub:
     def _handle_client(self, conn: socket.socket) -> None:
         client_id = None
         buffer = ""
+        msg_times = deque()
         try:
             while self._running:
                 try:
                     chunk = conn.recv(4096)
+                except (socket.timeout, TimeoutError):
+                    self._log("91", "Client connection timeout.")
+                    break
                 except OSError:
                     break
                 if not chunk:
@@ -222,9 +247,18 @@ class NexusHub:
 
                     try:
                         msg = json.loads(line)
-                    except Exception as exc:
+                    except json.JSONDecodeError as exc:
                         self._log("91", "Invalid JSON payload: {}".format(exc))
                         continue
+
+                    if self.rate_limit_messages_per_sec is not None:
+                        now = time.time()
+                        msg_times.append(now)
+                        while msg_times and msg_times[0] < now - 1.0:
+                            msg_times.popleft()
+                        if len(msg_times) > self.rate_limit_messages_per_sec:
+                            self._log("91", "Rate limit exceeded for client.")
+                            return
 
                     msg_type = msg.get("type")
 
@@ -244,6 +278,10 @@ class NexusHub:
                             client_token = msg.get("token")
                             if not client_token or client_token != self.auth_token:
                                 self._log("91", "Authentication failed for client registration.")
+                                try:
+                                    conn.sendall((json.dumps({"type": "registered", "status": "failed", "reason": "auth"}) + "\n").encode("utf-8"))
+                                except OSError:
+                                    pass
                                 break
 
                         client_id = raw_id
@@ -260,6 +298,10 @@ class NexusHub:
                             self._clients[client_id] = conn
                             self._write_locks[conn] = threading.Lock()
                         self._log("92", "Registered: {}".format(client_id))
+                        try:
+                            conn.sendall((json.dumps({"type": "registered", "status": "success"}) + "\n").encode("utf-8"))
+                        except OSError:
+                            pass
                         if self.on_connect:
                             try:
                                 self.on_connect(client_id)
@@ -320,12 +362,6 @@ class NexusHub:
                     pass
 
     def start(self) -> None:
-        """
-        Start the NexusHub server.
-        
-        This method is blocking and listens for incoming client connections.
-        Raises an OSError if the address is already in use.
-        """
         if not self.is_windows and isinstance(self.address, str) and os.path.exists(self.address):
             test_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             try:
@@ -366,51 +402,55 @@ class NexusHub:
             else:
                 self._log("95", "Hub active via TCP at {}".format(self.address))
 
+        self._server.settimeout(0.5)
         self._start_heartbeat()
 
         try:
             while self._running and self._server:
                 try:
                     conn, _ = self._server.accept()
+                    conn.settimeout(10.0)
+                    with self._lock:
+                        if not self._running:
+                            conn.close()
+                            break
+                        if self.max_connections is not None and len(self._active_sockets) >= self.max_connections:
+                            conn.close()
+                            continue
+
+                    if self.ssl_context and self.socket_family == socket.AF_INET:
+                        try:
+                            conn = self.ssl_context.wrap_socket(conn, server_side=True)
+                        except ssl.SSLError as e:
+                            self._log("91", "SSL handshake failed: {}".format(e))
+                            conn.close()
+                            continue
+
                     with self._lock:
                         if not self._running:
                             conn.close()
                             break
                         self._active_sockets.add(conn)
+
                     threading.Thread(
                         target=self._handle_client,
                         args=(conn,),
                         daemon=True,
                         name="nerve-client",
                     ).start()
+                except (socket.timeout, TimeoutError):
+                    continue
                 except OSError:
                     break
+        except Exception as exc:
+            self._log("91", "Error in server acceptance loop: {}".format(exc))
         finally:
-            self._running = False
-            self._log("93", "Hub has stopped.")
+            self.stop()
 
     def stop(self) -> None:
-        """
-        Stop the NexusHub server and forcefully disconnect all active clients.
-        """
         self._running = False
         self._stop_event.set()
-        
-        # Unblock accept() gracefully on platforms where close() doesn't interrupt it (e.g., macOS)
         if self._server:
-            try:
-                if self.is_windows:
-                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    s.connect(self.address)
-                    s.close()
-                else:
-                    if isinstance(self.address, str) and os.path.exists(self.address):
-                        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                        s.connect(self.address)
-                        s.close()
-            except Exception:
-                pass
-
             try:
                 self._server.close()
             except OSError:
@@ -443,19 +483,36 @@ class NexusClient:
         retry_interval: float = 2.0,
         config_path: str = "nerve.config",
         auth_token: Optional[str] = None,
+        ssl_context: Optional["ssl.SSLContext"] = None,
+        ssl_cert: Optional[str] = None,
+        ssl_key: Optional[str] = None,
+        ssl_ca: Optional[str] = None,
     ) -> None:
-        """
-        Initialize the NexusClient.
-
-        Args:
-            retry_interval (float): Seconds to wait before attempting auto-reconnection. Defaults to 2.0.
-            config_path (str): Path to external configuration file. Defaults to "nerve.config".
-        """
         self.retry_interval: float = retry_interval
         self.client_id: Optional[str] = None
         self.is_windows: bool = platform.system() == "Windows"
         config = load_external_config(config_path)
         self.auth_token = auth_token or config.get("auth_token")
+
+        self.ssl_context = ssl_context
+        if self.ssl_context is None:
+            use_ssl = config.get("use_ssl", False)
+            if isinstance(use_ssl, str):
+                use_ssl = use_ssl.lower() in ("true", "1", "yes")
+            cert = ssl_cert or config.get("ssl_cert")
+            key = ssl_key or config.get("ssl_key")
+            ca = ssl_ca or config.get("ssl_ca")
+            insecure = config.get("ssl_insecure", False)
+            if isinstance(insecure, str):
+                insecure = insecure.lower() in ("true", "1", "yes")
+
+            if use_ssl or cert or key or ca:
+                if insecure:
+                    self.ssl_context = ssl._create_unverified_context()
+                else:
+                    self.ssl_context = ssl.create_default_context(cafile=ca)
+                if cert and key:
+                    self.ssl_context.load_cert_chain(certfile=cert, keyfile=key)
 
         if self.is_windows:
             host = str(config.get("host", "127.0.0.1"))
@@ -473,22 +530,13 @@ class NexusClient:
         self._list_lock: threading.Lock = threading.Lock()
         self._list_event: threading.Event = threading.Event()
         self._list_result: Optional[List[str]] = None
+        self._write_lock: threading.Lock = threading.Lock()
+        self._read_lock: threading.Lock = threading.Lock()
 
     def _make_socket(self) -> socket.socket:
         return socket.socket(self.socket_family, socket.SOCK_STREAM)
 
     def connect(self, client_id: str) -> None:
-        """
-        Connect to the local NexusHub with a unique ID.
-
-        Blocks until successfully connected, retrying continuously if the Hub is offline.
-
-        Args:
-            client_id (str): Unique identifier for this client on the Hub network.
-        
-        Raises:
-            ValueError: If the client_id is invalid.
-        """
         if not client_id or not isinstance(client_id, str):
             raise ValueError("client_id must be a non-empty string.")
         self.client_id = client_id
@@ -498,16 +546,60 @@ class NexusClient:
             sock = None
             try:
                 sock = self._make_socket()
+                if self.ssl_context and self.socket_family == socket.AF_INET:
+                    hostname = self.address[0] if isinstance(self.address, tuple) else None
+                    sock = self.ssl_context.wrap_socket(sock, server_hostname=hostname)
+
                 sock.connect(self.address)
+                
+                reg_msg = {"type": "register", "id": client_id}
+                if self.auth_token:
+                    reg_msg["token"] = self.auth_token
+                
+                sock.sendall((json.dumps(reg_msg) + "\n").encode("utf-8"))
+                
+                sock.settimeout(5.0)
+                buffer = ""
+                auth_failed = False
+                success = False
+                while not self._closed:
+                    chunk = sock.recv(4096)
+                    if not chunk:
+                        break
+                    buffer += chunk.decode("utf-8", errors="replace")
+                    if "\n" in buffer:
+                        line, _ = buffer.split("\n", 1)
+                        try:
+                            resp = json.loads(line)
+                            if resp.get("type") == "registered":
+                                if resp.get("status") == "success":
+                                    success = True
+                                elif resp.get("status") == "failed" and resp.get("reason") == "auth":
+                                    auth_failed = True
+                                break
+                        except json.JSONDecodeError:
+                            pass
+                
+                if auth_failed:
+                    self._closed = True
+                    try:
+                        sock.close()
+                    except OSError:
+                        pass
+                    with self._lock:
+                        self._socket = None
+                    print(f"[NERVE] Connected to hub as '{client_id}' failed (auth).")
+                    return
+                
+                if not success:
+                    raise OSError("Handshake failed or connection closed.")
+                
+                sock.settimeout(None)
                 with self._lock:
                     if self._closed:
                         sock.close()
                         return
                     self._socket = sock
-                reg_msg = {"type": "register", "id": client_id}
-                if self.auth_token:
-                    reg_msg["token"] = self.auth_token
-                self._send_raw(reg_msg)
                 print(f"[NERVE] Connected to hub as '{client_id}'.")
                 return
             except OSError as exc:
@@ -545,7 +637,8 @@ class NexusClient:
             sock = self._socket
         if sock is None:
             raise OSError("Not connected to hub.")
-        sock.sendall((json.dumps(message) + "\n").encode("utf-8"))
+        with self._write_lock:
+            sock.sendall((json.dumps(message) + "\n").encode("utf-8"))
 
     def _send_with_retry(self, message: Dict[str, Any], action_name: str) -> None:
         try:
@@ -585,14 +678,6 @@ class NexusClient:
         self._send_with_retry({"type": "broadcast", "payload": payload}, "Broadcast")
 
     def list_clients(self) -> List[str]:
-        """
-        Request a list of currently active clients from the Hub.
-
-        Blocks up to 2 seconds waiting for the Hub's response.
-        
-        Returns:
-            List[str]: A list of active client IDs. Returns an empty list on timeout or error.
-        """
         if self._listening:
             with self._list_lock:
                 self._list_result = None
@@ -605,38 +690,39 @@ class NexusClient:
                     return self._list_result or []
                 return []
         else:
-            try:
-                self._send_raw({"type": "list"})
-            except OSError:
+            with self._read_lock:
+                try:
+                    self._send_raw({"type": "list"})
+                except OSError:
+                    return []
+                with self._lock:
+                    sock = self._socket
+                if sock is None:
+                    return []
+                sock.settimeout(2.0)
+                buffer = ""
+                try:
+                    while True:
+                        chunk = sock.recv(4096)
+                        if not chunk:
+                            break
+                        buffer += chunk.decode("utf-8", errors="replace")
+                        while "\n" in buffer:
+                            line, buffer = buffer.split("\n", 1)
+                            line = line.strip()
+                            if not line:
+                                continue
+                            try:
+                                msg = json.loads(line)
+                                if msg.get("type") == "list":
+                                    return msg.get("clients", [])
+                            except json.JSONDecodeError:
+                                pass
+                except socket.timeout:
+                    pass
+                finally:
+                    sock.settimeout(None)
                 return []
-            with self._lock:
-                sock = self._socket
-            if sock is None:
-                return []
-            sock.settimeout(2.0)
-            buffer = ""
-            try:
-                while True:
-                    chunk = sock.recv(4096)
-                    if not chunk:
-                        break
-                    buffer += chunk.decode("utf-8", errors="replace")
-                    while "\n" in buffer:
-                        line, buffer = buffer.split("\n", 1)
-                        line = line.strip()
-                        if not line:
-                            continue
-                        try:
-                            msg = json.loads(line)
-                            if msg.get("type") == "list":
-                                return msg.get("clients", [])
-                        except json.JSONDecodeError:
-                            pass
-            except socket.timeout:
-                pass
-            finally:
-                sock.settimeout(None)
-            return []
 
     def listen(
         self,

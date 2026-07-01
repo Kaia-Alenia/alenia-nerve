@@ -33,6 +33,23 @@ SOCK_PATH = "/tmp/nerve_test.sock"
 TCP_PORT = 59876
 
 
+@pytest.fixture(autouse=True)
+def setup_dynamic_addresses(tmp_path):
+    global SOCK_PATH, TCP_PORT
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("127.0.0.1", 0))
+    TCP_PORT = s.getsockname()[1]
+    s.close()
+    SOCK_PATH = str(tmp_path / "nerve_test.sock")
+    yield
+    if not IS_WINDOWS and os.path.exists(SOCK_PATH):
+        try:
+            os.remove(SOCK_PATH)
+        except OSError:
+            pass
+
+
+
 def hub_address():
     if IS_WINDOWS:
         return ("127.0.0.1", TCP_PORT)
@@ -239,6 +256,8 @@ class TestNexusHubClientRegistration:
         b = self._raw_connect()
         self._send(a, {"type": "register", "id": "list_a"})
         self._send(b, {"type": "register", "id": "list_b"})
+        self._recv_line(a)
+        self._recv_line(b)
         time.sleep(0.1)
         self._send(a, {"type": "list"})
         msg = self._recv_line(a)
@@ -320,6 +339,8 @@ class TestNexusHubMessaging:
         receiver = self._raw_connect()
         self._send(sender, {"type": "register", "id": "srv_sender"})
         self._send(receiver, {"type": "register", "id": "srv_receiver"})
+        self._recv_line(sender)
+        self._recv_line(receiver)
         time.sleep(0.1)
         self._send(sender, {"type": "send", "to": "srv_receiver", "payload": {"hello": "world"}})
         msg = self._recv_line(receiver)
@@ -334,6 +355,9 @@ class TestNexusHubMessaging:
         self._send(a, {"type": "register", "id": "bc_a"})
         self._send(b, {"type": "register", "id": "bc_b"})
         self._send(c, {"type": "register", "id": "bc_c"})
+        self._recv_line(a)
+        self._recv_line(b)
+        self._recv_line(c)
         time.sleep(0.1)
         self._send(a, {"type": "broadcast", "payload": {"event": "go"}})
         for sock in (b, c):
@@ -402,13 +426,17 @@ class TestAuthentication:
         client.disconnect()
         
     def test_unsuccessful_authentication_wrong_token(self):
-        # We need a custom client thread here or raw connect, because NexusClient 
-        # connect will block and retry if the hub drops connection on bad token.
         sock = self._raw_connect()
         self._send(sock, {"type": "register", "id": "bad_token_client", "token": "wrong_token"})
         time.sleep(0.1)
         assert "bad_token_client" not in self.hub.connected_clients
         sock.close()
+
+    def test_unsuccessful_authentication_client_disconnects_completely(self):
+        client = make_client(auth_token="wrong_token")
+        client.connect("bad_client")
+        assert client._closed is True
+        assert "bad_client" not in self.hub.connected_clients
 
     def test_unsuccessful_authentication_missing_token(self):
         sock = self._raw_connect()
@@ -444,7 +472,7 @@ class TestNexusClientAPI:
     def test_connect_non_string_id_raises(self):
         client = make_client()
         with pytest.raises(ValueError):
-            client.connect(123)  # type: ignore[arg-type]
+            client.connect(123)
 
     def test_disconnect_removes_from_hub(self):
         client = make_client()
@@ -592,7 +620,6 @@ class TestNexusClientAPI:
         client.listen(lambda p: None, on_reconnect=mock_reconnect)
         time.sleep(0.1)
         
-        # Simulate connection drop by shutting down the client socket
         import socket
         client._socket.shutdown(socket.SHUT_RDWR)
         client._socket.close()
