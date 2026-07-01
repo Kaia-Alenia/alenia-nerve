@@ -9,6 +9,18 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union, List
 
 
 def load_external_config(config_path: str = "nerve.config") -> Dict[str, Any]:
+    """
+    Load an external configuration file for Nerve.
+
+    Supports both JSON and simple key=value text formats.
+
+    Args:
+        config_path (str, optional): Path to the configuration file. Defaults to "nerve.config".
+
+    Returns:
+        Dict[str, Any]: A dictionary containing configuration values. Returns an empty
+            dictionary if the file does not exist or cannot be read.
+    """
     try:
         if not os.path.exists(config_path):
             return {}
@@ -32,6 +44,13 @@ def load_external_config(config_path: str = "nerve.config") -> Dict[str, Any]:
 
 
 class NexusHub:
+    """
+    The central message broker (Server) for Nerve IPC.
+
+    Coordinates message routing between connected NexusClient instances, using
+    either Unix Domain Sockets or TCP depending on the host platform.
+    """
+
     def __init__(
         self,
         verbose: bool = False,
@@ -41,24 +60,36 @@ class NexusHub:
         config_path: str = "nerve.config",
         auth_token: Optional[str] = None,
     ) -> None:
-        self.verbose = verbose
-        self.on_connect = on_connect
-        self.on_disconnect = on_disconnect
-        self.heartbeat_interval = heartbeat_interval
-        self._clients = {}
-        self._write_locks = {}
-        self._lock = threading.Lock()
-        self._running = False
-        self._server = None
-        self._active_sockets = set()
-        self._stop_event = threading.Event()
-        self.is_windows = platform.system() == "Windows"
+        """
+        Initialize the NexusHub server.
+
+        Args:
+            verbose (bool): Whether to log detailed message routing info. Defaults to False.
+            on_connect (Optional[Callable[[str], None]]): Callback executed when a client connects.
+                Passed the `client_id` as an argument.
+            on_disconnect (Optional[Callable[[str], None]]): Callback executed when a client disconnects.
+                Passed the `client_id` as an argument.
+            heartbeat_interval (float): Interval in seconds between heartbeat pings sent to clients. Defaults to 5.0.
+            config_path (str): Path to external configuration file. Defaults to "nerve.config".
+        """
+        self.verbose: bool = verbose
+        self.on_connect: Optional[Callable[[str], None]] = on_connect
+        self.on_disconnect: Optional[Callable[[str], None]] = on_disconnect
+        self.heartbeat_interval: float = heartbeat_interval
+        self._clients: Dict[str, socket.socket] = {}
+        self._write_locks: Dict[socket.socket, threading.Lock] = {}
+        self._lock: threading.Lock = threading.Lock()
+        self._running: bool = False
+        self._server: Optional[socket.socket] = None
+        self._active_sockets: set = set()
+        self._stop_event: threading.Event = threading.Event()
+        self.is_windows: bool = platform.system() == "Windows"
         config = load_external_config(config_path)
         self.auth_token = auth_token or config.get("auth_token")
         if self.is_windows:
             host = str(config.get("host", "127.0.0.1"))
             port = int(config.get("port", 50505))
-            self.address = (host, port)
+            self.address: Union[Tuple[str, int], str] = (host, port)
             self.socket_family = socket.AF_INET
         else:
             self.address = str(config.get("socket_path", "/tmp/nerve.sock"))
@@ -66,6 +97,12 @@ class NexusHub:
 
     @property
     def connected_clients(self) -> List[str]:
+        """
+        List of currently connected client IDs.
+
+        Returns:
+            List[str]: A list of active client IDs registered with the Hub.
+        """
         with self._lock:
             return list(self._clients.keys())
 
@@ -99,6 +136,13 @@ class NexusHub:
             return False
 
     def broadcast(self, payload: Any, exclude: Optional[str] = None) -> None:
+        """
+        Send a payload to all connected clients, optionally excluding a specific client.
+
+        Args:
+            payload (Any): The message payload to broadcast. Must be JSON serializable.
+            exclude (Optional[str], optional): Client ID to exclude from broadcast. Defaults to None.
+        """
         raw_bytes = (json.dumps(payload) + "\n").encode("utf-8")
         with self._lock:
             targets = list(self._clients.keys())
@@ -276,7 +320,13 @@ class NexusHub:
                     pass
 
     def start(self) -> None:
-        if not self.is_windows and os.path.exists(self.address):
+        """
+        Start the NexusHub server.
+        
+        This method is blocking and listens for incoming client connections.
+        Raises an OSError if the address is already in use.
+        """
+        if not self.is_windows and isinstance(self.address, str) and os.path.exists(self.address):
             test_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             try:
                 test_sock.connect(self.address)
@@ -294,7 +344,7 @@ class NexusHub:
 
         self._stop_event.clear()
 
-        if not self.is_windows:
+        if not self.is_windows and isinstance(self.address, str):
             orig_umask = os.umask(0o077)
             try:
                 self._server.bind(self.address)
@@ -310,13 +360,16 @@ class NexusHub:
             os.chmod(str(self.address), 0o600)
             self._log("95", "Hub active via Unix Socket at {}".format(self.address))
         else:
-            host, port = self.address
-            self._log("95", "Hub active via TCP at {}:{}".format(host, port))
+            if isinstance(self.address, tuple):
+                host, port = self.address
+                self._log("95", "Hub active via TCP at {}:{}".format(host, port))
+            else:
+                self._log("95", "Hub active via TCP at {}".format(self.address))
 
         self._start_heartbeat()
 
         try:
-            while self._running:
+            while self._running and self._server:
                 try:
                     conn, _ = self._server.accept()
                     with self._lock:
@@ -337,6 +390,9 @@ class NexusHub:
             self._log("93", "Hub has stopped.")
 
     def stop(self) -> None:
+        """
+        Stop the NexusHub server and forcefully disconnect all active clients.
+        """
         self._running = False
         self._stop_event.set()
         if self._server:
@@ -360,15 +416,29 @@ class NexusHub:
 
 
 class NexusClient:
+    """
+    Client interface for Nerve IPC.
+
+    Allows connection to a NexusHub, enabling bidirectional message passing
+    and broadcasting to other connected nodes. Handles auto-reconnection implicitly.
+    """
+
     def __init__(
         self,
         retry_interval: float = 2.0,
         config_path: str = "nerve.config",
         auth_token: Optional[str] = None,
     ) -> None:
-        self.retry_interval = retry_interval
-        self.client_id = None
-        self.is_windows = platform.system() == "Windows"
+        """
+        Initialize the NexusClient.
+
+        Args:
+            retry_interval (float): Seconds to wait before attempting auto-reconnection. Defaults to 2.0.
+            config_path (str): Path to external configuration file. Defaults to "nerve.config".
+        """
+        self.retry_interval: float = retry_interval
+        self.client_id: Optional[str] = None
+        self.is_windows: bool = platform.system() == "Windows"
         config = load_external_config(config_path)
         self.auth_token = auth_token or config.get("auth_token")
 
@@ -382,17 +452,28 @@ class NexusClient:
             self.socket_family = socket.AF_UNIX
 
         self._socket: Optional[socket.socket] = None
-        self._lock = threading.Lock()
-        self._closed = False
-        self._listening = False
-        self._list_lock = threading.Lock()
-        self._list_event = threading.Event()
-        self._list_result = None
+        self._lock: threading.Lock = threading.Lock()
+        self._closed: bool = False
+        self._listening: bool = False
+        self._list_lock: threading.Lock = threading.Lock()
+        self._list_event: threading.Event = threading.Event()
+        self._list_result: Optional[List[str]] = None
 
     def _make_socket(self) -> socket.socket:
         return socket.socket(self.socket_family, socket.SOCK_STREAM)
 
     def connect(self, client_id: str) -> None:
+        """
+        Connect to the local NexusHub with a unique ID.
+
+        Blocks until successfully connected, retrying continuously if the Hub is offline.
+
+        Args:
+            client_id (str): Unique identifier for this client on the Hub network.
+        
+        Raises:
+            ValueError: If the client_id is invalid.
+        """
         if not client_id or not isinstance(client_id, str):
             raise ValueError("client_id must be a non-empty string.")
         self.client_id = client_id
@@ -431,6 +512,9 @@ class NexusClient:
                 time.sleep(self.retry_interval)
 
     def disconnect(self) -> None:
+        """
+        Disconnect gracefully from the Hub and disable auto-reconnection.
+        """
         with self._lock:
             self._closed = True
             if self._socket:
@@ -458,14 +542,42 @@ class NexusClient:
             self._send_raw(message)
 
     def send(self, to: str, payload: Any) -> None:
+        """
+        Send a payload to a specific client node by ID.
+
+        If sending fails, attempts to reconnect and send again.
+
+        Args:
+            to (str): Target client ID to send the payload to.
+            payload (Any): The payload to send (must be JSON serializable).
+            
+        Raises:
+            ValueError: If 'to' is invalid.
+        """
         if not to or not isinstance(to, str):
             raise ValueError("'to' must be a non-empty string.")
         self._send_with_retry({"type": "send", "to": to, "payload": payload}, "Send")
 
     def broadcast(self, payload: Any) -> None:
+        """
+        Broadcast a payload to all connected clients except self.
+
+        If broadcasting fails, attempts to reconnect and broadcast again.
+
+        Args:
+            payload (Any): The payload to broadcast (must be JSON serializable).
+        """
         self._send_with_retry({"type": "broadcast", "payload": payload}, "Broadcast")
 
     def list_clients(self) -> List[str]:
+        """
+        Request a list of currently active clients from the Hub.
+
+        Blocks up to 2 seconds waiting for the Hub's response.
+        
+        Returns:
+            List[str]: A list of active client IDs. Returns an empty list on timeout or error.
+        """
         if self._listening:
             with self._list_lock:
                 self._list_result = None
@@ -516,6 +628,14 @@ class NexusClient:
         callback: Callable[[Any], None],
         on_reconnect: Optional[Callable[[], None]] = None,
     ) -> None:
+        """
+        Spawn a daemon thread to listen for incoming stream data from the Hub.
+
+        Args:
+            callback (Callable[[Any], None]): A function to invoke when a payload is received.
+            on_reconnect (Optional[Callable[[], None]], optional): An optional callback triggered
+                after successfully reconnecting to the Hub.
+        """
         self._listening = True
         def _listener() -> None:
             while not self._closed:
