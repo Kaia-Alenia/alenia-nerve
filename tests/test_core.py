@@ -246,49 +246,37 @@ class TestNexusHubClientRegistration:
 
     def test_on_connect_hook(self):
         connected = []
-        hub = make_hub(heartbeat_interval=0, on_connect=lambda cid: connected.append(cid))
-        t = threading.Thread(target=hub.start, daemon=True)
-        t.start()
-        time.sleep(0.15)
+        self.hub.on_connect = lambda cid: connected.append(cid)
         sock = self._raw_connect()
         self._send(sock, {"type": "register", "id": "hook_node"})
         time.sleep(0.1)
         assert "hook_node" in connected
         sock.close()
-        hub.stop()
-        t.join(timeout=2)
+        self.hub.on_connect = None
 
     def test_on_disconnect_hook(self):
         disconnected = []
-        hub = make_hub(heartbeat_interval=0, on_disconnect=lambda cid: disconnected.append(cid))
-        t = threading.Thread(target=hub.start, daemon=True)
-        t.start()
-        time.sleep(0.15)
+        self.hub.on_disconnect = lambda cid: disconnected.append(cid)
         sock = self._raw_connect()
         self._send(sock, {"type": "register", "id": "bye_node"})
         time.sleep(0.1)
         sock.close()
         time.sleep(0.2)
         assert "bye_node" in disconnected
-        hub.stop()
-        t.join(timeout=2)
+        self.hub.on_disconnect = None
 
     def test_on_disconnect_hook_exception(self):
         def broken_hook(cid):
             raise ValueError("broken hook")
 
-        hub = make_hub(heartbeat_interval=0, on_disconnect=broken_hook)
-        t = threading.Thread(target=hub.start, daemon=True)
-        t.start()
-        time.sleep(0.15)
+        self.hub.on_disconnect = broken_hook
         sock = self._raw_connect()
         self._send(sock, {"type": "register", "id": "error_node"})
         time.sleep(0.1)
         sock.close()
         time.sleep(0.2)
-        assert hub._running is True
-        hub.stop()
-        t.join(timeout=2)
+        assert self.hub._running is True
+        self.hub.on_disconnect = None
 
 
 class TestNexusHubMessaging:

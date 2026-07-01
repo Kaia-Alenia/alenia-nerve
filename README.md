@@ -2,7 +2,7 @@
 
 [![PyPI Version](https://img.shields.io/pypi/v/alenia-nerve.svg?color=blueviolet)](https://pypi.org/project/alenia-nerve/)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-darkviolet.svg)](https://github.com/Kaia-Alenia/alenia-nerve)
-[![License](https://img.shields.io/badge/License-Alenia%20Studios%20Tool%201.0-8a2be2.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-GPLv3-8a2be2.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blueviolet.svg)](#)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-indigo.svg)](#)
 <a href="https://gitgem.org/github/Kaia-Alenia/alenia-nerve"><img src="https://gitgem.org/api/badge/github/Kaia-Alenia/alenia-nerve.svg" alt="GitGem"></a>
@@ -129,15 +129,19 @@ pip install alenia-nerve --break-system-packages
 
 ---
 
-## Command Line Interface (CLI)
+## Command Line Interface (CLI) & The Main Hub
 
-Once installed, you can start the Nerve Hub globally from any terminal shell:
+Once you have the `alenia-nerve` library installed globally or in your virtual environment (`pip install alenia-nerve`), you don't need to write a custom Python script to start the server. You can simply open any terminal and type:
 
 ```bash
 nerve start
 ```
 
-For detailed message routing traces, run:
+This single command instantly spins up the **NexusHub** (the main server). By doing this:
+1. **Zero Configuration Needed:** This terminal will now run in the background and act as the central brain or router for your entire local network.
+2. **Automatic Discovery:** Any other tool, script, or app that uses the `NexusClient` will automatically discover and connect to this Hub to start sending and receiving messages seamlessly.
+
+If you want to see exactly what messages are flying between your apps in real-time (useful for debugging), you can use:
 ```bash
 nerve start --verbose
 ```
@@ -146,6 +150,14 @@ nerve start --verbose
 ```bash
 nerve --help
 ```
+
+### Synergy with Zenith (Alenia's Ecosystem)
+**Nerve** and **Zenith** are designed to work together as the backbone of Alenia's internal tools and our first apps. While Nerve handles high-speed communication, Zenith handles instantaneous application startup.
+
+In a typical Alenia ecosystem setup for these apps:
+1. **Start the Hub:** You open a terminal, run `nerve start` (or set it up as a background service), and keep it running. This ensures the central Hub is always alive and listening.
+2. **Ultra-fast Execution with Zenith:** Your various micro-tools and scripts are launched on demand. By using **Zenith** (`zenith.ignite()`) in those scripts, they completely bypass heavy Python module loading times (booting in just milliseconds).
+3. **Instant Communication:** These lightning-fast scripts connect to the existing Nerve Hub instantly, exchange data (like commands, configs, or states), and exit—or stay listening. This provides a highly decoupled, real-time local microservice architecture with zero latency or loading bottlenecks.
 
 ---
 
