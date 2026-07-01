@@ -25,3 +25,5 @@ venv.bak/
 
 site/
 AUDIT_REPORT.md
+TODO.md
+strace.out

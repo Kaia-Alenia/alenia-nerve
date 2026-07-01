@@ -93,6 +93,12 @@ class TestLoadExternalConfig:
     def test_missing_file_returns_empty(self):
         assert _core_load("/nonexistent/path/nerve.config") == {}
 
+    def test_read_error_returns_empty(self, tmp_path):
+        cfg = tmp_path / "nerve.config"
+        cfg.write_text("port=8888")
+        with patch("builtins.open", side_effect=OSError("Permission denied")):
+            assert _core_load(str(cfg)) == {}
+
     def test_json_format(self, tmp_path):
         cfg = tmp_path / "nerve.config"
         cfg.write_text(json.dumps({"port": 1234, "host": "0.0.0.0"}))
@@ -264,6 +270,23 @@ class TestNexusHubClientRegistration:
         sock.close()
         time.sleep(0.2)
         assert "bye_node" in disconnected
+        hub.stop()
+        t.join(timeout=2)
+
+    def test_on_disconnect_hook_exception(self):
+        def broken_hook(cid):
+            raise ValueError("broken hook")
+
+        hub = make_hub(heartbeat_interval=0, on_disconnect=broken_hook)
+        t = threading.Thread(target=hub.start, daemon=True)
+        t.start()
+        time.sleep(0.15)
+        sock = self._raw_connect()
+        self._send(sock, {"type": "register", "id": "error_node"})
+        time.sleep(0.1)
+        sock.close()
+        time.sleep(0.2)
+        assert hub._running is True
         hub.stop()
         t.join(timeout=2)
 
@@ -462,6 +485,46 @@ class TestNexusClientAPI:
         a.disconnect()
         b.disconnect()
 
+    def test_list_clients_timeout(self):
+        import socket
+
+        a = make_client()
+        a.connect("list_timeout")
+        time.sleep(0.1)
+
+        class MockSocket:
+            def __init__(self, sock):
+                self.sock = sock
+
+            def recv(self, *args, **kwargs):
+                raise socket.timeout()
+
+            def __getattr__(self, name):
+                return getattr(self.sock, name)
+
+        original_sock = a._socket
+        a._socket = MockSocket(original_sock)
+
+        result = a.list_clients()
+        assert result == []
+
+        a._socket = original_sock
+        a.disconnect()
+
+    def test_list_clients_ignores_malformed_json(self):
+        client = make_client()
+        mock_sock = MagicMock()
+        mock_sock.recv.side_effect = [
+            b"MALFORMED JSON\n",
+            b'{"type": "list", "clients": ["mock_a", "mock_b"]}\n',
+        ]
+        client._socket = mock_sock
+        client._send_raw = MagicMock()
+        client._listening = False
+        
+        result = client.list_clients()
+        assert set(result) == {"mock_a", "mock_b"}
+
     def test_ping_messages_not_forwarded_to_callback(self):
         receiver = make_client()
         received = []
@@ -478,6 +541,29 @@ class TestNexusClientAPI:
 
         assert received == [], "Ping should not be forwarded to user callback"
         receiver.disconnect()
+
+    def test_listen_on_reconnect_exception_handled(self):
+        client = make_client()
+        client.connect("reconnect_test_node")
+        
+        calls = []
+        def mock_reconnect():
+            calls.append(1)
+            raise RuntimeError("Test exception during reconnect")
+            
+        client.listen(lambda p: None, on_reconnect=mock_reconnect)
+        time.sleep(0.1)
+        
+        # Simulate connection drop by shutting down the client socket
+        import socket
+        client._socket.shutdown(socket.SHUT_RDWR)
+        client._socket.close()
+        
+        time.sleep(0.5)
+        
+        assert len(calls) >= 1, "on_reconnect should have been called"
+        assert client._listening is True, "Listener thread should continue running after on_reconnect exception"
+        client.disconnect()
 
 
 class TestIntegrationEndToEnd:

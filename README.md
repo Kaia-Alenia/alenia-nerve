@@ -12,6 +12,19 @@
 
 ---
 
+## What is Nerve for?
+
+Nerve is designed for developers who need to connect multiple local programs, scripts, or microservices so they can exchange data in real-time with sub-millisecond latency. Instead of running a heavy local web server (like Flask or FastAPI) that opens public ports, or writing to lock-prone shared files, Nerve creates a secure, ultra-fast, local communication bus.
+
+### Core Use Cases:
+* **Local Microservices & Desktop Apps:** Link a modern frontend (Electron, Tauri, Flutter) to a heavy Python backend or local AI model.
+* **AI & Real-Time Data Pipelines:** Stream data (audio, video, text) between processing nodes. If an AI node crashes, Nerve automatically reconnects it.
+* **Automation & Script Orchestration:** Coordinate background tasks (log collectors, auto-backup scripts, scrapers) and aggregate their outputs.
+* **Polyglot Communication:** Connect programs written in different languages (Python, Rust, C++, Go) using simple line-based JSON over standard local sockets.
+
+---
+
+
 ## The Concept: Sovereign Local Networks
 
 In modern game development, the privacy of your assets, source code, and metadata is paramount. **Nerve** acts as an ultra-fast local data bus, allowing independent processes (such as sprite slicers, gif renderers, and system monitors) to sync in real-time with sub-millisecond latency, without sending a single byte outside your physical workstation.

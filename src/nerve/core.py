@@ -95,24 +95,24 @@ class NexusHub:
         if self.heartbeat_interval <= 0:
             return
 
+        ping_payload = (json.dumps({"type": "ping"}) + "\n").encode("utf-8")
+
         def _run() -> None:
             while self._running:
                 if self._stop_event.wait(self.heartbeat_interval):
                     break
                 dead = []
                 with self._lock:
-                    targets = list(self._clients.items())
-                for client_id, conn in targets:
-                    lock = None
-                    with self._lock:
-                        lock = self._write_locks.get(conn)
+                    targets = [
+                        (client_id, conn, self._write_locks.get(conn))
+                        for client_id, conn in self._clients.items()
+                    ]
+                for client_id, conn, lock in targets:
                     if lock is None:
                         continue
                     try:
                         with lock:
-                            conn.sendall(
-                                (json.dumps({"type": "ping"}) + "\n").encode("utf-8")
-                            )
+                            conn.sendall(ping_payload)
                     except OSError:
                         dead.append((client_id, conn))
 
@@ -208,7 +208,7 @@ class NexusHub:
                         if self.verbose:
                             self._log(
                                 "95",
-                                "[VERBOSE] Routing '{}' → '{}': {}".format(client_id, target, payload),
+                                "[VERBOSE] Routing '{}' → '{}'".format(client_id, target),
                             )
                         success = self._send_to(target, payload)
                         if not success and self.verbose:
@@ -217,7 +217,7 @@ class NexusHub:
                     elif msg_type == "broadcast":
                         payload = msg.get("payload")
                         if self.verbose:
-                            self._log("95", "[VERBOSE] Broadcast from '{}': {}".format(client_id, payload))
+                            self._log("95", "[VERBOSE] Broadcast from '{}'".format(client_id))
                         self.broadcast(payload, exclude=client_id)
 
                     elif msg_type == "list":
@@ -420,25 +420,22 @@ class NexusClient:
             raise OSError("Not connected to hub.")
         sock.sendall((json.dumps(message) + "\n").encode("utf-8"))
 
+    def _send_with_retry(self, message: Dict[str, Any], action_name: str) -> None:
+        try:
+            self._send_raw(message)
+        except OSError as exc:
+            print(f"[NERVE] {action_name} failed ({exc}). Reconnecting...")
+            if self.client_id is not None:
+                self.connect(self.client_id)
+            self._send_raw(message)
+
     def send(self, to: str, payload: Any) -> None:
         if not to or not isinstance(to, str):
             raise ValueError("'to' must be a non-empty string.")
-        try:
-            self._send_raw({"type": "send", "to": to, "payload": payload})
-        except OSError as exc:
-            print(f"[NERVE] Send failed ({exc}). Reconnecting...")
-            if self.client_id is not None:
-                self.connect(self.client_id)
-            self._send_raw({"type": "send", "to": to, "payload": payload})
+        self._send_with_retry({"type": "send", "to": to, "payload": payload}, "Send")
 
     def broadcast(self, payload: Any) -> None:
-        try:
-            self._send_raw({"type": "broadcast", "payload": payload})
-        except OSError as exc:
-            print(f"[NERVE] Broadcast failed ({exc}). Reconnecting...")
-            if self.client_id is not None:
-                self.connect(self.client_id)
-            self._send_raw({"type": "broadcast", "payload": payload})
+        self._send_with_retry({"type": "broadcast", "payload": payload}, "Broadcast")
 
     def list_clients(self) -> List[str]:
         if self._listening:
