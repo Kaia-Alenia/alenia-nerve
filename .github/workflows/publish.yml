@@ -16,6 +16,22 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate tag matches package version
+        shell: bash
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PACKAGE_VERSION="$(grep '^version = ' pyproject.toml | head -n 1 | sed -E 's/version = \"([^\"]+)\"/\1/')"
+
+          if [[ -z "$PACKAGE_VERSION" ]]; then
+            echo "::error::Could not read package version from pyproject.toml"
+            exit 1
+          fi
+
+          if [[ "$TAG_VERSION" != "$PACKAGE_VERSION" ]]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' does not match pyproject version '$PACKAGE_VERSION'."
+            exit 1
+          fi
       
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -32,7 +48,6 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           print-hash: true
-          skip-existing: true
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
