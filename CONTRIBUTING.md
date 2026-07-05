@@ -16,7 +16,7 @@ First off, thank you for considering contributing to Nerve! It's people like you
 1. Fork the repo and create your branch from `main`.
 2. Install the package in editable development mode:
    ```bash
-   pip install -e .
+   pip install -e clients/python/
    ```
 3. If you've added code that should be tested, add unit tests in the `tests/` directory.
 4. Ensure the test suite passes.
