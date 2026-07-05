@@ -9,8 +9,8 @@ on:
       - main
 
 jobs:
-  test:
-    name: Test on ${{ matrix.os }} with Python ${{ matrix.python-version }}
+  test-python:
+    name: Python Matrix - ${{ matrix.os }} - Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -41,3 +41,78 @@ jobs:
         env:
           PYTHONPATH: src
         run: python -m pytest tests/
+
+  lint-python:
+    name: Python Lint (Ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Run Ruff Format check
+        run: ruff format --check clients/python
+
+      - name: Run Ruff Linter check
+        run: ruff check clients/python
+
+  test-javascript:
+    name: JavaScript Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clients/javascript
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+  test-rust:
+    name: Rust Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clients/rust
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Run fmt check
+        run: cargo fmt --check
+
+      - name: Run tests
+        run: cargo test
+
+  test-go:
+    name: Go Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clients/go
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+
+      - name: Run tests
+        run: go test -v ./...

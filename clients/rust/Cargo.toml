@@ -1,0 +1,10 @@
+[package]
+name = "alenia-nerve"
+version = "1.0.0-alpha.1"
+edition = "2021"
+authors = ["Alenia Studios <contact.aleniastudios@gmail.com>"]
+description = "Rust client for Alenia Nerve local IPC engine"
+license = "GPL-3.0-only"
+
+[dependencies]
+# Dependencies will be added during implementation

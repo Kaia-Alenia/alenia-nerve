@@ -1,0 +1,12 @@
+{
+  "name": "alenia-nerve",
+  "version": "1.0.0-alpha.1",
+  "description": "JavaScript/TypeScript client for Alenia Nerve local IPC engine",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js",
+    "lint": "echo 'No lint rules defined yet'"
+  },
+  "author": "Alenia Studios <contact.aleniastudios@gmail.com>",
+  "license": "GPL-3.0-only"
+}
