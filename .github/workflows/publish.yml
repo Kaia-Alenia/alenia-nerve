@@ -21,10 +21,10 @@ jobs:
         shell: bash
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
-          PACKAGE_VERSION="$(grep '^version = ' pyproject.toml | head -n 1 | sed -E 's/version = \"([^\"]+)\"/\1/')"
+          PACKAGE_VERSION="$(grep '^version = ' clients/python/pyproject.toml | head -n 1 | sed -E 's/version = \"([^\"]+)\"/\1/')"
 
           if [[ -z "$PACKAGE_VERSION" ]]; then
-            echo "::error::Could not read package version from pyproject.toml"
+            echo "::error::Could not read package version from clients/python/pyproject.toml"
             exit 1
           fi
 
@@ -42,16 +42,18 @@ jobs:
         run: python -m pip install build
 
       - name: Build binary wheel and source tarball
+        working-directory: clients/python
         run: python -m build
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           print-hash: true
+          packages-dir: clients/python/dist/
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/*
+          files: clients/python/dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
