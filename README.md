@@ -103,21 +103,30 @@ Nerve is not just for game development. It is a zero-dependency, ultra-fast solu
 
 ---
 
-## Installation
+## Monorepo Structure & Supported Clients
+
+Nerve is structured as a Monorepo containing the main Hub and the official client libraries for various programming languages:
+
+```
+alenia-nerve/
+├── clients/
+│   ├── python/        # Official Python client & CLI Hub
+│   ├── javascript/    # Node.js & Browser client
+│   ├── rust/          # Rust client library
+│   └── go/            # Go client library
+```
+
+Refer to each client's subdirectory for specific installation and usage instructions.
+
+## Installation (Python Client & CLI Hub)
 
 We highly recommend installing this tool inside an isolated virtual environment to comply with modern OS security standards (PEP 668) and avoid dependency conflicts.
 
 ```bash
-# 1. Create a virtual environment
 python3 -m venv alenia_env
 
-# 2. Activate it
-# On Linux/macOS:
 source alenia_env/bin/activate
-# On Windows:
-alenia_env\Scripts\activate
 
-# 3. Install the engine
 pip install alenia-nerve
 ```
 
