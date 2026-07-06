@@ -1,6 +1,6 @@
 # Nerve — Decentralized Nervous System for Local Sockets
 
-[![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-darkviolet.svg)](https://github.com/Kaia-Alenia/alenia-nerve) <a href="https://gitgem.org/github/Kaia-Alenia/alenia-nerve"><img src="https://gitgem.org/api/badge/github/Kaia-Alenia/alenia-nerve.svg" alt="GitGem"></a>
+[![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-darkviolet.svg?style=for-the-badge)](https://github.com/Kaia-Alenia/alenia-nerve) <a href="https://gitgem.org/github/Kaia-Alenia/alenia-nerve"><img src="https://gitgem.org/api/badge/github/Kaia-Alenia/alenia-nerve.svg" alt="GitGem"></a>
 
 
 > **Sovereignty, Speed, and Complete Privacy.** Nerve is the cross-platform local inter-process communication engine designed by **Alenia Studios** to orchestrate game development tools locally, requiring zero cloud dependency.
@@ -27,7 +27,7 @@ In modern game development, the privacy of your assets, source code, and metadat
 ---
 
 ## Multi-Platform Native Core (UDS & TCP)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blueviolet.svg)](#)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blueviolet.svg?style=for-the-badge)](#)
 
 Nerve is fully cross-platform and dynamically adapts to the host operating system to deliver the best local latency possible:
 * **Linux & macOS**: Utilizes native **Unix Domain Sockets (UDS)** via `socket.AF_UNIX` at `/tmp/nerve.sock` for high-performance direct memory piping.
@@ -115,7 +115,7 @@ alenia-nerve/
 Refer to each client's subdirectory for specific installation and usage instructions.
 
 ## Installation (Python Client & CLI Hub)
-[![PyPI Version](https://img.shields.io/pypi/v/alenia-nerve.svg?color=blueviolet)](https://pypi.org/project/alenia-nerve/) [![Python](https://img.shields.io/badge/Python-3.10%2B-indigo.svg)](#)
+[![PyPI Version](https://img.shields.io/pypi/v/alenia-nerve.svg?color=blueviolet)](https://pypi.org/project/alenia-nerve/) [![Python](https://img.shields.io/badge/Python-3.10%2B-indigo.svg?style=for-the-badge)](#)
 
 We highly recommend installing this tool inside an isolated virtual environment to comply with modern OS security standards (PEP 668) and avoid dependency conflicts.
 
@@ -230,7 +230,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 ---
 
 ## License
-[![License](https://img.shields.io/badge/License-GPLv3-8a2be2.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-GPLv3-8a2be2.svg?style=for-the-badge)](LICENSE)
 
 This software is distributed under the **GNU General Public License v3 (GPL v3)**. See [LICENSE](LICENSE) for more details.
 
