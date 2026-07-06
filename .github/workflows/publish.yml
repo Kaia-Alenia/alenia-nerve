@@ -52,7 +52,7 @@ jobs:
           packages-dir: clients/python/dist/
 
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           files: clients/python/dist/*
         env:
