@@ -15,7 +15,7 @@ Provides both an async (`NexusClient`) and a blocking/sync (`SyncNexusClient`) A
 
 ```toml
 [dependencies]
-alenia-nerve = "1.4.0"
+alenia-nerve = "1.4.1"
 ```
 
 ## Quick Start
