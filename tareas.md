@@ -65,15 +65,15 @@ Este archivo registra el progreso de la reestructuración y el desarrollo del mo
 
 ## Fase 6: Herramientas del Ecosistema y CLI
 
-- [ ] CLI global `nerve-cli monitor` para monitoreo del Hub en tiempo real.
-- [ ] Dashboard web ligero (local) para visualizar conexiones y latencia.
-- [ ] Visor gráfico de topología de la red de procesos (Nexus Topology View).
+- [x] CLI global `nerve-cli monitor` para monitoreo del Hub en tiempo real.
+- [x] Dashboard web ligero (local) para visualizar conexiones y latencia.
+- [x] Visor gráfico de topología de la red de procesos (Nexus Topology View).
 
 ## Fase 7: Ampliación de Clientes y Puentes
 
-- [ ] Cliente de C++ nativo para integraciones con motores de juegos.
-- [ ] Cliente de C# / .NET para aplicaciones de escritorio y Unity.
-- [ ] Puente HTTP-a-Nerve con WebSockets fallback para navegadores web.
+- [x] Cliente de C++ nativo para integraciones con motores de juegos.
+- [x] Cliente de C# / .NET para aplicaciones de escritorio y Unity.
+- [x] Puente HTTP-a-Nerve con WebSockets fallback para navegadores web.
 
 ## Fase 8: Pruebas de Integración Cruzada
 
