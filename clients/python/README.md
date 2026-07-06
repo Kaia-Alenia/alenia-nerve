@@ -1,12 +1,18 @@
 # Alenia Nerve - Python Client & CLI Hub
 
+[![PyPI Version](https://img.shields.io/pypi/v/alenia-nerve.svg?style=for-the-badge&color=blueviolet)](https://pypi.org/project/alenia-nerve/)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-indigo.svg?style=for-the-badge)](#)
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg?style=for-the-badge)](../../LICENSE)
+
 This is the official Python client library and Command Line Interface (CLI) for Alenia Nerve, the ultra-fast local inter-process communication (IPC) engine.
 
 ## The Nerve CLI Hub
 
 The Python package includes the central CLI tool (`nerve`) used to boot and manage the central IPC routing Hub.
 
-![Nerve Hub Console](../../assets/python_client.svg)
+<div align="center">
+  <img src="../../assets/python_client.svg" alt="Nerve Hub Console" width="100%">
+</div>
 
 ### Running the Hub
 

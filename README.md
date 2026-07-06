@@ -143,6 +143,10 @@ Once you have the `alenia-nerve` library installed globally or in your virtual e
 nerve start
 ```
 
+<div align="center">
+  <img src="assets/nerve_hub.svg" alt="Nerve Hub CLI Terminal Capture" width="100%">
+</div>
+
 This single command instantly spins up the **NexusHub** (the main server). By doing this:
 1. **Zero Configuration Needed:** This terminal will now run in the background and act as the central brain or router for your entire local network.
 2. **Automatic Discovery:** Any other tool, script, or app that uses the `NexusClient` will automatically discover and connect to this Hub to start sending and receiving messages seamlessly.
