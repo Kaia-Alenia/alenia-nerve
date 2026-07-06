@@ -90,7 +90,7 @@ class NexusHub:
         self._server: Optional[socket.socket] = None
         self._active_sockets: set = set()
         self._stop_event: threading.Event = threading.Event()
-        
+
         self._uptime_start: float = time.time()
         self._total_messages_sent: int = 0
         self._total_messages_received: int = 0
@@ -459,7 +459,9 @@ class NexusHub:
                                 lock = self._write_locks.get(conn)
                             if lock is not None:
                                 with lock:
-                                    conn.sendall((json.dumps(metrics) + "\n").encode("utf-8"))
+                                    conn.sendall(
+                                        (json.dumps(metrics) + "\n").encode("utf-8")
+                                    )
                         except OSError:
                             pass
 

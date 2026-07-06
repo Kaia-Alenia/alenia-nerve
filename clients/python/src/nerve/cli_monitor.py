@@ -10,11 +10,9 @@ from nerve.core import NexusClient
 from nerve import __version__
 
 # Global state for dashboard
-LATEST_DATA: Dict[str, Any] = {
-    "metrics": {},
-    "clients": []
-}
+LATEST_DATA: Dict[str, Any] = {"metrics": {}, "clients": []}
 DASHBOARD_DIR = os.path.join(os.path.dirname(__file__), "dashboard")
+
 
 class DashboardHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -31,7 +29,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b"Dashboard index.html not found.")
                 return
-            
+
             with open(index_path, "rb") as f:
                 content = f.read()
             self.send_response(200)
@@ -46,6 +44,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         # Suppress default HTTP logging to keep console clean
         pass
 
+
 def data_fetcher_loop(client: NexusClient):
     while True:
         try:
@@ -57,9 +56,10 @@ def data_fetcher_loop(client: NexusClient):
             pass
         time.sleep(1.0)
 
+
 def run_dashboard(port: int = 8080):
     print(f"\033[95m[NERVE CLI]\033[0m Starting Dashboard on http://localhost:{port}")
-    
+
     # Connect client
     client = NexusClient()
     try:
@@ -70,7 +70,9 @@ def run_dashboard(port: int = 8080):
         sys.exit(1)
 
     # Start data fetcher
-    fetcher_thread = threading.Thread(target=data_fetcher_loop, args=(client,), daemon=True)
+    fetcher_thread = threading.Thread(
+        target=data_fetcher_loop, args=(client,), daemon=True
+    )
     fetcher_thread.start()
 
     # Start HTTP server
@@ -87,11 +89,12 @@ def run_dashboard(port: int = 8080):
 
 
 def format_bytes(b: int) -> str:
-    for unit in ['B', 'KB', 'MB', 'GB']:
+    for unit in ["B", "KB", "MB", "GB"]:
         if b < 1024.0:
             return f"{b:.1f} {unit}"
         b /= 1024.0
     return f"{b:.1f} TB"
+
 
 def run_monitor():
     client = NexusClient()
@@ -101,7 +104,7 @@ def run_monitor():
         print(f"\033[91m[NERVE CLI]\033[0m Could not connect to Hub: {e}")
         print("Is the Nerve Hub running? Run 'nerve start' in another terminal.")
         sys.exit(1)
-    
+
     # Hide cursor
     sys.stdout.write("\033[?25l")
     sys.stdout.flush()
@@ -118,7 +121,7 @@ def run_monitor():
 
             # Clear screen and move to top-left
             sys.stdout.write("\033[2J\033[H")
-            
+
             output = [
                 f"\033[95m=== NERVE HUB MONITOR ===\033[0m  (v{__version__})",
                 f"Uptime: \033[92m{uptime_str}\033[0m",
@@ -129,18 +132,18 @@ def run_monitor():
                 f"Bytes Sent        : \033[96m{format_bytes(metrics.get('total_bytes_sent', 0))}\033[0m",
                 f"Bytes Received    : \033[96m{format_bytes(metrics.get('total_bytes_received', 0))}\033[0m",
                 "-" * 40,
-                "\033[95mActive Client Nodes:\033[0m"
+                "\033[95mActive Client Nodes:\033[0m",
             ]
 
             for cid in clients:
                 output.append(f"  \033[92m•\033[0m {cid}")
-            
+
             if not clients:
                 output.append("  \033[90m(no clients connected)\033[0m")
 
             output.append("-" * 40)
             output.append("\033[90mPress Ctrl+C to exit\033[0m")
-            
+
             sys.stdout.write("\n".join(output) + "\n")
             sys.stdout.flush()
 

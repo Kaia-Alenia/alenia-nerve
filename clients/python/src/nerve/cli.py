@@ -98,7 +98,9 @@ def main() -> None:
         try:
             from nerve.bridge import run_bridge
         except ImportError:
-            print(f"{RED}[NERVE CLI] 'websockets' not installed. Install with 'pip install websockets' to use bridge.{RESET}")
+            print(
+                f"{RED}[NERVE CLI] 'websockets' not installed. Install with 'pip install websockets' to use bridge.{RESET}"
+            )
             sys.exit(1)
         port = 50506
         if "--port" in args:
