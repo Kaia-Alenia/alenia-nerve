@@ -35,7 +35,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "pytest-timeout"]
+dev = ["pytest>=7.0", "pytest-timeout", "pytest-asyncio"]
 
 [project.scripts]
 nerve = "nerve.cli:main"
