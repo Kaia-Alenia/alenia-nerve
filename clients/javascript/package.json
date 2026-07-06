@@ -1,12 +1,41 @@
 {
   "name": "alenia-nerve",
-  "version": "1.0.0-alpha.1",
-  "description": "JavaScript/TypeScript client for Alenia Nerve local IPC engine",
+  "version": "1.3.8",
+  "description": "JavaScript/Node.js client for the Alenia Nerve local IPC engine (UDS + TCP)",
   "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "test": "node test.js",
-    "lint": "echo 'No lint rules defined yet'"
+    "lint": "npx --yes eslint index.js --env node --rule 'no-unused-vars: warn'"
   },
+  "keywords": [
+    "ipc",
+    "sockets",
+    "unix-domain-sockets",
+    "tcp",
+    "nerve",
+    "alenia",
+    "local",
+    "interprocess-communication",
+    "game-development"
+  ],
   "author": "Alenia Studios <contact.aleniastudios@gmail.com>",
-  "license": "GPL-3.0-only"
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kaia-Alenia/alenia-nerve.git"
+  },
+  "homepage": "https://github.com/Kaia-Alenia/alenia-nerve#readme",
+  "bugs": {
+    "url": "https://github.com/Kaia-Alenia/alenia-nerve/issues"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
 }

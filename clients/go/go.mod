@@ -1,3 +1,3 @@
-module github.com/Kaia-Alenia/alenia-nerve/clients/go
+module github.com/Kaia-Alenia/alenia-nerve/go
 
 go 1.21
