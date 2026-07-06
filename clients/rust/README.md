@@ -1,8 +1,12 @@
 # alenia-nerve — Rust Client
 
-[![crates.io](https://img.shields.io/crates/v/alenia-nerve.svg?style=for-the-badge&color=orange)](https://crates.io/crates/alenia-nerve)
-[![docs.rs](https://img.shields.io/docsrs/alenia-nerve.svg?style=for-the-badge&color=blue)](https://docs.rs/alenia-nerve)
-[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg?style=for-the-badge)](../../LICENSE)
+[![crates.io](https://img.shields.io/crates/v/alenia-nerve.svg?color=orange&label=crates.io)](https://crates.io/crates/alenia-nerve)
+[![crates.io Downloads](https://img.shields.io/crates/d/alenia-nerve.svg?color=orange&label=Downloads)](https://crates.io/crates/alenia-nerve)
+[![docs.rs](https://img.shields.io/docsrs/alenia-nerve.svg?color=blue&label=docs.rs)](https://docs.rs/alenia-nerve)
+[![Rust](https://img.shields.io/badge/Rust-1.70%2B-orange.svg)](#)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blueviolet.svg)](#)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPLv3-blue.svg)](../../LICENSE)
+[![Ko-fi](https://img.shields.io/badge/Support%20on-Ko--fi-FF5E5B.svg)](https://ko-fi.com/aleniastudios)
 
 <div align="center">
   <img src="../../assets/rust_client.svg" alt="Rust Client" width="100%">
@@ -13,9 +17,17 @@ Provides both an async (`NexusClient`) and a blocking/sync (`SyncNexusClient`) A
 
 ## Installation
 
+Install the crate using `cargo`:
+
+```bash
+cargo add alenia-nerve
+```
+
+Alternatively, add it manually to your `Cargo.toml`:
+
 ```toml
 [dependencies]
-alenia-nerve = "1.4.1"
+alenia-nerve = "1.4.2"
 ```
 
 ## Quick Start

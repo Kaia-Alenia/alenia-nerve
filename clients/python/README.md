@@ -1,8 +1,11 @@
-# Alenia Nerve - Python Client & CLI Hub
+# Alenia Nerve — Python Client & CLI Hub
 
-[![PyPI Version](https://img.shields.io/pypi/v/alenia-nerve.svg?style=for-the-badge&color=blueviolet)](https://pypi.org/project/alenia-nerve/)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-indigo.svg?style=for-the-badge)](#)
-[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg?style=for-the-badge)](../../LICENSE)
+[![PyPI Version](https://img.shields.io/pypi/v/alenia-nerve.svg?color=blueviolet&label=PyPI)](https://pypi.org/project/alenia-nerve/)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/alenia-nerve.svg?color=blueviolet&label=Downloads%2Fmo)](https://pypi.org/project/alenia-nerve/)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-indigo.svg)](#)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blueviolet.svg)](#)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPLv3-blue.svg)](../../LICENSE)
+[![Ko-fi](https://img.shields.io/badge/Support%20on-Ko--fi-FF5E5B.svg)](https://ko-fi.com/aleniastudios)
 
 This is the official Python client library and Command Line Interface (CLI) for Alenia Nerve, the ultra-fast local inter-process communication (IPC) engine.
 

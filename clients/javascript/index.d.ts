@@ -1,3 +1,10 @@
+/**
+ * Nerve — Decentralized Nervous System for Local Sockets.
+ * Javascript client library types.
+ *
+ * Built by Alenia Studios.
+ * License: GNU General Public License v3 (GPL v3)
+ */
 import { EventEmitter } from 'events';
 
 export interface NexusClientOptions {

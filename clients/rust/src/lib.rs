@@ -565,9 +565,40 @@ impl SyncNexusClient {
         F: Fn(serde_json::Value) + Send + Sync + 'static,
     {
         let client = self.async_client.clone();
+        
+        let (tx, rx) = std::sync::mpsc::channel();
+        let (rec_tx, rec_rx) = std::sync::mpsc::channel();
+        
+        let has_reconnect = on_reconnect.is_some();
+
         self.rt.block_on(async move {
             let guard = client.lock().await;
-            guard.listen(callback, on_reconnect).await;
+            
+            let on_rec: Option<Box<dyn Fn() + Send + Sync + 'static>> = if has_reconnect {
+                Some(Box::new(move || {
+                    let _ = rec_tx.send(());
+                }))
+            } else {
+                None
+            };
+
+            guard.listen(move |msg| {
+                let _ = tx.send(msg);
+            }, on_rec).await;
         });
+
+        std::thread::spawn(move || {
+            while let Ok(msg) = rx.recv() {
+                callback(msg);
+            }
+        });
+        
+        if let Some(cb) = on_reconnect {
+            std::thread::spawn(move || {
+                while let Ok(_) = rec_rx.recv() {
+                    cb();
+                }
+            });
+        }
     }
 }

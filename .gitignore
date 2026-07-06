@@ -24,14 +24,12 @@ env.bak/
 venv.bak/
 
 site/
-AUDIT_REPORT.md
 strace.out
-jules_todo.md
-todo_jules.md
 
 # Agent and tool configurations
 .agents/
 .pytest_cache/
 .coverage
 .vscode/
-
+target/
+node_modules/
