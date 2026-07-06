@@ -46,6 +46,9 @@ jobs:
 
       - name: Run tests
         run: npm test
+        
+      - name: Check npm auth
+        run: npm whoami
 
       - name: Publish to npm
         run: npm publish --provenance --access public
