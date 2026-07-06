@@ -53,9 +53,9 @@ Este archivo registra el progreso de la reestructuración y el desarrollo del mo
 - [x] Configurar publicación a npm (`publish-npm.yml`) con provenance y validación.
 - [x] Configurar publicación a crates.io (`publish-rust.yml`) con clippy, fmt y tests.
 - [x] Actualizar CI con matrix de Node.js (18/20/22), `cargo clippy`, `go vet` y `-race`.
-- [ ] Crear cuenta y token en crates.io → agregar secreto `CRATES_IO_TOKEN` en GitHub.
-- [ ] Crear token en npm → agregar secreto `NPM_TOKEN` en GitHub.
-- [ ] Realizar el primer release tag `v1.3.8` y verificar que los 3 workflows de publicación completan exitosamente.
+- [x] Crear cuenta y token en crates.io → agregar secreto `CRATES_IO_TOKEN` en GitHub.
+- [x] Crear token en npm → agregar secreto `NPM_TOKEN` en GitHub.
+- [ ] Realizar el primer release tag `v1.3.9` y verificar que los 3 workflows de publicación completan exitosamente.
 
 ## Fase 5: Robustez y Seguridad Avanzada
 
