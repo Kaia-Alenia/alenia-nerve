@@ -77,6 +77,6 @@ Este archivo registra el progreso de la reestructuración y el desarrollo del mo
 
 ## Fase 8: Pruebas de Integración Cruzada
 
-- [ ] Suite de pruebas cruzadas (Python ↔ JS, Python ↔ Go, JS ↔ Rust).
-- [ ] Benchmark de latencia sub-milisegundo entre clientes en local.
-- [ ] Entorno de integración continua con hub real en el pipeline de GitHub Actions.
+- [x] Suite de pruebas cruzadas (Python ↔ JS, Python ↔ Go, JS ↔ Rust).
+- [x] Benchmark de latencia sub-milisegundo entre clientes en local.
+- [x] Entorno de integración continua con hub real en el pipeline de GitHub Actions.
