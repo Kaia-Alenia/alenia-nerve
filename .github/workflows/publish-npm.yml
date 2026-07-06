@@ -24,6 +24,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Validate tag matches package version
         shell: bash
@@ -52,6 +53,12 @@ jobs:
           echo "HOME=$HOME"
           ls -la ~
           cat ~/.npmrc || true
+
+      - name: Check npm version
+        run: npm --version
+
+      - name: Update npm
+        run: npm install -g npm@latest
 
       - name: Publish to npm
         env:
