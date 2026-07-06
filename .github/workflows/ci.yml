@@ -21,7 +21,7 @@ jobs:
       run:
         working-directory: clients/python
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -44,7 +44,7 @@ jobs:
     name: Python Lint (Ruff)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -70,7 +70,7 @@ jobs:
       run:
         working-directory: clients/javascript
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Node.js ${{ matrix.node }}
         uses: actions/setup-node@v4
@@ -90,7 +90,7 @@ jobs:
       run:
         working-directory: clients/rust
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -113,7 +113,7 @@ jobs:
       run:
         working-directory: clients/go
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Go
         uses: actions/setup-go@v5
