@@ -425,7 +425,7 @@ class NexusHub:
                         wrapped = {
                             "type": "send",
                             "from": client_id,
-                            "payload": payload
+                            "payload": payload,
                         }
                         success = self._send_to(target, wrapped)
                         if not success and self.verbose:
@@ -443,7 +443,7 @@ class NexusHub:
                         wrapped = {
                             "type": "broadcast",
                             "from": client_id,
-                            "payload": payload
+                            "payload": payload,
                         }
                         self.broadcast(wrapped, exclude=client_id)
 

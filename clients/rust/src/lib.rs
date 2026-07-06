@@ -600,7 +600,7 @@ impl SyncNexusClient {
 
         if let Some(cb) = on_reconnect {
             std::thread::spawn(move || {
-                while let Ok(_) = rec_rx.recv() {
+                while rec_rx.recv().is_ok() {
                     cb();
                 }
             });
