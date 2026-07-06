@@ -1,3 +1,18 @@
+# -----------------------------------------------------------------------------
+# This file is part of Nerve.
+#
+# Nerve is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 3 of the License.
+#
+# Nerve is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Nerve. If not, see <https://www.gnu.org/licenses/>.
+# -----------------------------------------------------------------------------
 import json
 import os
 import platform
@@ -270,8 +285,7 @@ class NexusHub:
                 try:
                     chunk = conn.recv(4096)
                 except (socket.timeout, TimeoutError):
-                    self._log("91", "Client connection timeout.")
-                    break
+                    continue
                 except OSError:
                     break
                 if not chunk:
@@ -408,7 +422,12 @@ class NexusHub:
                                     client_id, target
                                 ),
                             )
-                        success = self._send_to(target, payload)
+                        wrapped = {
+                            "type": "send",
+                            "from": client_id,
+                            "payload": payload,
+                        }
+                        success = self._send_to(target, wrapped)
                         if not success and self.verbose:
                             self._log(
                                 "93",
@@ -421,7 +440,12 @@ class NexusHub:
                             self._log(
                                 "95", "[VERBOSE] Broadcast from '{}'".format(client_id)
                             )
-                        self.broadcast(payload, exclude=client_id)
+                        wrapped = {
+                            "type": "broadcast",
+                            "from": client_id,
+                            "payload": payload,
+                        }
+                        self.broadcast(wrapped, exclude=client_id)
 
                     elif msg_type == "list":
                         client_list = self.connected_clients

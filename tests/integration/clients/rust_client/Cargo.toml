@@ -1,0 +1,9 @@
+[package]
+name = "rust_client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+alenia-nerve = { path = "../../../../clients/rust" }
+tokio = { version = "1", features = ["full"] }
+serde_json = "1.0"

@@ -1,3 +1,10 @@
+/**
+ * Nerve — Decentralized Nervous System for Local Sockets.
+ * Javascript client library implementation.
+ *
+ * Built by Alenia Studios.
+ * License: GNU General Public License v3 (GPL v3)
+ */
 const net = require('net');
 const tls = require('tls');
 const fs = require('fs');

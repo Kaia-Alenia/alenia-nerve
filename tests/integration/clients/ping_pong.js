@@ -7,17 +7,24 @@ client.on('reconnect', (attempt) => {
 });
 
 client.connect('js_client').then(() => {
-    client.listen((payload) => {
-        if (payload && payload.event === 'ping') {
+    client.listen((msg) => {
+        // msg is the full message: {"type": ..., "from": ..., "payload": {...}}
+        const payload = msg && msg.payload;
+        if (!payload) return;
+
+        if (payload.event === 'ping') {
+            console.log(`[JS] Received ping from ${msg.from || 'unknown'}, sending pong...`);
             // Echo timestamp back to calculate latency
-            client.broadcast({ 
+            client.broadcast({
                 event: 'pong',
-                from: 'js_client', 
-                timestamp: payload.timestamp 
+                from: 'js_client',
+                timestamp: payload.timestamp,
             });
+        } else if (payload.event === 'pong') {
+            console.log(`[JS] Received pong from ${payload.from}`);
         }
     });
 }).catch(console.error);
 
-// Keep alive
+// Keep alive until terminated by the test harness.
 setInterval(() => {}, 1000);

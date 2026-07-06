@@ -1,3 +1,18 @@
+# -----------------------------------------------------------------------------
+# This file is part of Nerve.
+#
+# Nerve is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 3 of the License.
+#
+# Nerve is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Nerve. If not, see <https://www.gnu.org/licenses/>.
+# -----------------------------------------------------------------------------
 import os
 import sys
 import time
@@ -9,7 +24,7 @@ from typing import Dict, Any
 from nerve.core import NexusClient
 from nerve import __version__
 
-# Global state for dashboard
+
 LATEST_DATA: Dict[str, Any] = {"metrics": {}, "clients": []}
 DASHBOARD_DIR = os.path.join(os.path.dirname(__file__), "dashboard")
 
@@ -41,7 +56,6 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
     def log_message(self, format, *args):
-        # Suppress default HTTP logging to keep console clean
         pass
 
 
@@ -60,7 +74,6 @@ def data_fetcher_loop(client: NexusClient):
 def run_dashboard(port: int = 8080):
     print(f"\033[95m[NERVE CLI]\033[0m Starting Dashboard on http://localhost:{port}")
 
-    # Connect client
     client = NexusClient()
     try:
         client.connect("nerve-dashboard")
@@ -69,13 +82,11 @@ def run_dashboard(port: int = 8080):
         print("Is the Nerve Hub running? Run 'nerve start' in another terminal.")
         sys.exit(1)
 
-    # Start data fetcher
     fetcher_thread = threading.Thread(
         target=data_fetcher_loop, args=(client,), daemon=True
     )
     fetcher_thread.start()
 
-    # Start HTTP server
     try:
         server = HTTPServer(("0.0.0.0", port), DashboardHandler)
         print("\033[92m[NERVE CLI]\033[0m Dashboard running. Press Ctrl+C to stop.")
@@ -105,7 +116,6 @@ def run_monitor():
         print("Is the Nerve Hub running? Run 'nerve start' in another terminal.")
         sys.exit(1)
 
-    # Hide cursor
     sys.stdout.write("\033[?25l")
     sys.stdout.flush()
 
@@ -119,7 +129,6 @@ def run_monitor():
             mins, secs = divmod(rem, 60)
             uptime_str = f"{int(hours):02d}:{int(mins):02d}:{int(secs):02d}"
 
-            # Clear screen and move to top-left
             sys.stdout.write("\033[2J\033[H")
 
             output = [
@@ -151,7 +160,6 @@ def run_monitor():
     except KeyboardInterrupt:
         pass
     finally:
-        # Show cursor again
         sys.stdout.write("\033[?25h")
         sys.stdout.flush()
         client.disconnect()

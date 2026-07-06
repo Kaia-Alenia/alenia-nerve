@@ -1,3 +1,18 @@
+# -----------------------------------------------------------------------------
+# This file is part of Nerve.
+#
+# Nerve is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 3 of the License.
+#
+# Nerve is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Nerve. If not, see <https://www.gnu.org/licenses/>.
+# -----------------------------------------------------------------------------
 import asyncio
 import json
 import logging
@@ -45,7 +60,6 @@ class NerveBridge:
             )
             return
 
-        # Connect the bridge itself to Nerve Hub
         self.nerve_client.connect("nerve_bridge_node")
 
         # We need to listen to all broadcast messages and route messages back to the correct WS client.
@@ -54,7 +68,6 @@ class NerveBridge:
 
         self.nerve_client.on("bridge_response", self._handle_hub_message)
 
-        # Start WebSocket server
         logger.info(
             f"Starting Nerve Bridge WebSocket server on ws://{self.host}:{self.port}"
         )
@@ -83,7 +96,6 @@ class NerveBridge:
 
     async def _ws_handler(self, websocket, path):
         self.active_websockets.add(websocket)
-        # Assign a unique ID
         ws_id = f"ws_{id(websocket)}"
         self.ws_to_client_id[websocket] = ws_id
         self.client_id_to_ws[ws_id] = websocket
@@ -94,7 +106,6 @@ class NerveBridge:
             async for message in websocket:
                 try:
                     data = json.loads(message)
-                    # Forward to Nerve Hub
                     # For simplicity, bridge acts as a proxy
                     self.nerve_client.send(
                         to=data.get("to", "hub"),

@@ -377,7 +377,7 @@ class TestNexusHubMessaging:
             {"type": "send", "to": "srv_receiver", "payload": {"hello": "world"}},
         )
         msg = self._recv_line(receiver)
-        assert msg == {"hello": "world"}
+        assert msg["payload"] == {"hello": "world"}
         sender.close()
         receiver.close()
 
@@ -395,7 +395,7 @@ class TestNexusHubMessaging:
         self._send(a, {"type": "broadcast", "payload": {"event": "go"}})
         for sock in (b, c):
             msg = self._recv_line(sock)
-            assert msg == {"event": "go"}
+            assert msg["payload"] == {"event": "go"}
         a.close()
         b.close()
         c.close()
@@ -543,7 +543,7 @@ class TestNexusClientAPI:
         time.sleep(0.1)
         sender.send("listen_receiver", {"key": "value"})
         assert event.wait(timeout=3), "Message not received within timeout"
-        assert received[0] == {"key": "value"}
+        assert received[0]["payload"] == {"key": "value"}
 
         sender.disconnect()
         receiver.disconnect()
@@ -568,8 +568,8 @@ class TestNexusClientAPI:
         broadcaster.broadcast({"signal": "start"})
         assert e1.wait(timeout=3)
         assert e2.wait(timeout=3)
-        assert got_r1[0] == {"signal": "start"}
-        assert got_r2[0] == {"signal": "start"}
+        assert got_r1[0]["payload"] == {"signal": "start"}
+        assert got_r2[0]["payload"] == {"signal": "start"}
 
         broadcaster.disconnect()
         r1.disconnect()
@@ -700,11 +700,11 @@ class TestIntegrationEndToEnd:
 
         alice.send("bob", {"from": "alice", "msg": "hi bob"})
         assert bob_event.wait(timeout=3)
-        assert bob_received[0] == {"from": "alice", "msg": "hi bob"}
+        assert bob_received[0]["payload"] == {"from": "alice", "msg": "hi bob"}
 
         bob.send("alice", {"from": "bob", "msg": "hi alice"})
         assert alice_event.wait(timeout=3)
-        assert alice_received[0] == {"from": "bob", "msg": "hi alice"}
+        assert alice_received[0]["payload"] == {"from": "bob", "msg": "hi alice"}
 
         alice.disconnect()
         bob.disconnect()
@@ -752,7 +752,7 @@ class TestIntegrationEndToEnd:
             f"Only received {len(received)}/{MESSAGES} messages"
         )
         assert len(received) == MESSAGES
-        indices = {m["idx"] for m in received}
+        indices = {m["payload"]["idx"] for m in received}
         assert indices == set(range(MESSAGES))
 
         for c in senders:

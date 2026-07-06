@@ -1,3 +1,18 @@
+# -----------------------------------------------------------------------------
+# This file is part of Nerve.
+#
+# Nerve is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 3 of the License.
+#
+# Nerve is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Nerve. If not, see <https://www.gnu.org/licenses/>.
+# -----------------------------------------------------------------------------
 """Nerve — Decentralized Nervous System for Local Sockets.
 
 Nerve is a cross-platform, zero-dependency local inter-process communication
@@ -19,7 +34,7 @@ Typical usage::
 
 from .core import NexusClient, NexusHub, load_external_config
 
-__version__ = "1.4.1"
+__version__ = "1.4.2"
 __author__ = "Alenia Studios"
 __license__ = "GNU General Public License v3 (GPL v3)"
 __email__ = "contact.aleniastudios@gmail.com"

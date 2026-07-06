@@ -1,15 +1,21 @@
-# Nerve — Sistema Nervioso Descentralizado para Sockets Locales
+<div align="center">
+  <h1>Nerve</h1>
+  <p><b>Sistema Nervioso Descentralizado para Sockets Locales.</b></p>
+  
+  [![PyPI Version](https://img.shields.io/pypi/v/alenia-nerve.svg?color=blueviolet)](https://pypi.org/project/alenia-nerve/)
+  [![GitHub Repository](https://img.shields.io/badge/GitHub-Repositorio-darkviolet.svg)](https://github.com/Kaia-Alenia/alenia-nerve)
+  [![License: GPL v3](https://img.shields.io/badge/Licencia-GPLv3-blue.svg)](LICENSE)
+  [![Ko-fi](https://img.shields.io/badge/Apóyanos_en-Ko--fi-FF5E5B.svg?logo=ko-fi&logoColor=white)](https://ko-fi.com/aleniastudios)
 
-[![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-darkviolet.svg?style=for-the-badge)](https://github.com/Kaia-Alenia/alenia-nerve) <a href="https://gitgem.org/github/Kaia-Alenia/alenia-nerve"><img src="https://gitgem.org/api/badge/github/Kaia-Alenia/alenia-nerve.svg" alt="GitGem"></a>
-
-
-> **Soberanía, Velocidad y Privacidad Absoluta.** Nerve es el motor de comunicación entre procesos (IPC) local y multiplataforma diseñado por Alenia Studios para orquestar herramientas de desarrollo de videojuegos localmente, requiriendo cero dependencias en la nube.
+  <br>
+  <p><i><b>Soberanía, Velocidad y Privacidad Absoluta.</b> Nerve es el motor de comunicación entre procesos (IPC) local multiplataforma diseñado por <b>Alenia Studios</b> para orquestar herramientas de desarrollo de videojuegos localmente, requiriendo cero dependencias en la nube.</i></p>
+</div>
 
 ---
 
-## ¿Para qué sirve Nerve?
+## ❓ ¿Para qué sirve Nerve?
 
-Nerve está diseñado para desarrolladores que necesitan conectar múltiples programas, scripts o microservicios locales para intercambiar datos en tiempo real con latencia de submilisegundos. En lugar de ejecutar un servidor web local pesado (como Flask o FastAPI) que abre puertos públicos, o escribir en archivos compartidos propensos a bloqueos, Nerve crea un bus de comunicación local seguro y ultrarrápido.
+Nerve está diseñado para desarrolladores que necesitan conectar múltiples programas, scripts o microservicios locales para que intercambien datos en tiempo real con una latencia de submilisegundos. En lugar de ejecutar un servidor web local pesado (como Flask o FastAPI) que abre puertos públicos, o escribir en archivos compartidos propensos a bloqueos, Nerve crea un bus de comunicación local seguro y ultrarrápido.
 
 ### Casos de Uso Principales:
 * **Microservicios Locales y Aplicaciones de Escritorio:** Vincula un frontend moderno (Electron, Tauri, Flutter) con un backend pesado en Python o un modelo de IA local.
@@ -19,70 +25,182 @@ Nerve está diseñado para desarrolladores que necesitan conectar múltiples pro
 
 ---
 
-## El Concepto: Redes Locales Soberanas
+## 🧠 El Concepto: Redes Locales Soberanas
 
-En el desarrollo de videojuegos moderno, la privacidad de tus recursos, código fuente y metadatos es primordial. Nerve actúa como un bus de datos local ultrarrápido, permitiendo que procesos independientes (como cortadores de sprites, renderizadores de gifs y monitores de sistema) se sincronicen en tiempo real con latencia de submilisegundos, sin enviar un solo byte fuera de tu estación de trabajo física.
+En el desarrollo de videojuegos moderno, la privacidad de tus recursos, código fuente y metadatos es primordial. **Nerve** actúa como un bus de datos local ultrarrápido, permitiendo que procesos independientes (como cortadores de sprites, renderizadores de gifs y monitores de sistema) se sincronicen en tiempo real con latencia de submilisegundos, sin enviar un solo byte fuera de tu estación de trabajo física.
 
 ---
 
-## Núcleo Nativo Multiplataforma (UDS y TCP)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blueviolet.svg?style=for-the-badge)](#)
+## ⚡ Núcleo Nativo Multiplataforma ✓
 
 Nerve es totalmente multiplataforma y se adapta dinámicamente al sistema operativo anfitrión para ofrecer la mejor latencia local posible:
-* **Linux y macOS:** Utiliza Unix Domain Sockets (UDS) nativos a través de `socket.AF_UNIX` en `/tmp/nerve.sock` para tuberías de memoria directa de alto rendimiento.
-* **Windows:** Alterna dinámicamente a una conexión TCP local especializada a través de `socket.AF_INET` en `127.0.0.1:50505`, garantizando compatibilidad al 100% en estaciones de trabajo de desarrollo sin modificar una sola línea de la lógica de tus herramientas.
+
+* [![Linux](https://img.shields.io/badge/Linux-Unix%20Domain%20Sockets-blueviolet.svg?logo=linux&logoColor=white)](#) **Linux y macOS**: Utiliza **Unix Domain Sockets (UDS)** nativos a través de `socket.AF_UNIX` en `/tmp/nerve.sock` para tuberías de memoria directa de alto rendimiento.
+* [![Windows](https://img.shields.io/badge/Windows-TCP%20127.0.0.1%3A50505-6a0dad.svg?logo=windows&logoColor=white)](#) **Windows**: Alterna dinámicamente a una conexión **TCP local** especializada a través de `socket.AF_INET` en `127.0.0.1:50505`, garantizando compatibilidad al 100% en estaciones de trabajo de desarrolladores sin modificar una sola línea de lógica de tus herramientas.
 
 ---
 
-## Estructura del Monorepo y Clientes Soportados
+## ✨ Características Principales ⚠ ⚠
 
-Nerve está estructurado como un Monorepo que contiene el Hub central y las bibliotecas de cliente oficiales para varios lenguajes de programación:
+* **Multiplataforma**: No requiere configuración; funciona sin ajustes previos en Windows, Linux y macOS.
+* **Enmarcado por Líneas**: Manejo robusto de paquetes usando delimitadores de nueva línea (`\n`) para evitar colisiones de datos bajo alto rendimiento.
+* **Arquitectura Hub-Cliente**: Un coordinador central único (`NexusHub`) dirige el enrutamiento inteligente de mensajes a nodos registrados específicos (`NexusClient`).
+* **Auto-Reconexión Industrial**: `NexusClient` se reconecta automáticamente cada 2 segundos si el Hub se reinicia, protegiendo las aplicaciones anfitrionas de fallos.
+* **Latidos (Heartbeats) en Segundo Plano**: El Hub emite pings cada 5 segundos para detectar y purgar conexiones inactivas.
+* **Soporte para Configuración Externa**: Personaliza puertos y rutas de socket mediante un archivo `nerve.config` sin tocar el código.
+* **Modo Verbose**: Ejecuta con `--verbose` para trazar cada paquete enrutado a través del Hub en tiempo real.
 
-```
-alenia-nerve/
-├── clients/
-│   ├── python/        # Cliente oficial de Python y CLI Hub
-│   ├── javascript/    # Cliente de Node.js y Navegador
-│   ├── rust/          # Biblioteca de cliente en Rust
-│   └── go/            # Biblioteca de cliente en Go
-```
+---
 
-Consulta el subdirectorio de cada cliente para obtener instrucciones específicas de instalación y uso.
+## 🔌 Clientes Soportados e Integración
 
-## Instalación (Cliente de Python y CLI Hub)
-[![PyPI Version](https://img.shields.io/pypi/v/alenia-nerve.svg?color=blueviolet)](https://pypi.org/project/alenia-nerve/) [![Python](https://img.shields.io/badge/Python-3.10%2B-indigo.svg?style=for-the-badge)](#)
+Nerve está estructurado como un Monorepo que contiene el Hub principal y las bibliotecas de cliente oficiales. A continuación puedes encontrar la instalación y un ejemplo simple de integración para cada lenguaje soportado.
 
-Recomendamos instalar esta herramienta dentro de un entorno virtual aislado para cumplir con los estándares de seguridad de los sistemas operativos modernos (PEP 668) y evitar conflictos de dependencias.
+### Cliente Python y Hub CLI
 
+[![Python](https://img.shields.io/badge/Python-3.10%2B-indigo.svg?logo=python&logoColor=white)](#)
+[![PyPI](https://img.shields.io/pypi/v/alenia-nerve.svg?color=blueviolet&label=PyPI)](https://pypi.org/project/alenia-nerve/)
+[![Descargas](https://img.shields.io/pypi/dm/alenia-nerve.svg?color=blueviolet&label=Descargas%2Fmes)](https://pypi.org/project/alenia-nerve/)
+
+✓ **Instalación:**
 ```bash
 python3 -m venv alenia_env
-
-source alenia_env/bin/activate
-
+source alenia_env/bin/activate   # En Windows: alenia_env\Scriptsctivate
 pip install alenia-nerve
 ```
 
-Nota para instalación global: Si prefieres una instalación en todo el sistema (por ejemplo, dentro de Docker o pipelines de CI/CD específicos) y eres consciente de los riesgos, puedes omitir la restricción del sistema operativo:
+✓ **Ejemplo Simple de Integración:**
+```python
+from nerve import NexusClient
 
-```bash
-pip install alenia-nerve --break-system-packages
+client = NexusClient()
+client.connect("mi_herramienta_python")
+
+# Enviar a un nodo específico
+client.send("renderer", {"progress": 100, "status": "DONE"})
+
+# Escuchar mensajes entrantes
+def on_message(data):
+    print(f"Recibido: {data}")
+
+client.listen(on_message)
 ```
 
 ---
 
-## Interfaz de Línea de Comandos (CLI) y el Hub Principal
+### Cliente Rust
 
-Una vez que tengas la biblioteca `alenia-nerve` instalada globalmente o en tu entorno virtual, no necesitas escribir un script de Python personalizado para iniciar el servidor. Puedes abrir cualquier terminal y escribir:
+[![Rust](https://img.shields.io/badge/Rust-1.70%2B-orange.svg?logo=rust&logoColor=white)](#)
+[![crates.io](https://img.shields.io/crates/v/alenia-nerve.svg?color=orange&label=crates.io)](https://crates.io/crates/alenia-nerve)
+[![docs.rs](https://img.shields.io/docsrs/alenia-nerve.svg?color=blue&label=docs.rs)](https://docs.rs/alenia-nerve)
+
+✓ **Instalación:**
+```bash
+cargo add alenia-nerve
+```
+
+✓ **Ejemplo Simple de Integración:**
+```rust
+use alenia_nerve::{NexusClient, ConnectionAddress};
+use std::time::Duration;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut client = NexusClient::new(Duration::from_secs(1), "", None);
+    client.connect("mi_herramienta_rust").await?;
+
+    client.send("renderer", serde_json::json!({"status": "ready"}))?;
+
+    client.listen(|msg| println!("Recibido: {}", msg), None).await;
+    Ok(())
+}
+```
+
+---
+
+### Cliente JavaScript / Node.js
+
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933.svg?logo=nodedotjs&logoColor=white)](#)
+[![npm](https://img.shields.io/npm/v/alenia-nerve.svg?color=cb3837&label=npm)](https://www.npmjs.com/package/alenia-nerve)
+[![Descargas](https://img.shields.io/npm/dm/alenia-nerve.svg?color=cb3837&label=Descargas%2Fmes)](https://www.npmjs.com/package/alenia-nerve)
+
+✓ **Instalación:**
+```bash
+npm install alenia-nerve
+```
+
+✓ **Ejemplo Simple de Integración:**
+```javascript
+const { NexusClient } = require("alenia-nerve");
+
+const client = new NexusClient();
+await client.connect("mi_herramienta_js");
+
+client.send("renderer", { progress: 100, status: "DONE" });
+
+client.listen((data) => {
+    console.log("Recibido:", data);
+});
+```
+
+---
+
+### Cliente Go
+
+[![Go](https://img.shields.io/badge/Go-1.21%2B-00ADD8.svg?logo=go&logoColor=white)](#)
+[![pkg.go.dev](https://pkg.go.dev/badge/github.com/Kaia-Alenia/alenia-nerve/clients/go.svg)](https://pkg.go.dev/github.com/Kaia-Alenia/alenia-nerve/clients/go)
+
+✓ **Instalación:**
+```bash
+go get github.com/Kaia-Alenia/alenia-nerve/clients/go
+```
+
+✓ **Ejemplo Simple de Integración:**
+```go
+package main
+
+import (
+    "fmt"
+    nerve "github.com/Kaia-Alenia/alenia-nerve/clients/go"
+)
+
+func main() {
+    client := nerve.NewClient()
+    client.Connect("mi_herramienta_go")
+
+    client.Send("renderer", map[string]interface{}{"status": "ready"})
+
+    client.Listen(func(data map[string]interface{}) {
+        fmt.Println("Recibido:", data)
+    })
+}
+```
+
+---
+
+Para una implementación completamente funcional y lista para producción de Nerve trabajando junto a Zenith en herramientas como Framegrid y Giftly, visita el repositorio [zenith-nerve-tools](https://github.com/Kaia-Alenia/zenith-nerve-tools).
+
+
+## 💻 Interfaz de Línea de Comandos (CLI) y el Hub Principal
+
+Una vez instalado, inicia el hub central desde cualquier terminal:
 
 ```bash
 nerve start
 ```
 
-Este comando inicia instantáneamente el NexusHub (el servidor principal). Al hacer esto:
-1. **Configuración Cero:** Este terminal se ejecutará en segundo plano y actuará como el cerebro central o enrutador para toda tu red local.
-2. **Descubrimiento Automático:** Cualquier otra herramienta, script o aplicación que use el NexusClient se descubrirá y conectará automáticamente a este Hub para comenzar a enviar y recibir mensajes sin problemas.
+<div align="center">
+  <img src="assets/images/nerve-start.png" alt="nerve start — Hub inicializándose y activo vía Unix Socket" width="90%">
+  <br><sub>El Hub se inicializa instantáneamente y escucha las conexiones de los clientes a través del Unix Domain Socket.</sub>
+</div>
 
-Si deseas ver exactamente qué mensajes se están transmitiendo entre tus aplicaciones en tiempo real (útil para depuración), puedes usar:
+<br>
+
+Este único comando arranca el **NexusHub** — el enrutador de mensajes central para toda tu red local:
+1. **Cero Configuración Necesaria:** Funciona inmediatamente sin ajustes previos. Actúa como el cerebro que enruta todos los mensajes entre los clientes conectados.
+2. **Descubrimiento Automático:** Cualquier `NexusClient` en tus herramientas descubrirá y se conectará automáticamente a este Hub.
+
+Para el rastreo de mensajes en tiempo real durante el desarrollo:
 ```bash
 nerve start --verbose
 ```
@@ -94,71 +212,94 @@ nerve --help
 
 ---
 
-## Ejemplo Simple de Integración (Python)
+## 🖥️ Herramientas del Ecosistema: CLI Monitor y Web Dashboard
 
-### 1. Inicializar el Cliente
-Conéctate al hub local registrando un ID de cliente único.
+Nerve incluye dos potentes herramientas integradas para observar tu red local en tiempo real — sin requerir servicios externos.
 
-```python
-from nerve import NexusClient
+### CLI Monitor Global (`nerve-monitor`)
 
-client = NexusClient()
-client.connect("my_tool_id")
-```
+Un panel interactivo basado en terminal que muestra todos los clientes conectados, tiempo de actividad (uptime), conteo de mensajes y estadísticas de tráfico en un solo vistazo.
 
-### 2. Enviar Mensaje a un Nodo Específico
-Envía cualquier carga útil serializable en JSON directamente a otro nodo registrado:
+<p align="center">
+  <img src="assets/images/cli-monitor-clients.png" alt="CLI Monitor mostrando 6 clientes: py_client, js_client, go_client, rs_client, nerve-monitor, nerve-dashboard" width="48%">
+  &nbsp;
+  <img src="assets/images/cli-monitor-giftly.png" alt="CLI Monitor mostrando a Giftly y Framegrid conectados junto a nerve-monitor y nerve-dashboard" width="48%">
+</p>
 
-```python
-payload = {"progress": 100, "status": "COMPLETED"}
-client.send("other_tool_id", payload)
-```
-
-### 3. Transmisión a Todos los Nodos (Broadcast)
-Transmite cualquier carga útil a todos los demás clientes actualmente conectados al hub:
-
-```python
-client.broadcast({"event": "asset_ready", "path": "/assets/knight.png"})
-```
-
-### 4. Escuchar el Flujo Entrante
-Registra una función de devolución de llamada (callback) asíncrona para escuchar flujos de datos en tiempo real:
-
-```python
-def handle_incoming(data):
-    print(f"Received: {data}")
-
-client.listen(handle_incoming)
-```
-
-### 5. Listar Nodos Conectados
-Consulta al hub por todos los IDs de clientes registrados actualmente:
-
-```python
-nodes = client.list_clients()
-print(nodes)  # ['renderer', 'monitor', 'logger']
-```
-
-Para ver una implementación completamente funcional y lista para producción de Nerve trabajando junto con Zenith en herramientas como Framegrid y Giftly, visita el repositorio [zenith-nerve-tools](https://github.com/Kaia-Alenia/zenith-nerve-tools).
+*Izquierda: Los cuatro clientes de lenguajes oficiales conectados simultáneamente. Derecha: Las herramientas reales [Giftly y Framegrid](https://github.com/Kaia-Alenia/zenith-nerve-tools) conectadas de manera invisible — pero totalmente visibles en el Hub.*
 
 ---
 
-## Contribuidores
+### Logs del Hub (`nerve start`)
 
-Queremos expresar nuestro más profundo agradecimiento a todos los que contribuyen a Nerve. Tu trabajo, revisiones y reportes de errores hacen posible este proyecto.
+Los registros del terminal del Hub muestran cada evento de registro, ruta de mensaje y desconexión con una salida a color. Esto es lo que el servidor ve cuando los clientes se conectan.
+
+<p align="center">
+  <img src="assets/images/hub-logs-clients.png" alt="Logs del Hub mostrando el banner ASCII de NERVE y a los 6 clientes registrándose" width="48%">
+  &nbsp;
+  <img src="assets/images/hub-logs-giftly.png" alt="Logs del Hub mostrando a Giftly y Framegrid registrándose junto a nerve-monitor y nerve-dashboard" width="48%">
+</p>
+
+*Izquierda: Secuencia de arranque del Hub con todos los clientes registrándose (py, js, go, rs). Derecha: Giftly y Framegrid registrándose como nodos nativos de Nerve.*
+
+---
+
+### Web Dashboard (`nerve-dashboard`)
+
+Una interfaz web local ligera que renderiza una **Vista de Topología de Red** en vivo — un grafo de cada nodo conectado — además del tiempo de actividad, tráfico total y contadores de mensajes.
+
+<p align="center">
+  <img src="assets/images/dashboard-topology.png" alt="Vista de Topología de Nexus — grafo mostrando al Hub de Nerve al centro con los nodos conectados" width="48%">
+  &nbsp;
+  <img src="assets/images/dashboard-full.png" alt="Dashboard Completo en la Web — barra lateral con la lista de nodos, tiempo de actividad y mensajes procesados" width="48%">
+</p>
+
+*Izquierda: Grafo de topología puro — el Hub de Nerve al centro, con todos los nodos orbitando alrededor. Derecha: Panel completo con la barra lateral de métricas en vivo mostrando el tiempo de actividad, el tráfico (18.25 KB) y los 1003 mensajes procesados.*
+
+*(Echa un vistazo a nuestro monorepo [zenith-nerve-tools](https://github.com/Kaia-Alenia/zenith-nerve-tools) para ver herramientas prácticas y del mundo real construidas sobre Nerve).*
+
+---
+
+
+
+## ⚙️ Archivo de Configuración (`nerve.config`)
+
+Coloca un archivo `nerve.config` en la raíz de tu proyecto para personalizar las rutas de socket o los puertos TCP sin cambiar el código:
+
+**Formato JSON:**
+```json
+{
+  "socket_path": "/tmp/nerve.sock",
+  "port": 50505,
+  "host": "127.0.0.1"
+}
+```
+
+**Formato clave-valor simple:**
+```text
+socket_path=/tmp/nerve.sock
+port=50505
+```
+
+---
+
+## 🤝 Contribuidores
+
+¡Queremos expresar nuestro más profundo agradecimiento a todas las personas que contribuyen a Nerve! Su trabajo, revisiones y reportes de errores hacen que este proyecto sea posible.
 
 * **Alenia Studios** - Mantenedor Principal y Publicador
 
-¿Quieres aparecer aquí? Consulta nuestra guía CONTRIBUTING.md y envía una solicitud de extracción (Pull Request). Consulta CONTRIBUTORS.md para ver la lista completa.
+¿Quieres aparecer aquí? Revisa nuestra guía [CONTRIBUTING.md](CONTRIBUTING.md) y envía un Pull Request. Visita [CONTRIBUTORS.md](CONTRIBUTORS.md) para ver la lista completa.
 
-Consulta CHANGELOG.md para ver el historial completo de versiones.
-
----
-
-## Licencia
-[![License](https://img.shields.io/badge/License-GPLv3-8a2be2.svg?style=for-the-badge)](LICENSE)
-
-Este software se distribuye bajo la Licencia Pública General de GNU v3 (GPL v3). Consulta el archivo LICENSE para más detalles.
+Consulta [CHANGELOG.md](CHANGELOG.md) para ver el historial completo de versiones.
 
 ---
-*Diseñado con pasión por Alenia Studios para empoderar a creadores de juegos soberanos.*
+
+## 📜 Licencia
+
+[![Licencia](https://img.shields.io/badge/Licencia-GPLv3-8a2be2.svg)](LICENSE)
+
+Este software se distribuye bajo la **Licencia Pública General de GNU v3 (GPL v3)**. Consulta [LICENSE](LICENSE) para más detalles.
+
+---
+*Elaborado con pasión por Alenia Studios para impulsar a creadores de videojuegos soberanos.*
