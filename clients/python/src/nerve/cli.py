@@ -1,6 +1,7 @@
 import sys
 from nerve import __version__
 from nerve.core import NexusHub
+from nerve.cli_monitor import run_monitor, run_dashboard
 
 PURPLE = "\033[95m"
 GREEN = "\033[92m"
@@ -26,29 +27,20 @@ Contact: contact.aleniastudios@gmail.com
 {PURPLE}Usage:{RESET}
   nerve start             Start the Nerve Hub (blocking)
   nerve start --verbose   Start with detailed message routing logs
-  nerve start -v          Shorthand for --verbose
+  nerve monitor           View real-time hub statistics in the terminal
+  nerve dashboard         Start the web dashboard on http://localhost:8080
+  nerve bridge            Start the HTTP/WebSocket bridge on port 50506
   nerve --help            Show this help message
-  nerve -h                Shorthand for --help
   nerve --version         Print the installed version
 
 {PURPLE}Configuration:{RESET}
   Place a {GREEN}nerve.config{RESET} file in your working directory to customise the
   socket path or TCP port without changing any code.
 
-  JSON format:
-    {{
-      "socket_path": "/tmp/nerve.sock",
-      "port": 50505,
-      "host": "127.0.0.1"
-    }}
-
-  Key=value format:
-    socket_path=/tmp/nerve.sock
-    port=50505
-
 {PURPLE}Examples:{RESET}
   nerve start
-  nerve start --verbose
+  nerve monitor
+  nerve dashboard
 """
 
 
@@ -88,6 +80,33 @@ def main() -> None:
         except Exception as exc:
             print(f"{RED}[NERVE CLI] Critical error: {exc}{RESET}")
             sys.exit(1)
+
+    elif args[0] == "monitor":
+        run_monitor()
+        sys.exit(0)
+
+    elif args[0] == "dashboard":
+        port = 8080
+        if "--port" in args:
+            idx = args.index("--port")
+            if len(args) > idx + 1:
+                port = int(args[idx + 1])
+        run_dashboard(port=port)
+        sys.exit(0)
+
+    elif args[0] == "bridge":
+        try:
+            from nerve.bridge import run_bridge
+        except ImportError:
+            print(f"{RED}[NERVE CLI] 'websockets' not installed. Install with 'pip install websockets' to use bridge.{RESET}")
+            sys.exit(1)
+        port = 50506
+        if "--port" in args:
+            idx = args.index("--port")
+            if len(args) > idx + 1:
+                port = int(args[idx + 1])
+        run_bridge(port=port)
+        sys.exit(0)
 
     else:
         print(f"{RED}[NERVE CLI] Unrecognized command: '{args[0]}'{RESET}")

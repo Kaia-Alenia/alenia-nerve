@@ -90,6 +90,13 @@ class NexusHub:
         self._server: Optional[socket.socket] = None
         self._active_sockets: set = set()
         self._stop_event: threading.Event = threading.Event()
+        
+        self._uptime_start: float = time.time()
+        self._total_messages_sent: int = 0
+        self._total_messages_received: int = 0
+        self._total_bytes_sent: int = 0
+        self._total_bytes_received: int = 0
+
         self.is_windows: bool = platform.system() == "Windows"
         config = load_external_config(config_path)
         self.auth_token = auth_token or config.get("auth_token")
@@ -165,8 +172,12 @@ class NexusHub:
         except (TypeError, ValueError):
             return False
         try:
+            raw_bytes = serialized.encode("utf-8")
             with lock:
-                conn.sendall(serialized.encode("utf-8"))
+                conn.sendall(raw_bytes)
+            with self._lock:
+                self._total_bytes_sent += len(raw_bytes)
+                self._total_messages_sent += 1
             return True
         except OSError:
             return False
@@ -180,6 +191,9 @@ class NexusHub:
         try:
             with lock:
                 conn.sendall(raw_bytes)
+            with self._lock:
+                self._total_bytes_sent += len(raw_bytes)
+                self._total_messages_sent += 1
             return True
         except OSError:
             return False
@@ -263,6 +277,9 @@ class NexusHub:
                 if not chunk:
                     break
 
+                with self._lock:
+                    self._total_bytes_received += len(chunk)
+
                 if self.rate_limit_bytes_per_min is not None:
                     now = time.time()
                     byte_times.append((now, len(chunk)))
@@ -287,6 +304,8 @@ class NexusHub:
 
                     try:
                         msg = json.loads(line)
+                        with self._lock:
+                            self._total_messages_received += 1
                     except json.JSONDecodeError as exc:
                         self._log("91", "Invalid JSON payload: {}".format(exc))
                         continue
@@ -420,6 +439,27 @@ class NexusHub:
                                             + "\n"
                                         ).encode("utf-8")
                                     )
+                        except OSError:
+                            pass
+
+                    elif msg_type == "metrics":
+                        with self._lock:
+                            metrics = {
+                                "type": "metrics",
+                                "uptime": time.time() - self._uptime_start,
+                                "clients": len(self._clients),
+                                "total_messages_sent": self._total_messages_sent,
+                                "total_messages_received": self._total_messages_received,
+                                "total_bytes_sent": self._total_bytes_sent,
+                                "total_bytes_received": self._total_bytes_received,
+                            }
+                        try:
+                            lock = None
+                            with self._lock:
+                                lock = self._write_locks.get(conn)
+                            if lock is not None:
+                                with lock:
+                                    conn.sendall((json.dumps(metrics) + "\n").encode("utf-8"))
                         except OSError:
                             pass
 
@@ -622,6 +662,9 @@ class NexusClient:
         self._list_lock: threading.Lock = threading.Lock()
         self._list_event: threading.Event = threading.Event()
         self._list_result: Optional[List[str]] = None
+        self._metrics_lock: threading.Lock = threading.Lock()
+        self._metrics_event: threading.Event = threading.Event()
+        self._metrics_result: Optional[Dict[str, Any]] = None
         self._write_lock: threading.Lock = threading.Lock()
         self._read_lock: threading.Lock = threading.Lock()
 
@@ -821,6 +864,54 @@ class NexusClient:
                     sock.settimeout(None)
                 return []
 
+    def get_metrics(self) -> Dict[str, Any]:
+        """Request hub metrics."""
+        if self._listening:
+            with self._metrics_lock:
+                self._metrics_result = None
+                self._metrics_event.clear()
+                try:
+                    self._send_raw({"type": "metrics"})
+                except OSError:
+                    return {}
+                if self._metrics_event.wait(timeout=2.0):
+                    return self._metrics_result or {}
+                return {}
+        else:
+            with self._read_lock:
+                try:
+                    self._send_raw({"type": "metrics"})
+                except OSError:
+                    return {}
+                with self._lock:
+                    sock = self._socket
+                if sock is None:
+                    return {}
+                sock.settimeout(2.0)
+                buffer = ""
+                try:
+                    while True:
+                        chunk = sock.recv(4096)
+                        if not chunk:
+                            break
+                        buffer += chunk.decode("utf-8", errors="replace")
+                        while "\n" in buffer:
+                            line, buffer = buffer.split("\n", 1)
+                            line = line.strip()
+                            if not line:
+                                continue
+                            try:
+                                msg = json.loads(line)
+                                if msg.get("type") == "metrics":
+                                    return msg
+                            except json.JSONDecodeError:
+                                pass
+                except socket.timeout:
+                    pass
+                finally:
+                    sock.settimeout(None)
+                return {}
+
     def listen(
         self,
         callback: Callable[[Any], None],
@@ -878,6 +969,10 @@ class NexusClient:
                                 if msg_type == "list":
                                     self._list_result = payload.get("clients", [])
                                     self._list_event.set()
+                                    continue
+                                if msg_type == "metrics":
+                                    self._metrics_result = payload
+                                    self._metrics_event.set()
                                     continue
                             try:
                                 callback(payload)

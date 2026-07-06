@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nerve IPC Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-hover: #334155;
+            --border: #334155;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #8b5cf6;
+            --primary-glow: rgba(139, 92, 246, 0.5);
+            --success: #10b981;
+            --info: #38bdf8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #c084fc, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--success);
+            box-shadow: 0 0 8px var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        main {
+            flex: 1;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background-color: var(--surface);
+            border-radius: 1rem;
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #8b5cf6, #38bdf8);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text);
+            display: flex;
+            align-items: baseline;
+            gap: 0.25rem;
+        }
+
+        .stat-unit {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .topology-container {
+            background-color: var(--surface);
+            border-radius: 1rem;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .topology-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .topology-title {
+            font-weight: 600;
+            font-size: 1.125rem;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            min-height: 500px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .client-list {
+            margin-top: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .client-item {
+            background-color: rgba(255, 255, 255, 0.03);
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border: 1px solid transparent;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+
+        .client-item:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-color: rgba(139, 92, 246, 0.3);
+        }
+
+        .client-icon {
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background-color: rgba(139, 92, 246, 0.1);
+        }
+
+        .client-name {
+            font-weight: 500;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        /* Error overlay */
+        #error-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(15, 23, 42, 0.9);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        #error-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .error-box {
+            background-color: var(--surface);
+            padding: 2rem;
+            border-radius: 1rem;
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 0 20px rgba(239, 68, 68, 0.2);
+        }
+
+        .error-icon {
+            font-size: 3rem;
+            color: #ef4444;
+            margin-bottom: 1rem;
+        }
+
+        .error-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .error-msg {
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+        }
+
+        .retry-btn {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .retry-btn:hover {
+            background-color: #dc2626;
+        }
+
+        @media (max-width: 900px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+            .canvas-container {
+                min-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>
+            Nerve Dashboard
+        </div>
+        <div class="status-badge" id="conn-status">
+            <div class="status-dot"></div>
+            Connected
+        </div>
+    </header>
+
+    <main>
+        <div class="sidebar">
+            <div class="card">
+                <div class="stat-label">Uptime</div>
+                <div class="stat-value" id="uptime">00:00:00</div>
+            </div>
+            
+            <div class="card">
+                <div class="stat-label">Total Traffic (I/O)</div>
+                <div class="stat-value" id="traffic">
+                    0 <span class="stat-unit">B</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="stat-label">Messages Processed</div>
+                <div class="stat-value" id="messages">0</div>
+            </div>
+
+            <div class="card" style="flex: 1; display: flex; flex-direction: column;">
+                <div class="stat-label">Connected Nodes (<span id="client-count">0</span>)</div>
+                <div class="client-list" id="client-list">
+                    <!-- Populated dynamically -->
+                    <div style="color: var(--text-muted); font-size: 0.875rem; text-align: center; padding: 1rem 0;">Waiting for data...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="topology-container">
+            <div class="topology-header">
+                <div class="topology-title">Network Topology</div>
+                <div style="color: var(--text-muted); font-size: 0.875rem;">Real-time visualization</div>
+            </div>
+            <div class="canvas-container" id="canvas-container">
+                <canvas id="topology"></canvas>
+            </div>
+        </div>
+    </main>
+
+    <div id="error-overlay">
+        <div class="error-box">
+            <div class="error-icon">⚠️</div>
+            <div class="error-title">Connection Lost</div>
+            <div class="error-msg">Cannot reach Nerve Dashboard API. Make sure the Hub and Monitor are running.</div>
+            <button class="retry-btn" onclick="fetchMetrics()">Retry Now</button>
+        </div>
+    </div>
+
+    <script>
+        // Formatting utilities
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' <span class="stat-unit">' + sizes[i] + '</span>';
+        }
+
+        function formatUptime(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        // DOM Elements
+        const elUptime = document.getElementById('uptime');
+        const elTraffic = document.getElementById('traffic');
+        const elMessages = document.getElementById('messages');
+        const elClientCount = document.getElementById('client-count');
+        const elClientList = document.getElementById('client-list');
+        const elError = document.getElementById('error-overlay');
+        const elStatus = document.getElementById('conn-status');
+
+        let lastClients = [];
+
+        // Canvas Setup
+        const canvas = document.getElementById('topology');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        let width, height;
+        let nodes = [];
+        let edges = [];
+
+        function resizeCanvas() {
+            width = container.clientWidth;
+            height = container.clientHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Node animation system
+        class HubNode {
+            constructor() {
+                this.x = width / 2;
+                this.y = height / 2;
+                this.radius = 40;
+                this.pulse = 0;
+            }
+            update() {
+                this.x = width / 2;
+                this.y = height / 2;
+                this.pulse += 0.05;
+            }
+            draw(ctx) {
+                // Glow
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius + 15 + Math.sin(this.pulse) * 5, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(139, 92, 246, 0.2)';
+                ctx.fill();
+
+                // Core
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                const grad = ctx.createLinearGradient(this.x - this.radius, this.y - this.radius, this.x + this.radius, this.y + this.radius);
+                grad.addColorStop(0, '#8b5cf6');
+                grad.addColorStop(1, '#3b82f6');
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.strokeStyle = '#c084fc';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 14px Inter';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Nerve Hub', this.x, this.y);
+            }
+        }
+
+        class ClientNode {
+            constructor(id, index, total) {
+                this.id = id;
+                this.targetAngle = (Math.PI * 2 * index) / total;
+                this.angle = this.targetAngle;
+                this.dist = 180;
+                this.x = width / 2 + Math.cos(this.angle) * this.dist;
+                this.y = height / 2 + Math.sin(this.angle) * this.dist;
+                this.radius = 8;
+            }
+            update(index, total) {
+                this.targetAngle = (Math.PI * 2 * index) / total;
+                // Smoothly interpolate angle
+                let diff = this.targetAngle - this.angle;
+                // Normalize diff
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                this.angle += diff * 0.05;
+                
+                const targetX = width / 2 + Math.cos(this.angle) * this.dist;
+                const targetY = height / 2 + Math.sin(this.angle) * this.dist;
+                
+                this.x += (targetX - this.x) * 0.1;
+                this.y += (targetY - this.y) * 0.1;
+            }
+            draw(ctx) {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#10b981';
+                ctx.fill();
+                ctx.strokeStyle = '#059669';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '12px monospace';
+                ctx.textAlign = 'center';
+                
+                // Position text outside
+                const textDist = 20;
+                const tx = this.x + Math.cos(this.angle) * textDist;
+                const ty = this.y + Math.sin(this.angle) * textDist;
+                ctx.fillText(this.id, tx, ty);
+            }
+        }
+
+        class DataPacket {
+            constructor(startX, startY, endX, endY) {
+                this.startX = startX;
+                this.startY = startY;
+                this.endX = endX;
+                this.endY = endY;
+                this.progress = 0;
+                this.speed = 0.02 + Math.random() * 0.02;
+            }
+            update() {
+                this.progress += this.speed;
+                return this.progress >= 1;
+            }
+            draw(ctx) {
+                const x = this.startX + (this.endX - this.startX) * this.progress;
+                const y = this.startY + (this.endY - this.startY) * this.progress;
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = '#38bdf8';
+                ctx.fill();
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#38bdf8';
+            }
+        }
+
+        const hub = new HubNode();
+        let clientNodes = {};
+        let packets = [];
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            
+            // Update & Draw Hub
+            hub.update();
+            
+            // Draw Edges
+            Object.values(clientNodes).forEach(c => {
+                ctx.beginPath();
+                ctx.moveTo(hub.x, hub.y);
+                ctx.lineTo(c.x, c.y);
+                ctx.strokeStyle = 'rgba(51, 65, 85, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+
+            // Update & Draw Packets
+            const activePackets = [];
+            packets.forEach(p => {
+                if (!p.update()) {
+                    p.draw(ctx);
+                    activePackets.push(p);
+                }
+            });
+            packets = activePackets;
+            ctx.shadowBlur = 0; // reset
+
+            // Update & Draw Clients
+            const keys = Object.keys(clientNodes);
+            keys.forEach((k, i) => {
+                const c = clientNodes[k];
+                c.update(i, keys.length);
+                c.draw(ctx);
+            });
+
+            hub.draw(ctx);
+
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Data fetching
+        async function fetchMetrics() {
+            try {
+                const res = await fetch('/api/metrics');
+                if (!res.ok) throw new Error('API Error');
+                const data = await res.json();
+                
+                // Hide error
+                elError.classList.remove('active');
+                elStatus.innerHTML = '<div class="status-dot"></div> Connected';
+                elStatus.style.color = 'var(--success)';
+                elStatus.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                elStatus.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+
+                const m = data.metrics || {};
+                const c = data.clients || [];
+
+                // Update text
+                elUptime.innerText = formatUptime(m.uptime || 0);
+                elTraffic.innerHTML = formatBytes((m.total_bytes_sent || 0) + (m.total_bytes_received || 0));
+                elMessages.innerText = ((m.total_messages_sent || 0) + (m.total_messages_received || 0)).toLocaleString();
+                elClientCount.innerText = c.length;
+
+                // Update Client List UI if changed
+                if (JSON.stringify(c) !== JSON.stringify(lastClients)) {
+                    lastClients = [...c];
+                    
+                    if (c.length === 0) {
+                        elClientList.innerHTML = '<div style="color: var(--text-muted); font-size: 0.875rem; text-align: center; padding: 1rem 0;">No clients connected</div>';
+                    } else {
+                        elClientList.innerHTML = c.map(id => `
+                            <div class="client-item">
+                                <div class="client-icon">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                                </div>
+                                <div class="client-name">${id}</div>
+                            </div>
+                        `).join('');
+                    }
+
+                    // Update topology nodes
+                    const newClientNodes = {};
+                    c.forEach((id, i) => {
+                        if (clientNodes[id]) {
+                            newClientNodes[id] = clientNodes[id];
+                        } else {
+                            newClientNodes[id] = new ClientNode(id, i, c.length);
+                        }
+                    });
+                    clientNodes = newClientNodes;
+                }
+
+                // Randomly spawn packets to simulate activity based on messages
+                if (c.length > 0 && Math.random() > 0.5) {
+                    const randomId = c[Math.floor(Math.random() * c.length)];
+                    const node = clientNodes[randomId];
+                    if (node) {
+                        // Hub to client
+                        packets.push(new DataPacket(hub.x, hub.y, node.x, node.y));
+                        // Client to hub
+                        if (Math.random() > 0.5) {
+                            packets.push(new DataPacket(node.x, node.y, hub.x, hub.y));
+                        }
+                    }
+                }
+
+            } catch (err) {
+                console.error(err);
+                elError.classList.add('active');
+                elStatus.innerHTML = 'Disconnected';
+                elStatus.style.color = '#ef4444';
+                elStatus.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                elStatus.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+            }
+        }
+
+        // Poll every 1s
+        setInterval(fetchMetrics, 1000);
+        fetchMetrics();
+    </script>
+</body>
+</html>
