@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import threading
 from typing import Set, Dict, Any
 
 try:
@@ -64,7 +63,6 @@ class NerveBridge:
     def _handle_hub_message(self, type: str, payload: dict):
         target = payload.get("bridge_client_id")
         if target and target in self.client_id_to_ws:
-            ws = self.client_id_to_ws[target]
             # Must run thread-safe in asyncio loop, but for simplicity:
             # We can't await here directly since it's called from nerve_client thread.
             # We would use asyncio.run_coroutine_threadsafe.

@@ -76,10 +76,10 @@ def run_dashboard(port: int = 8080):
     # Start HTTP server
     try:
         server = HTTPServer(("0.0.0.0", port), DashboardHandler)
-        print(f"\033[92m[NERVE CLI]\033[0m Dashboard running. Press Ctrl+C to stop.")
+        print("\033[92m[NERVE CLI]\033[0m Dashboard running. Press Ctrl+C to stop.")
         server.serve_forever()
     except KeyboardInterrupt:
-        print(f"\n\033[95m[NERVE CLI]\033[0m Stopping dashboard...")
+        print("\n\033[95m[NERVE CLI]\033[0m Stopping dashboard...")
     except Exception as e:
         print(f"\033[91m[NERVE CLI]\033[0m Server error: {e}")
     finally:
