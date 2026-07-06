@@ -1,0 +1,53 @@
+name: Publish to crates.io
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-publish:
+    name: Build and publish to crates.io
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+      contents: read
+
+    defaults:
+      run:
+        working-directory: clients/rust
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Validate tag matches Cargo.toml version
+        shell: bash
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          CRATE_VERSION="$(grep '^version = ' Cargo.toml | head -n 1 | sed -E 's/version = \"([^\"]+)\"/\1/')"
+
+          if [[ -z "$CRATE_VERSION" ]]; then
+            echo "::error::Could not read version from Cargo.toml"
+            exit 1
+          fi
+
+          if [[ "$TAG_VERSION" != "$CRATE_VERSION" ]]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' does not match Cargo.toml version '$CRATE_VERSION'."
+            exit 1
+          fi
+
+      - name: Run tests
+        run: cargo test
+
+      - name: Run Clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Publish to crates.io
+        run: cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}

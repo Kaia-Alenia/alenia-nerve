@@ -1,11 +1,6 @@
 # Nerve — Decentralized Nervous System for Local Sockets
 
-[![PyPI Version](https://img.shields.io/pypi/v/alenia-nerve.svg?color=blueviolet)](https://pypi.org/project/alenia-nerve/)
-[![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-darkviolet.svg)](https://github.com/Kaia-Alenia/alenia-nerve)
-[![License](https://img.shields.io/badge/License-GPLv3-8a2be2.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blueviolet.svg)](#)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-indigo.svg)](#)
-<a href="https://gitgem.org/github/Kaia-Alenia/alenia-nerve"><img src="https://gitgem.org/api/badge/github/Kaia-Alenia/alenia-nerve.svg" alt="GitGem"></a>
+[![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-darkviolet.svg)](https://github.com/Kaia-Alenia/alenia-nerve) <a href="https://gitgem.org/github/Kaia-Alenia/alenia-nerve"><img src="https://gitgem.org/api/badge/github/Kaia-Alenia/alenia-nerve.svg" alt="GitGem"></a>
 
 
 > **Sovereignty, Speed, and Complete Privacy.** Nerve is the cross-platform local inter-process communication engine designed by **Alenia Studios** to orchestrate game development tools locally, requiring zero cloud dependency.
@@ -32,6 +27,7 @@ In modern game development, the privacy of your assets, source code, and metadat
 ---
 
 ## Multi-Platform Native Core (UDS & TCP)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blueviolet.svg)](#)
 
 Nerve is fully cross-platform and dynamically adapts to the host operating system to deliver the best local latency possible:
 * **Linux & macOS**: Utilizes native **Unix Domain Sockets (UDS)** via `socket.AF_UNIX` at `/tmp/nerve.sock` for high-performance direct memory piping.
@@ -103,21 +99,31 @@ Nerve is not just for game development. It is a zero-dependency, ultra-fast solu
 
 ---
 
-## Installation
+## Monorepo Structure & Supported Clients
+
+Nerve is structured as a Monorepo containing the main Hub and the official client libraries for various programming languages:
+
+```
+alenia-nerve/
+├── clients/
+│   ├── python/        # Official Python client & CLI Hub
+│   ├── javascript/    # Node.js & Browser client
+│   ├── rust/          # Rust client library
+│   └── go/            # Go client library
+```
+
+Refer to each client's subdirectory for specific installation and usage instructions.
+
+## Installation (Python Client & CLI Hub)
+[![PyPI Version](https://img.shields.io/pypi/v/alenia-nerve.svg?color=blueviolet)](https://pypi.org/project/alenia-nerve/) [![Python](https://img.shields.io/badge/Python-3.10%2B-indigo.svg)](#)
 
 We highly recommend installing this tool inside an isolated virtual environment to comply with modern OS security standards (PEP 668) and avoid dependency conflicts.
 
 ```bash
-# 1. Create a virtual environment
 python3 -m venv alenia_env
 
-# 2. Activate it
-# On Linux/macOS:
 source alenia_env/bin/activate
-# On Windows:
-alenia_env\Scripts\activate
 
-# 3. Install the engine
 pip install alenia-nerve
 ```
 
@@ -206,6 +212,8 @@ nodes = client.list_clients()
 print(nodes)  # ['renderer', 'monitor', 'logger']
 ```
 
+For a fully functional, production-ready implementation of Nerve working alongside Zenith in tools like Framegrid and Giftly, visit the [zenith-nerve-tools](https://github.com/Kaia-Alenia/zenith-nerve-tools) repository.
+
 ---
 
 ## Contributors
@@ -222,6 +230,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 ---
 
 ## License
+[![License](https://img.shields.io/badge/License-GPLv3-8a2be2.svg)](LICENSE)
 
 This software is distributed under the **GNU General Public License v3 (GPL v3)**. See [LICENSE](LICENSE) for more details.
 
