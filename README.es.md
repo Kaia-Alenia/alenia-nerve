@@ -13,7 +13,7 @@
 
 ---
 
-## ❓ ¿Para qué sirve Nerve?
+##  ¿Para qué sirve Nerve?
 
 Nerve está diseñado para desarrolladores que necesitan conectar múltiples programas, scripts o microservicios locales para que intercambien datos en tiempo real con una latencia de submilisegundos. En lugar de ejecutar un servidor web local pesado (como Flask o FastAPI) que abre puertos públicos, o escribir en archivos compartidos propensos a bloqueos, Nerve crea un bus de comunicación local seguro y ultrarrápido.
 
@@ -25,13 +25,13 @@ Nerve está diseñado para desarrolladores que necesitan conectar múltiples pro
 
 ---
 
-## 🧠 El Concepto: Redes Locales Soberanas
+##  El Concepto: Redes Locales Soberanas
 
 En el desarrollo de videojuegos moderno, la privacidad de tus recursos, código fuente y metadatos es primordial. **Nerve** actúa como un bus de datos local ultrarrápido, permitiendo que procesos independientes (como cortadores de sprites, renderizadores de gifs y monitores de sistema) se sincronicen en tiempo real con latencia de submilisegundos, sin enviar un solo byte fuera de tu estación de trabajo física.
 
 ---
 
-## ⚡ Núcleo Nativo Multiplataforma ✓
+## Núcleo Nativo Multiplataforma ✓
 
 Nerve es totalmente multiplataforma y se adapta dinámicamente al sistema operativo anfitrión para ofrecer la mejor latencia local posible:
 
@@ -40,7 +40,7 @@ Nerve es totalmente multiplataforma y se adapta dinámicamente al sistema operat
 
 ---
 
-## ✨ Características Principales ⚠ ⚠
+##  Características Principales ⚠ ⚠
 
 * **Multiplataforma**: No requiere configuración; funciona sin ajustes previos en Windows, Linux y macOS.
 * **Enmarcado por Líneas**: Manejo robusto de paquetes usando delimitadores de nueva línea (`\n`) para evitar colisiones de datos bajo alto rendimiento.
@@ -52,7 +52,7 @@ Nerve es totalmente multiplataforma y se adapta dinámicamente al sistema operat
 
 ---
 
-## 🔌 Clientes Soportados e Integración
+##  Clientes Soportados e Integración
 
 Nerve está estructurado como un Monorepo que contiene el Hub principal y las bibliotecas de cliente oficiales. A continuación puedes encontrar la instalación y un ejemplo simple de integración para cada lenguaje soportado.
 
@@ -181,7 +181,7 @@ func main() {
 Para una implementación completamente funcional y lista para producción de Nerve trabajando junto a Zenith en herramientas como Framegrid y Giftly, visita el repositorio [zenith-nerve-tools](https://github.com/Kaia-Alenia/zenith-nerve-tools).
 
 
-## 💻 Interfaz de Línea de Comandos (CLI) y el Hub Principal
+## Interfaz de Línea de Comandos (CLI) y el Hub Principal
 
 Una vez instalado, inicia el hub central desde cualquier terminal:
 
@@ -212,7 +212,7 @@ nerve --help
 
 ---
 
-## 🖥️ Herramientas del Ecosistema: CLI Monitor y Web Dashboard
+##  Herramientas del Ecosistema: CLI Monitor y Web Dashboard
 
 Nerve incluye dos potentes herramientas integradas para observar tu red local en tiempo real — sin requerir servicios externos.
 
@@ -262,7 +262,7 @@ Una interfaz web local ligera que renderiza una **Vista de Topología de Red** e
 
 
 
-## ⚙️ Archivo de Configuración (`nerve.config`)
+##  Archivo de Configuración (`nerve.config`)
 
 Coloca un archivo `nerve.config` en la raíz de tu proyecto para personalizar las rutas de socket o los puertos TCP sin cambiar el código:
 
