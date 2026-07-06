@@ -24,7 +24,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import nerve
-from nerve import NexusClient, NexusHub, load_external_config
+from nerve import NexusClient, NexusHub
 from nerve.core import load_external_config as _core_load
 
 
@@ -60,7 +60,6 @@ def setup_dynamic_addresses():
             os.remove(SOCK_PATH)
         except OSError:
             pass
-
 
 
 def hub_address():
@@ -373,7 +372,10 @@ class TestNexusHubMessaging:
         self._recv_line(sender)
         self._recv_line(receiver)
         time.sleep(0.1)
-        self._send(sender, {"type": "send", "to": "srv_receiver", "payload": {"hello": "world"}})
+        self._send(
+            sender,
+            {"type": "send", "to": "srv_receiver", "payload": {"hello": "world"}},
+        )
         msg = self._recv_line(receiver)
         assert msg == {"hello": "world"}
         sender.close()
@@ -455,10 +457,12 @@ class TestAuthentication:
         time.sleep(0.1)
         assert "auth_client" in self.hub.connected_clients
         client.disconnect()
-        
+
     def test_unsuccessful_authentication_wrong_token(self):
         sock = self._raw_connect()
-        self._send(sock, {"type": "register", "id": "bad_token_client", "token": "wrong_token"})
+        self._send(
+            sock, {"type": "register", "id": "bad_token_client", "token": "wrong_token"}
+        )
         time.sleep(0.1)
         assert "bad_token_client" not in self.hub.connected_clients
         sock.close()
@@ -618,7 +622,7 @@ class TestNexusClientAPI:
         client._socket = mock_sock
         client._send_raw = MagicMock()
         client._listening = False
-        
+
         result = client.list_clients()
         assert set(result) == {"mock_a", "mock_b"}
 
@@ -642,23 +646,27 @@ class TestNexusClientAPI:
     def test_listen_on_reconnect_exception_handled(self):
         client = make_client()
         client.connect("reconnect_test_node")
-        
+
         calls = []
+
         def mock_reconnect():
             calls.append(1)
             raise RuntimeError("Test exception during reconnect")
-            
+
         client.listen(lambda p: None, on_reconnect=mock_reconnect)
         time.sleep(0.1)
-        
+
         import socket
+
         client._socket.shutdown(socket.SHUT_RDWR)
         client._socket.close()
-        
+
         time.sleep(0.5)
-        
+
         assert len(calls) >= 1, "on_reconnect should have been called"
-        assert client._listening is True, "Listener thread should continue running after on_reconnect exception"
+        assert client._listening is True, (
+            "Listener thread should continue running after on_reconnect exception"
+        )
         client.disconnect()
 
 
@@ -740,7 +748,9 @@ class TestIntegrationEndToEnd:
         for i, c in enumerate(senders):
             c.send("collector", {"idx": i})
 
-        assert done.wait(timeout=10), f"Only received {len(received)}/{MESSAGES} messages"
+        assert done.wait(timeout=10), (
+            f"Only received {len(received)}/{MESSAGES} messages"
+        )
         assert len(received) == MESSAGES
         indices = {m["idx"] for m in received}
         assert indices == set(range(MESSAGES))

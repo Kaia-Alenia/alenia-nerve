@@ -55,13 +55,13 @@ Este archivo registra el progreso de la reestructuración y el desarrollo del mo
 - [x] Actualizar CI con matrix de Node.js (18/20/22), `cargo clippy`, `go vet` y `-race`.
 - [x] Crear cuenta y token en crates.io → agregar secreto `CRATES_IO_TOKEN` en GitHub.
 - [x] Crear token en npm → agregar secreto `NPM_TOKEN` en GitHub.
-- [ ] Realizar el primer release tag `v1.3.9` y verificar que los 3 workflows de publicación completan exitosamente.
+- [x] Realizar el release tag `v1.3.8` y verificar que los workflows de publicación completan exitosamente.
 
 ## Fase 5: Robustez y Seguridad Avanzada
 
-- [ ] Soporte TLS/SSL para conexiones TCP en todos los clientes.
-- [ ] Rotación de tokens de autenticación dinámicos en el Hub.
-- [ ] Rate limiting y cuotas de transferencia por cliente.
+- [x] Soporte TLS/SSL para conexiones TCP en todos los clientes.
+- [x] Rotación de tokens de autenticación dinámicos en el Hub.
+- [x] Rate limiting y cuotas de transferencia por cliente.
 
 ## Fase 6: Herramientas del Ecosistema y CLI
 

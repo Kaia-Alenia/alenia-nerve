@@ -1,4 +1,5 @@
 const net = require('net');
+const tls = require('tls');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -46,6 +47,12 @@ class NexusClient extends EventEmitter {
       this.authToken = config.authToken || config.auth_token || null;
     }
 
+    this.useSsl = options.useSsl !== undefined ? options.useSsl : (config.use_ssl === 'true' || config.use_ssl === true);
+    this.sslCert = options.sslCert || config.ssl_cert || null;
+    this.sslKey = options.sslKey || config.ssl_key || null;
+    this.sslCa = options.sslCa || config.ssl_ca || null;
+    this.sslInsecure = options.sslInsecure !== undefined ? options.sslInsecure : (config.ssl_insecure === 'true' || config.ssl_insecure === true);
+
     this.clientId = null;
     this.isWindows = os.platform() === 'win32';
 
@@ -86,7 +93,25 @@ class NexusClient extends EventEmitter {
       ? { host: this.address.host, port: this.address.port }
       : { path: this.address };
 
-    const socket = net.createConnection(socketOpts);
+    let socket;
+    if (this.useSsl) {
+      if (this.sslCa) {
+        try { socketOpts.ca = [fs.readFileSync(this.sslCa)]; } catch(e){}
+      }
+      if (this.sslCert) {
+        try { socketOpts.cert = fs.readFileSync(this.sslCert); } catch(e){}
+      }
+      if (this.sslKey) {
+        try { socketOpts.key = fs.readFileSync(this.sslKey); } catch(e){}
+      }
+      if (this.sslInsecure) socketOpts.rejectUnauthorized = false;
+      if (this.isWindows) {
+         socketOpts.servername = this.address.host;
+      }
+      socket = tls.connect(socketOpts);
+    } else {
+      socket = net.createConnection(socketOpts);
+    }
     this.socket = socket;
 
     socket.setTimeout(5000);

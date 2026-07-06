@@ -62,6 +62,7 @@ class NexusHub:
         auth_token: Optional[str] = None,
         max_connections: Optional[int] = None,
         rate_limit_messages_per_sec: Optional[float] = None,
+        rate_limit_bytes_per_min: Optional[int] = None,
         ssl_context: Optional["ssl.SSLContext"] = None,
         ssl_cert: Optional[str] = None,
         ssl_key: Optional[str] = None,
@@ -92,13 +93,32 @@ class NexusHub:
         self.is_windows: bool = platform.system() == "Windows"
         config = load_external_config(config_path)
         self.auth_token = auth_token or config.get("auth_token")
-        
-        raw_max = max_connections if max_connections is not None else config.get("max_connections")
+
+        raw_max = (
+            max_connections
+            if max_connections is not None
+            else config.get("max_connections")
+        )
         self.max_connections = int(raw_max) if raw_max is not None else None
-        
-        raw_rate = rate_limit_messages_per_sec if rate_limit_messages_per_sec is not None else config.get("rate_limit_messages_per_sec")
-        self.rate_limit_messages_per_sec = float(raw_rate) if raw_rate is not None else None
-        
+
+        raw_rate = (
+            rate_limit_messages_per_sec
+            if rate_limit_messages_per_sec is not None
+            else config.get("rate_limit_messages_per_sec")
+        )
+        self.rate_limit_messages_per_sec = (
+            float(raw_rate) if raw_rate is not None else None
+        )
+
+        raw_byte_rate = (
+            rate_limit_bytes_per_min
+            if rate_limit_bytes_per_min is not None
+            else config.get("rate_limit_bytes_per_min")
+        )
+        self.rate_limit_bytes_per_min = (
+            int(raw_byte_rate) if raw_byte_rate is not None else None
+        )
+
         self.ssl_context = ssl_context
         if self.ssl_context is None:
             cert = ssl_cert or config.get("ssl_cert")
@@ -114,6 +134,11 @@ class NexusHub:
         else:
             self.address = str(config.get("socket_path", "/tmp/nerve.sock"))
             self.socket_family = socket.AF_UNIX
+
+    def update_auth_token(self, new_token: Optional[str]) -> None:
+        """Update the authentication token dynamically."""
+        self.auth_token = new_token
+        self._log("93", "Auth token updated dynamically.")
 
     @property
     def connected_clients(self) -> List[str]:
@@ -198,7 +223,9 @@ class NexusHub:
                         dead.append((client_id, conn))
 
                 for client_id, conn in dead:
-                    self._log("91", "Heartbeat failed for '{}'. Purging.".format(client_id))
+                    self._log(
+                        "91", "Heartbeat failed for '{}'. Purging.".format(client_id)
+                    )
                     self._remove_client(client_id, conn)
 
         threading.Thread(target=_run, daemon=True, name="nerve-heartbeat").start()
@@ -223,6 +250,7 @@ class NexusHub:
         client_id = None
         buffer = ""
         msg_times = deque()
+        byte_times = deque()
         try:
             while self._running:
                 try:
@@ -234,6 +262,18 @@ class NexusHub:
                     break
                 if not chunk:
                     break
+
+                if self.rate_limit_bytes_per_min is not None:
+                    now = time.time()
+                    byte_times.append((now, len(chunk)))
+                    while byte_times and byte_times[0][0] < now - 60.0:
+                        byte_times.popleft()
+                    if (
+                        sum(size for _, size in byte_times)
+                        > self.rate_limit_bytes_per_min
+                    ):
+                        self._log("91", "Byte rate limit exceeded for client.")
+                        break
 
                 buffer += chunk.decode("utf-8", errors="replace")
                 if len(buffer) > 10 * 1024 * 1024:
@@ -271,15 +311,31 @@ class NexusHub:
                     if msg_type == "register":
                         raw_id = msg.get("id")
                         if not raw_id or not isinstance(raw_id, str):
-                            self._log("91", "Register message missing valid 'id' field.")
+                            self._log(
+                                "91", "Register message missing valid 'id' field."
+                            )
                             continue
-                            
+
                         if self.auth_token:
                             client_token = msg.get("token")
                             if not client_token or client_token != self.auth_token:
-                                self._log("91", "Authentication failed for client registration.")
+                                self._log(
+                                    "91",
+                                    "Authentication failed for client registration.",
+                                )
                                 try:
-                                    conn.sendall((json.dumps({"type": "registered", "status": "failed", "reason": "auth"}) + "\n").encode("utf-8"))
+                                    conn.sendall(
+                                        (
+                                            json.dumps(
+                                                {
+                                                    "type": "registered",
+                                                    "status": "failed",
+                                                    "reason": "auth",
+                                                }
+                                            )
+                                            + "\n"
+                                        ).encode("utf-8")
+                                    )
                                 except OSError:
                                     pass
                                 break
@@ -287,7 +343,12 @@ class NexusHub:
                         client_id = raw_id
                         with self._lock:
                             if raw_id in self._clients:
-                                self._log("93", "Re-registration of ID '{}': closing old connection.".format(raw_id))
+                                self._log(
+                                    "93",
+                                    "Re-registration of ID '{}': closing old connection.".format(
+                                        raw_id
+                                    ),
+                                )
                                 old_conn = self._clients[raw_id]
                                 try:
                                     old_conn.close()
@@ -299,7 +360,14 @@ class NexusHub:
                             self._write_locks[conn] = threading.Lock()
                         self._log("92", "Registered: {}".format(client_id))
                         try:
-                            conn.sendall((json.dumps({"type": "registered", "status": "success"}) + "\n").encode("utf-8"))
+                            conn.sendall(
+                                (
+                                    json.dumps(
+                                        {"type": "registered", "status": "success"}
+                                    )
+                                    + "\n"
+                                ).encode("utf-8")
+                            )
                         except OSError:
                             pass
                         if self.on_connect:
@@ -317,16 +385,23 @@ class NexusHub:
                         if self.verbose:
                             self._log(
                                 "95",
-                                "[VERBOSE] Routing '{}' → '{}'".format(client_id, target),
+                                "[VERBOSE] Routing '{}' → '{}'".format(
+                                    client_id, target
+                                ),
                             )
                         success = self._send_to(target, payload)
                         if not success and self.verbose:
-                            self._log("93", "Target '{}' not found or unreachable.".format(target))
+                            self._log(
+                                "93",
+                                "Target '{}' not found or unreachable.".format(target),
+                            )
 
                     elif msg_type == "broadcast":
                         payload = msg.get("payload")
                         if self.verbose:
-                            self._log("95", "[VERBOSE] Broadcast from '{}'".format(client_id))
+                            self._log(
+                                "95", "[VERBOSE] Broadcast from '{}'".format(client_id)
+                            )
                         self.broadcast(payload, exclude=client_id)
 
                     elif msg_type == "list":
@@ -338,13 +413,23 @@ class NexusHub:
                             if lock is not None:
                                 with lock:
                                     conn.sendall(
-                                        (json.dumps({"type": "list", "clients": client_list}) + "\n").encode("utf-8")
+                                        (
+                                            json.dumps(
+                                                {"type": "list", "clients": client_list}
+                                            )
+                                            + "\n"
+                                        ).encode("utf-8")
                                     )
                         except OSError:
                             pass
 
                     else:
-                        self._log("93", "Unknown message type: '{}' from '{}'.".format(msg_type, client_id))
+                        self._log(
+                            "93",
+                            "Unknown message type: '{}' from '{}'.".format(
+                                msg_type, client_id
+                            ),
+                        )
 
         except Exception as exc:
             if self.verbose:
@@ -362,7 +447,11 @@ class NexusHub:
                     pass
 
     def start(self) -> None:
-        if not self.is_windows and isinstance(self.address, str) and os.path.exists(self.address):
+        if (
+            not self.is_windows
+            and isinstance(self.address, str)
+            and os.path.exists(self.address)
+        ):
             test_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             try:
                 test_sock.connect(self.address)
@@ -414,7 +503,10 @@ class NexusHub:
                         if not self._running:
                             conn.close()
                             break
-                        if self.max_connections is not None and len(self._active_sockets) >= self.max_connections:
+                        if (
+                            self.max_connections is not None
+                            and len(self._active_sockets) >= self.max_connections
+                        ):
                             conn.close()
                             continue
 
@@ -547,17 +639,19 @@ class NexusClient:
             try:
                 sock = self._make_socket()
                 if self.ssl_context and self.socket_family == socket.AF_INET:
-                    hostname = self.address[0] if isinstance(self.address, tuple) else None
+                    hostname = (
+                        self.address[0] if isinstance(self.address, tuple) else None
+                    )
                     sock = self.ssl_context.wrap_socket(sock, server_hostname=hostname)
 
                 sock.connect(self.address)
-                
+
                 reg_msg = {"type": "register", "id": client_id}
                 if self.auth_token:
                     reg_msg["token"] = self.auth_token
-                
+
                 sock.sendall((json.dumps(reg_msg) + "\n").encode("utf-8"))
-                
+
                 sock.settimeout(5.0)
                 buffer = ""
                 auth_failed = False
@@ -574,12 +668,15 @@ class NexusClient:
                             if resp.get("type") == "registered":
                                 if resp.get("status") == "success":
                                     success = True
-                                elif resp.get("status") == "failed" and resp.get("reason") == "auth":
+                                elif (
+                                    resp.get("status") == "failed"
+                                    and resp.get("reason") == "auth"
+                                ):
                                     auth_failed = True
                                 break
                         except json.JSONDecodeError:
                             pass
-                
+
                 if auth_failed:
                     self._closed = True
                     try:
@@ -590,10 +687,10 @@ class NexusClient:
                         self._socket = None
                     print(f"[NERVE] Connected to hub as '{client_id}' failed (auth).")
                     return
-                
+
                 if not success:
                     raise OSError("Handshake failed or connection closed.")
-                
+
                 sock.settimeout(None)
                 with self._lock:
                     if self._closed:
@@ -658,7 +755,7 @@ class NexusClient:
         Args:
             to (str): Target client ID to send the payload to.
             payload (Any): The payload to send (must be JSON serializable).
-            
+
         Raises:
             ValueError: If 'to' is invalid.
         """
@@ -738,6 +835,7 @@ class NexusClient:
                 after successfully reconnecting to the Hub.
         """
         self._listening = True
+
         def _listener() -> None:
             while not self._closed:
                 buffer = ""
