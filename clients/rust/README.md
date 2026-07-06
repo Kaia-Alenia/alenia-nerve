@@ -1,5 +1,8 @@
 # alenia-nerve — Rust Client
 
+<img src="../../assets/rust_client.svg" alt="rust Client" width="600"/>
+
+
 [![crates.io](https://img.shields.io/crates/v/alenia-nerve)](https://crates.io/crates/alenia-nerve)
 [![docs.rs](https://img.shields.io/docsrs/alenia-nerve)](https://docs.rs/alenia-nerve)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](../../LICENSE)
@@ -25,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut client = NexusClient::new(Duration::from_secs(1), "", None);
     client.connect("my-app").await?;
 
-    client.send("other-app", serde_json::json!({"hello": "world"}))?;
+    client.send("other-app", serde_json::json!({"hello": "world"}&style=for-the-badge))?;
 
     client
         .listen(

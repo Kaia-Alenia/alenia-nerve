@@ -6,7 +6,7 @@ This is the official Python client library and Command Line Interface (CLI) for 
 
 The Python package includes the central CLI tool (`nerve`) used to boot and manage the central IPC routing Hub.
 
-![Nerve Hub Console](nerve_hub.jpg)
+![Nerve Hub Console](../../assets/python_client.svg)
 
 ### Running the Hub
 

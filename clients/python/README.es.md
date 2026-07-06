@@ -6,7 +6,7 @@ Esta es la biblioteca de cliente oficial de Python y la Interfaz de Línea de Co
 
 El paquete de Python incluye la herramienta de línea de comandos central (`nerve`) utilizada para iniciar y administrar el Hub de enrutamiento IPC principal.
 
-![Consola del Hub de Nerve](nerve_hub.jpg)
+![Consola del Hub de Nerve](../../assets/python_client.svg)
 
 ### Ejecutando el Hub
 

@@ -1,6 +1,6 @@
 # Nerve — Sistema Nervioso Descentralizado para Sockets Locales
 
-[![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-darkviolet.svg)](https://github.com/Kaia-Alenia/alenia-nerve) <a href="https://gitgem.org/github/Kaia-Alenia/alenia-nerve"><img src="https://gitgem.org/api/badge/github/Kaia-Alenia/alenia-nerve.svg" alt="GitGem"></a>
+[![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-darkviolet.svg?style=for-the-badge)](https://github.com/Kaia-Alenia/alenia-nerve) <a href="https://gitgem.org/github/Kaia-Alenia/alenia-nerve"><img src="https://gitgem.org/api/badge/github/Kaia-Alenia/alenia-nerve.svg" alt="GitGem"></a>
 
 
 > **Soberanía, Velocidad y Privacidad Absoluta.** Nerve es el motor de comunicación entre procesos (IPC) local y multiplataforma diseñado por Alenia Studios para orquestar herramientas de desarrollo de videojuegos localmente, requiriendo cero dependencias en la nube.
@@ -26,7 +26,7 @@ En el desarrollo de videojuegos moderno, la privacidad de tus recursos, código 
 ---
 
 ## Núcleo Nativo Multiplataforma (UDS y TCP)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blueviolet.svg)](#)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blueviolet.svg?style=for-the-badge)](#)
 
 Nerve es totalmente multiplataforma y se adapta dinámicamente al sistema operativo anfitrión para ofrecer la mejor latencia local posible:
 * **Linux y macOS:** Utiliza Unix Domain Sockets (UDS) nativos a través de `socket.AF_UNIX` en `/tmp/nerve.sock` para tuberías de memoria directa de alto rendimiento.
@@ -50,7 +50,7 @@ alenia-nerve/
 Consulta el subdirectorio de cada cliente para obtener instrucciones específicas de instalación y uso.
 
 ## Instalación (Cliente de Python y CLI Hub)
-[![PyPI Version](https://img.shields.io/pypi/v/alenia-nerve.svg?color=blueviolet)](https://pypi.org/project/alenia-nerve/) [![Python](https://img.shields.io/badge/Python-3.10%2B-indigo.svg)](#)
+[![PyPI Version](https://img.shields.io/pypi/v/alenia-nerve.svg?color=blueviolet)](https://pypi.org/project/alenia-nerve/) [![Python](https://img.shields.io/badge/Python-3.10%2B-indigo.svg?style=for-the-badge)](#)
 
 Recomendamos instalar esta herramienta dentro de un entorno virtual aislado para cumplir con los estándares de seguridad de los sistemas operativos modernos (PEP 668) y evitar conflictos de dependencias.
 
@@ -156,7 +156,7 @@ Consulta CHANGELOG.md para ver el historial completo de versiones.
 ---
 
 ## Licencia
-[![License](https://img.shields.io/badge/License-GPLv3-8a2be2.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-GPLv3-8a2be2.svg?style=for-the-badge)](LICENSE)
 
 Este software se distribuye bajo la Licencia Pública General de GNU v3 (GPL v3). Consulta el archivo LICENSE para más detalles.
 
