@@ -1,6 +1,6 @@
 {
   "name": "alenia-nerve",
-  "version": "1.3.9",
+  "version": "1.3.8",
   "description": "JavaScript/Node.js client for the Alenia Nerve local IPC engine (UDS + TCP)",
   "main": "index.js",
   "types": "index.d.ts",

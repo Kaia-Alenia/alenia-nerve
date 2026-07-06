@@ -15,6 +15,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpStream, UnixStream};
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::sleep;
+use tokio_native_tls::native_tls::TlsConnector;
 
 type IoHalves = (
     Box<dyn tokio::io::AsyncRead + Send + Unpin>,
@@ -79,6 +80,8 @@ pub struct NexusClient {
     on_reconnect_listeners: Arc<Mutex<Vec<mpsc::UnboundedSender<()>>>>,
     closed: Arc<Mutex<bool>>,
     pub is_windows: bool,
+    pub use_ssl: bool,
+    pub ssl_insecure: bool,
 }
 
 impl NexusClient {
@@ -118,6 +121,8 @@ impl NexusClient {
             on_reconnect_listeners: Arc::new(Mutex::new(Vec::new())),
             closed: Arc::new(Mutex::new(false)),
             is_windows,
+            use_ssl: config.get("use_ssl").or_else(|| config.get("useSSL")).map(|v| v.to_lowercase() == "true" || v == "1").unwrap_or(false),
+            ssl_insecure: config.get("ssl_insecure").or_else(|| config.get("sslInsecure")).map(|v| v.to_lowercase() == "true" || v == "1").unwrap_or(false),
         }
     }
 
@@ -138,23 +143,46 @@ impl NexusClient {
         let tx_shared = self.tx.clone();
         let closed = self.closed.clone();
         let is_windows = self.is_windows;
+        let use_ssl = self.use_ssl;
+        let ssl_insecure = self.ssl_insecure;
 
         tokio::spawn(async move {
             let mut first_connect = Some(connect_ok_tx);
 
             while !*closed.lock().await {
-                let conn_result: Result<IoHalves, std::io::Error> = if is_windows {
+                let conn_result: Result<IoHalves, Box<dyn std::error::Error + Send + Sync>> = if is_windows {
                     match &address {
                         ConnectionAddress::Tcp(host, port) => {
                             match TcpStream::connect(format!("{}:{}", host, port)).await {
                                 Ok(stream) => {
-                                    let (r, w) = tokio::io::split(stream);
-                                    Ok((Box::new(r), Box::new(w)))
+                                    if use_ssl {
+                                        let mut builder = TlsConnector::builder();
+                                        if ssl_insecure {
+                                            builder.danger_accept_invalid_certs(true)
+                                                   .danger_accept_invalid_hostnames(true);
+                                        }
+                                        match builder.build() {
+                                            Ok(cx) => {
+                                                let connector = tokio_native_tls::TlsConnector::from(cx);
+                                                match connector.connect(host, stream).await {
+                                                    Ok(tls_stream) => {
+                                                        let (r, w) = tokio::io::split(tls_stream);
+                                                        Ok((Box::new(r), Box::new(w)))
+                                                    }
+                                                    Err(e) => Err(e.into())
+                                                }
+                                            }
+                                            Err(e) => Err(e.into())
+                                        }
+                                    } else {
+                                        let (r, w) = tokio::io::split(stream);
+                                        Ok((Box::new(r), Box::new(w)))
+                                    }
                                 }
-                                Err(e) => Err(e),
+                                Err(e) => Err(e.into()),
                             }
                         }
-                        _ => Err(std::io::Error::other("Invalid address for Windows")),
+                        _ => Err(std::io::Error::other("Invalid address for Windows").into()),
                     }
                 } else {
                     match &address {
@@ -163,9 +191,9 @@ impl NexusClient {
                                 let (r, w) = tokio::io::split(stream);
                                 Ok((Box::new(r), Box::new(w)))
                             }
-                            Err(e) => Err(e),
+                            Err(e) => Err(e.into()),
                         },
-                        _ => Err(std::io::Error::other("Invalid address for Unix")),
+                        _ => Err(std::io::Error::other("Invalid address for Unix").into()),
                     }
                 };
 

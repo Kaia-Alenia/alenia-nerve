@@ -8,6 +8,7 @@ package nerve
 
 import (
 	"bufio"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -38,6 +39,8 @@ type Config struct {
 	AuthToken     string
 	RetryInterval time.Duration
 	Mode          ConnectionMode
+	UseSSL        bool
+	SSLInsecure   bool
 }
 
 func defaultConfig() Config {
@@ -47,6 +50,8 @@ func defaultConfig() Config {
 		SocketPath:    "/tmp/nerve.sock",
 		RetryInterval: 2 * time.Second,
 		Mode:          ModeAuto,
+		UseSSL:        false,
+		SSLInsecure:   false,
 	}
 }
 
@@ -121,6 +126,8 @@ func NewNexusClientFromConfig(cfg Config) *NexusClient {
 	if cfg.Mode != ModeAuto {
 		base.Mode = cfg.Mode
 	}
+	base.UseSSL = cfg.UseSSL
+	base.SSLInsecure = cfg.SSLInsecure
 	return &NexusClient{cfg: base}
 }
 
@@ -148,6 +155,16 @@ func NewNexusClientFromFile(path string) *NexusClient {
 	} else if v, ok := raw["authToken"]; ok {
 		cfg.AuthToken = v
 	}
+	if v, ok := raw["use_ssl"]; ok {
+		cfg.UseSSL = strings.ToLower(v) == "true" || v == "1"
+	} else if v, ok := raw["useSSL"]; ok {
+		cfg.UseSSL = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v, ok := raw["ssl_insecure"]; ok {
+		cfg.SSLInsecure = strings.ToLower(v) == "true" || v == "1"
+	} else if v, ok := raw["sslInsecure"]; ok {
+		cfg.SSLInsecure = strings.ToLower(v) == "true" || v == "1"
+	}
 	return &NexusClient{cfg: cfg}
 }
 
@@ -155,6 +172,13 @@ func (c *NexusClient) dial() (net.Conn, error) {
 	useTCP := c.cfg.Mode == ModeTCP || (c.cfg.Mode == ModeAuto && runtime.GOOS == "windows")
 	if useTCP {
 		addr := net.JoinHostPort(c.cfg.Host, fmt.Sprintf("%d", c.cfg.Port))
+		if c.cfg.UseSSL {
+			tlsConfig := &tls.Config{
+				InsecureSkipVerify: c.cfg.SSLInsecure,
+			}
+			dialer := &net.Dialer{Timeout: 5 * time.Second}
+			return tls.DialWithDialer(dialer, "tcp", addr, tlsConfig)
+		}
 		return net.DialTimeout("tcp", addr, 5*time.Second)
 	}
 	return net.DialTimeout("unix", c.cfg.SocketPath, 5*time.Second)

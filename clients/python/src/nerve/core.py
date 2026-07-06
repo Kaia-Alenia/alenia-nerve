@@ -62,6 +62,7 @@ class NexusHub:
         auth_token: Optional[str] = None,
         max_connections: Optional[int] = None,
         rate_limit_messages_per_sec: Optional[float] = None,
+        rate_limit_bytes_per_min: Optional[int] = None,
         ssl_context: Optional["ssl.SSLContext"] = None,
         ssl_cert: Optional[str] = None,
         ssl_key: Optional[str] = None,
@@ -99,6 +100,9 @@ class NexusHub:
         raw_rate = rate_limit_messages_per_sec if rate_limit_messages_per_sec is not None else config.get("rate_limit_messages_per_sec")
         self.rate_limit_messages_per_sec = float(raw_rate) if raw_rate is not None else None
         
+        raw_byte_rate = rate_limit_bytes_per_min if rate_limit_bytes_per_min is not None else config.get("rate_limit_bytes_per_min")
+        self.rate_limit_bytes_per_min = int(raw_byte_rate) if raw_byte_rate is not None else None
+        
         self.ssl_context = ssl_context
         if self.ssl_context is None:
             cert = ssl_cert or config.get("ssl_cert")
@@ -114,6 +118,11 @@ class NexusHub:
         else:
             self.address = str(config.get("socket_path", "/tmp/nerve.sock"))
             self.socket_family = socket.AF_UNIX
+
+    def update_auth_token(self, new_token: Optional[str]) -> None:
+        """Update the authentication token dynamically."""
+        self.auth_token = new_token
+        self._log("93", "Auth token updated dynamically.")
 
     @property
     def connected_clients(self) -> List[str]:
@@ -223,6 +232,7 @@ class NexusHub:
         client_id = None
         buffer = ""
         msg_times = deque()
+        byte_times = deque()
         try:
             while self._running:
                 try:
@@ -234,6 +244,15 @@ class NexusHub:
                     break
                 if not chunk:
                     break
+
+                if self.rate_limit_bytes_per_min is not None:
+                    now = time.time()
+                    byte_times.append((now, len(chunk)))
+                    while byte_times and byte_times[0][0] < now - 60.0:
+                        byte_times.popleft()
+                    if sum(size for _, size in byte_times) > self.rate_limit_bytes_per_min:
+                        self._log("91", "Byte rate limit exceeded for client.")
+                        break
 
                 buffer += chunk.decode("utf-8", errors="replace")
                 if len(buffer) > 10 * 1024 * 1024:
