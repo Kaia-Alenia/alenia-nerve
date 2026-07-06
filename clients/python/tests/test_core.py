@@ -229,10 +229,17 @@ class TestNexusHubClientRegistration:
         sock.sendall((json.dumps(msg) + "\n").encode())
 
     def _recv_line(self, sock: socket.socket) -> dict:
-        buf = b""
-        while b"\n" not in buf:
-            buf += sock.recv(4096)
-        return json.loads(buf.split(b"\n")[0])
+        sock.settimeout(2.0)
+        try:
+            buf = b""
+            while b"\n" not in buf:
+                chunk = sock.recv(4096)
+                if not chunk:
+                    raise OSError("Socket closed")
+                buf += chunk
+            return json.loads(buf.split(b"\n")[0])
+        finally:
+            sock.settimeout(None)
 
     def test_client_registers_successfully(self):
         sock = self._raw_connect()
@@ -265,19 +272,27 @@ class TestNexusHubClientRegistration:
         sock.close()
 
     def test_list_clients(self):
+        print("DEBUG: test_list_clients started")
         a = self._raw_connect()
         b = self._raw_connect()
+        print("DEBUG: connected raw")
         self._send(a, {"type": "register", "id": "list_a"})
         self._send(b, {"type": "register", "id": "list_b"})
+        print("DEBUG: sent registration requests")
         self._recv_line(a)
+        print("DEBUG: recv a registration")
         self._recv_line(b)
+        print("DEBUG: recv b registration")
         time.sleep(0.1)
         self._send(a, {"type": "list"})
+        print("DEBUG: sent list request")
         msg = self._recv_line(a)
+        print("DEBUG: recv list response:", msg)
         assert msg["type"] == "list"
         assert set(msg["clients"]) == {"list_a", "list_b"}
         a.close()
         b.close()
+        print("DEBUG: closed sockets")
 
     def test_on_connect_hook(self):
         connected = []
@@ -342,7 +357,10 @@ class TestNexusHubMessaging:
         buf = b""
         try:
             while b"\n" not in buf:
-                buf += sock.recv(4096)
+                chunk = sock.recv(4096)
+                if not chunk:
+                    raise OSError("Socket closed")
+                buf += chunk
         finally:
             sock.settimeout(None)
         return json.loads(buf.split(b"\n")[0])
