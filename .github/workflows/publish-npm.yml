@@ -47,8 +47,13 @@ jobs:
       - name: Run tests
         run: npm test
         
-      - name: Check npm auth
-        run: npm whoami
+      - name: Print npmrc
+        run: |
+          echo "HOME=$HOME"
+          ls -la ~
+          cat ~/.npmrc || true
 
       - name: Publish to npm
-        run: npm publish --provenance --access public
+        env:
+          NPM_CONFIG_PROVENANCE: true
+        run: npm publish --access public
