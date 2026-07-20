@@ -2,6 +2,15 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [1.5.1] — 2026-07-20
+
+### Corregido
+- Python: `nerve dashboard` devolvía 404 porque `dashboard/index.html` no estaba
+  incluido en el wheel publicado. Corregido declarando el archivo en
+  `[tool.setuptools.package-data]` dentro de `pyproject.toml`.
+
+---
+
 ## [1.3.5] — 2026-06-15
 
 ### Cambiado

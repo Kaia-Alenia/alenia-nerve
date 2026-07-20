@@ -2,6 +2,17 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [1.5.1] — 2026-07-20
+
+### Corregido
+- `nerve dashboard`: `index.html` no estaba incluido en el wheel publicado porque
+  `[tool.setuptools.package-data]` no declaraba `dashboard/index.html`.
+  Los usuarios que instalaban con `pip install alenia-nerve` recibían un 404 al
+  abrir el dashboard. El archivo ahora se incluye explícitamente bajo el paquete
+  `nerve`.
+
+---
+
 ## [1.3.5] — 2026-06-15
 
 ### Cambiado

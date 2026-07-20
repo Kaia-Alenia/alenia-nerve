@@ -34,7 +34,7 @@ Typical usage::
 
 from .core import NexusClient, NexusHub, load_external_config
 
-__version__ = "1.5.0"
+__version__ = "1.5.1"
 __author__ = "Alenia Studios"
 __license__ = "GNU General Public License v3 (GPL v3)"
 __email__ = "contact.aleniastudios@gmail.com"
