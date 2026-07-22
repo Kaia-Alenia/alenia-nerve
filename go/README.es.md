@@ -1,6 +1,6 @@
 # Alenia Nerve — Cliente Go
 
-[![pkg.go.dev](https://pkg.go.dev/badge/github.com/Kaia-Alenia/alenia-nerve/clients/go.svg)](https://pkg.go.dev/github.com/Kaia-Alenia/alenia-nerve/clients/go)
+[![pkg.go.dev](https://pkg.go.dev/badge/github.com/Kaia-Alenia/alenia-nerve/go.svg)](https://pkg.go.dev/github.com/Kaia-Alenia/alenia-nerve/go)
 [![Go](https://img.shields.io/badge/Go-1.21%2B-00ADD8.svg)](#)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blueviolet.svg)](#)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPLv3-blue.svg)](../../LICENSE)
@@ -17,7 +17,7 @@ Biblioteca de cliente Go para el motor IPC local [Alenia Nerve](https://github.c
 Para instalar el cliente Go, usa `go get`:
 
 ```bash
-go get github.com/Kaia-Alenia/alenia-nerve/clients/go
+go get github.com/Kaia-Alenia/alenia-nerve/go
 ```
 
 ## Licencia

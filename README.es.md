@@ -148,11 +148,11 @@ client.listen((data) => {
 ### Cliente Go
 
 [![Go](https://img.shields.io/badge/Go-1.21%2B-00ADD8.svg?logo=go&logoColor=white)](#)
-[![pkg.go.dev](https://pkg.go.dev/badge/github.com/Kaia-Alenia/alenia-nerve/clients/go.svg)](https://pkg.go.dev/github.com/Kaia-Alenia/alenia-nerve/clients/go)
+[![pkg.go.dev](https://pkg.go.dev/badge/github.com/Kaia-Alenia/alenia-nerve/go.svg)](https://pkg.go.dev/github.com/Kaia-Alenia/alenia-nerve/go)
 
 ✓ **Instalación:**
 ```bash
-go get github.com/Kaia-Alenia/alenia-nerve/clients/go
+go get github.com/Kaia-Alenia/alenia-nerve/go
 ```
 
 ✓ **Ejemplo Simple de Integración:**
@@ -161,7 +161,7 @@ package main
 
 import (
     "fmt"
-    nerve "github.com/Kaia-Alenia/alenia-nerve/clients/go"
+    nerve "github.com/Kaia-Alenia/alenia-nerve/go"
 )
 
 func main() {

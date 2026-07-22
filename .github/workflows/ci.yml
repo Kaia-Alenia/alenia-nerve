@@ -111,7 +111,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: clients/go
+        working-directory: go
     steps:
       - uses: actions/checkout@v4
 
