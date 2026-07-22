@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [1.0.0-alpha.1] — Planned
+## [1.0.0] — Initial Release
 
 ### Added
 - Monorepo structure setup for the official Rust client library.
