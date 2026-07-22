@@ -19,7 +19,7 @@ updates:
     open-pull-requests-limit: 5
 
   - package-ecosystem: "gomod"
-    directory: "/go"
+    directory: "/clients/go"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
