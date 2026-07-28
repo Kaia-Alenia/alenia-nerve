@@ -2,7 +2,7 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
-## [1.5.2] — 2026-07-28
+## [1.5.3] — 2026-07-28
 - Agregado Empaquetado Seguro de Datos (`.nrv`) con AES-256-GCM y Argon2id.
 - Interfaz CLI mejorada con comandos `pack` y `unpack` para encriptación de archivos de extremo a extremo.
 - Agregado comando `nerve genpass` y generación interactiva de contraseñas seguras durante el empaquetado `.nrv`, usando generador de passphrase tipo diceware con lista de EFF.

@@ -2,8 +2,8 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
-## [1.5.2] — 2026-07-28
-- Actualización de versión para alinear con el lanzamiento del ecosistema alenia-nerve 1.5.2.
+## [1.5.3] — 2026-07-28
+- Actualización de versión para alinear con el lanzamiento del ecosistema alenia-nerve 1.5.3.
 
 ## [1.5.1] — 2026-07-20
 

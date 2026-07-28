@@ -27,7 +27,7 @@ Alternativamente, añádelo manualmente a tu `Cargo.toml`:
 
 ```toml
 [dependencies]
-alenia-nerve = "1.5.2"
+alenia-nerve = "1.5.3"
 ```
 
 ## Inicio Rápido

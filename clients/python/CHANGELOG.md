@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.5.2] — 2026-07-28
+## [1.5.3] — 2026-07-28
 - Added Secure Data Packing (`.nrv`) with AES-256-GCM and Argon2id.
 - Enhanced CLI with `pack` and `unpack` commands for End-to-End file encryption.
 - Added `nerve open` command for interactive extraction with up to 3 password retry attempts.
