@@ -30,7 +30,8 @@ strace.out
 .agents/
 .pytest_cache/
 .coverage
-.vscode/
+.vscode
+*.vscode
 target/
 node_modules/
 .ruff_cache/
