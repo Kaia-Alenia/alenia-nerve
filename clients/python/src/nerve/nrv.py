@@ -77,10 +77,24 @@ def pack_nrv(source_path: str, output_nrv_path: str, password: str | None = None
     is_dir = os.path.isdir(source_path)
     
     # 1. Metadata
+    if is_dir:
+        original_size = 0
+        try:
+            for f in os.scandir(source_path):
+                try:
+                    if f.is_file(follow_symlinks=False) or f.is_symlink():
+                        original_size += f.stat(follow_symlinks=False).st_size
+                except OSError:
+                    pass
+        except OSError:
+            pass
+    else:
+        original_size = os.path.getsize(source_path)
+
     metadata = {
         "filename": os.path.basename(source_path.rstrip(os.sep)),
         "is_dir": is_dir,
-        "original_size": sum(f.stat().st_size for f in os.scandir(source_path) if f.is_file()) if is_dir else os.path.getsize(source_path),
+        "original_size": original_size,
         "chunk_size": CHUNK_SIZE,
         "format_version": VERSION
     }
