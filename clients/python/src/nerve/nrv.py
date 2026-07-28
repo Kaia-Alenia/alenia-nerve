@@ -10,7 +10,6 @@ import json
 import struct
 import getpass
 import tarfile
-from io import BytesIO
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
 from argon2.low_level import hash_secret_raw, Type
@@ -239,7 +238,7 @@ def unpack_nrv(nrv_path: str, output_dir: str, password: str | None = None) -> s
                     plaintext = aesgcm.decrypt(derived_nonce, chunk_ciphertext, aad)
                 except InvalidTag:
                     if is_last:
-                        raise ValueError(f"[ERROR] Corruption in the last chunk (or truncation attack).")
+                        raise ValueError("[ERROR] Corruption in the last chunk (or truncation attack).")
                     else:
                         raise ValueError(f"[ERROR] Corruption detected (or attempt to inject extra data). Chunk {chunk_counter} failed MAC.")
                 

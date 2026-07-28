@@ -2,7 +2,6 @@ import sys
 import getpass
 import platform
 import subprocess
-import os
 
 def is_tty() -> bool:
     return sys.stdin.isatty()

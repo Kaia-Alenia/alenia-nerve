@@ -19,6 +19,7 @@ import getpass
 from nerve import __version__
 from nerve.core import NexusHub
 from nerve.cli_monitor import run_monitor, run_dashboard
+from nerve.ui import is_tty
 
 PURPLE = "\033[95m"
 GREEN = "\033[92m"
@@ -156,7 +157,7 @@ def main() -> None:
                 print(f"{PURPLE}Estimated entropy:{RESET} {entropy:.2f} bits")
                 print(f"\n{RED}> IMPORTANT: Save this password now. It will not be shown again.{RESET}\n")
                 
-                saved_confirm = input(f"Have you saved the password? (type 'yes' to continue): ").strip().lower()
+                saved_confirm = input("Have you saved the password? (type 'yes' to continue): ").strip().lower()
                 if saved_confirm == 'yes':
                     password = passphrase
                     confirm = passphrase

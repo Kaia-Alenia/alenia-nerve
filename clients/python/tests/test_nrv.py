@@ -1,8 +1,7 @@
 import os
-import stat
 import struct
 import pytest
-from nerve.nrv import pack_nrv, unpack_nrv, CHUNK_SIZE, MAGIC_BYTES
+from nerve.nrv import pack_nrv, unpack_nrv, CHUNK_SIZE
 
 def test_empty_file(tmp_path):
     """Tests packing and unpacking an empty file."""
@@ -138,7 +137,7 @@ def test_directory_packing_and_symlinks(tmp_path):
     (src_dir / "file2.txt").write_text("World")
     
     # Create dangerous symlink if supported
-    if hasattr(os, "symlink"):
+    if hasattr(os, "symlink") and os.name != "nt":
         try:
             os.symlink("/etc/passwd", src_dir / "evil.txt")
         except OSError:
