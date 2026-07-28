@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "alenia-nerve"
-version = "1.5.1"
+version = "1.5.2"
 description = "Ultra-fast cross-platform local IPC engine for sovereign game developers."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -34,8 +34,14 @@ classifiers = [
     "Typing :: Typed",
 ]
 
+dependencies = [
+    "cryptography>=41.0.0",
+    "argon2-cffi>=23.0.0"
+]
+
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "pytest-timeout", "pytest-asyncio"]
+bridge = ["websockets>=10.4"]
 
 [project.scripts]
 nerve = "nerve.cli:main"
@@ -53,7 +59,7 @@ license-files = []
 
 [tool.setuptools.package-data]
 "*" = ["py.typed"]
-"nerve" = ["py.typed", "dashboard/index.html"]
+"nerve" = ["py.typed", "dashboard/index.html", "eff_large_wordlist.txt", "icons/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -33,3 +33,6 @@ strace.out
 .vscode/
 target/
 node_modules/
+.ruff_cache/
+.cache/
+.pyenv

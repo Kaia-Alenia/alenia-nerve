@@ -119,6 +119,7 @@ def run_monitor():
     sys.stdout.write("\033[?25l")
     sys.stdout.flush()
 
+    lines_printed = 0
     try:
         while True:
             metrics = client.get_metrics()
@@ -129,7 +130,8 @@ def run_monitor():
             mins, secs = divmod(rem, 60)
             uptime_str = f"{int(hours):02d}:{int(mins):02d}:{int(secs):02d}"
 
-            sys.stdout.write("\033[2J\033[H")
+            if lines_printed > 0:
+                sys.stdout.write(f"\033[{lines_printed}A\033[0J")
 
             output = [
                 f"\033[95m=== NERVE HUB MONITOR ===\033[0m  (v{__version__})",
@@ -153,8 +155,10 @@ def run_monitor():
             output.append("-" * 40)
             output.append("\033[90mPress Ctrl+C to exit\033[0m")
 
-            sys.stdout.write("\n".join(output) + "\n")
+            text = "\n".join(output) + "\n"
+            sys.stdout.write(text)
             sys.stdout.flush()
+            lines_printed = len(output)
 
             time.sleep(1.0)
     except KeyboardInterrupt:

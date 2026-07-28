@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.2] — 2026-07-28
+- Added Secure Data Packing (`.nrv`) with AES-256-GCM and Argon2id.
+- Enhanced CLI with `pack` and `unpack` commands for End-to-End file encryption.
+- Added `nerve open` command for interactive extraction with up to 3 password retry attempts.
+- Added `nerve associate` and `unassociate` commands to register `.nrv` files with the OS and provide custom icons for Windows/macOS/Linux.
+- Added `nerve genpass` for generating secure passwords (random) and passphrases (Diceware).
+- Added interactive password prompts with native GUI fallbacks (osascript, Tkinter, Zenity) when not in a TTY.
+- Improved extraction safety by gracefully skipping unsafe absolute symlinks and hardlinks with a warning instead of aborting.
+
 ## [1.5.1] — 2026-07-20
 
 ### Fixed

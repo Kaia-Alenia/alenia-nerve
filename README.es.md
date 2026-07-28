@@ -8,7 +8,7 @@
   [![Ko-fi](https://img.shields.io/badge/Apóyanos_en-Ko--fi-FF5E5B.svg?logo=ko-fi&logoColor=white)](https://ko-fi.com/aleniastudios)
 
   <br>
-  <p><i><b>Soberanía, Velocidad y Privacidad Absoluta.</b> Nerve es el motor de comunicación entre procesos (IPC) local multiplataforma diseñado por <b>Alenia Studios</b> para orquestar herramientas de desarrollo de videojuegos localmente, requiriendo cero dependencias en la nube.</i></p>
+  <p><i><b>Soberanía, Velocidad y Privacidad Absoluta.</b> Nerve es el motor de comunicación entre procesos (IPC) local multiplataforma diseñado por <b>Alenia Studios</b> para transferencia de datos y archivos offline entre aplicaciones de escritorio, scripts y microservicios, requiriendo cero dependencias en la nube.</i></p>
 </div>
 
 ---
@@ -19,6 +19,7 @@ Nerve está diseñado para desarrolladores que necesitan conectar múltiples pro
 
 ### Casos de Uso Principales:
 * **Microservicios Locales y Aplicaciones de Escritorio:** Vincula un frontend moderno (Electron, Tauri, Flutter) con un backend pesado en Python o un modelo de IA local.
+* **Transferencia de Archivos Offline:** Mueve contenedores seguros y datos binarios entre procesos aislados de forma instantánea.
 * **Pipelines de Datos en Tiempo Real e IA:** Transmite datos (audio, video, texto) entre nodos de procesamiento. Si un nodo de IA falla, Nerve lo reconecta automáticamente.
 * **Automatización y Orquestación de Scripts:** Coordina tareas en segundo plano (colectores de logs, scripts de respaldo automático, scrapers) y agrega sus salidas.
 * **Comunicación Políglota:** Conecta programas escritos en diferentes lenguajes (Python, Rust, C++, Go) utilizando JSON simple delimitado por líneas sobre sockets locales estándar.
@@ -27,7 +28,7 @@ Nerve está diseñado para desarrolladores que necesitan conectar múltiples pro
 
 ##  El Concepto: Redes Locales Soberanas
 
-En el desarrollo de videojuegos moderno, la privacidad de tus recursos, código fuente y metadatos es primordial. **Nerve** actúa como un bus de datos local ultrarrápido, permitiendo que procesos independientes (como cortadores de sprites, renderizadores de gifs y monitores de sistema) se sincronicen en tiempo real con latencia de submilisegundos, sin enviar un solo byte fuera de tu estación de trabajo física.
+En el desarrollo de software moderno, la privacidad de tus datos, recursos y lógica interna es primordial. **Nerve** actúa como un bus de datos local ultrarrápido, permitiendo que procesos independientes (como aplicaciones de escritorio, pipelines de procesamiento de datos, y herramientas de automatización) se sincronicen y compartan archivos en tiempo real con latencia de submilisegundos, sin enviar un solo byte fuera de tu estación de trabajo física.
 
 ---
 
@@ -178,32 +179,48 @@ func main() {
 
 ---
 
-Para una implementación completamente funcional y lista para producción de Nerve trabajando junto a Zenith en herramientas como Framegrid y Giftly, visita el repositorio [zenith-nerve-tools](https://github.com/Kaia-Alenia/zenith-nerve-tools).
+### Empaquetado Seguro (.nrv)
 
+Nerve incluye un empaquetador criptográfico de alto rendimiento por streaming diseñado para compartir recursos offline. Utiliza AES-256-GCM y Argon2id para asegurar carpetas o archivos en contenedores `.nrv`.
 
-## Interfaz de Línea de Comandos (CLI) y el Hub Principal
+Para máxima seguridad, evita pasar la contraseña como argumento; usa la variable de entorno `NERVE_NRV_PASSWORD`:
+```bash
+NERVE_NRV_PASSWORD="mi_contraseña_segura" nerve pack ./mi_juego mi_juego.nrv
+NERVE_NRV_PASSWORD="mi_contraseña_segura" nerve unpack mi_juego.nrv ./output
+```
+Si no se define la variable de entorno, la CLI solicitará la contraseña de forma interactiva. Si no tienes una contraseña, la CLI te ofrecerá generar una frase de contraseña altamente segura (usando Diceware con la lista EFF). También puedes generar contraseñas seguras independientes usando el comando `nerve genpass`.
 
-Una vez instalado, inicia el hub central desde cualquier terminal:
+---
+
+##  Interfaz de Línea de Comandos (CLI) y el Hub Principal
+
+Una vez instalado, el comando `nerve` proporciona un conjunto de herramientas para administrar tu red IPC local y asegurar archivos.
+
+### Comandos Disponibles
+
+* **`nerve start`**: Inicia el **NexusHub** — el enrutador central de mensajes para tu red local. Se ejecuta de inmediato sin necesidad de configuración y escucha las conexiones entrantes. Usa `nerve start --verbose` para rastrear en tiempo real cada paquete enrutado.
+* **`nerve monitor`**: Lanza un panel interactivo en terminal que muestra todos los clientes conectados, tiempo de actividad, conteo de mensajes y estadísticas de tráfico en un solo vistazo.
+* **`nerve dashboard`**: Inicia una interfaz web local ligera en `http://localhost:8080` que renderiza una **Vista de Topología de Red** en vivo con todos los nodos conectados.
+* **`nerve bridge`**: Inicia un proxy HTTP/WebSocket en el puerto 50506. Esto permite que navegadores web y clientes WebSocket se conecten y hablen directamente con la red IPC de Nerve. (Requiere el paquete `websockets`).
+* **`nerve pack <origen> <salida.nrv>`**: Encripta de forma segura y empaqueta un archivo o directorio en un contenedor `.nrv` usando AES-256-GCM.
+* **`nerve unpack <nrv> <salida>`**: Desencripta y extrae un contenedor `.nrv` en el directorio de salida especificado.
+* **`nerve open <archivo.nrv>`**: Abre de forma interactiva un contenedor `.nrv`, manejando las solicitudes de contraseña mediante TTY o diálogos de interfaz gráfica nativos (Zenity/Tkinter/macOS osascript) con hasta 3 intentos de reintento.
+* **`nerve associate`**: Registra la extensión de archivo `.nrv` en tu sistema operativo (Windows/macOS/Linux) y la asocia con el comando `nerve open` y un ícono personalizado, habilitando la extracción con doble clic.
+* **`nerve unassociate`**: Elimina la asociación de la extensión de archivo `.nrv` de tu sistema operativo.
+* **`nerve genpass`**: Genera una contraseña o frase de contraseña altamente segura. Usa `--mode random` (longitud por defecto 20) o `--mode passphrase` (por defecto 5 palabras).
+
+### Iniciando el Hub
 
 ```bash
 nerve start
 ```
 
 <div align="center">
-  <img src="assets/images/nerve-start.png" alt="nerve start — Hub inicializándose y activo vía Unix Socket" width="90%">
-  <br><sub>El Hub se inicializa instantáneamente y escucha las conexiones de los clientes a través del Unix Domain Socket.</sub>
+  <img src="assets/images/nerve-start.png" alt="nerve start — Hub initializing and active via Unix Socket" width="90%">
+  <br><sub>El Hub se inicializa instantáneamente y escucha conexiones de clientes vía Unix Domain Socket.</sub>
 </div>
 
 <br>
-
-Este único comando arranca el **NexusHub** — el enrutador de mensajes central para toda tu red local:
-1. **Cero Configuración Necesaria:** Funciona inmediatamente sin ajustes previos. Actúa como el cerebro que enruta todos los mensajes entre los clientes conectados.
-2. **Descubrimiento Automático:** Cualquier `NexusClient` en tus herramientas descubrirá y se conectará automáticamente a este Hub.
-
-Para el rastreo de mensajes en tiempo real durante el desarrollo:
-```bash
-nerve start --verbose
-```
 
 ### Menú de Ayuda:
 ```bash
@@ -212,35 +229,35 @@ nerve --help
 
 ---
 
-##  Herramientas del Ecosistema: CLI Monitor y Web Dashboard
+##  Herramientas de Monitoreo: CLI y Web Dashboard
 
-Nerve incluye dos potentes herramientas integradas para observar tu red local en tiempo real — sin requerir servicios externos.
+Nerve incluye potentes herramientas integradas para observar tu red local en tiempo real — sin requerir servicios externos en la nube.
 
 ### CLI Monitor Global (`nerve-monitor`)
 
 Un panel interactivo basado en terminal que muestra todos los clientes conectados, tiempo de actividad (uptime), conteo de mensajes y estadísticas de tráfico en un solo vistazo.
 
 <p align="center">
-  <img src="assets/images/cli-monitor-clients.png" alt="CLI Monitor mostrando 6 clientes: py_client, js_client, go_client, rs_client, nerve-monitor, nerve-dashboard" width="48%">
+  <img src="assets/images/cli-monitor-clients.png" alt="CLI Monitor mostrando clientes conectados" width="48%">
   &nbsp;
-  <img src="assets/images/cli-monitor-giftly.png" alt="CLI Monitor mostrando a Giftly y Framegrid conectados junto a nerve-monitor y nerve-dashboard" width="48%">
+  <img src="assets/images/cli-monitor-giftly.png" alt="CLI Monitor mostrando tráfico en vivo" width="48%">
 </p>
 
-*Izquierda: Los cuatro clientes de lenguajes oficiales conectados simultáneamente. Derecha: Las herramientas reales [Giftly y Framegrid](https://github.com/Kaia-Alenia/zenith-nerve-tools) conectadas de manera invisible — pero totalmente visibles en el Hub.*
+*Monitoreo en tiempo real de clientes de múltiples lenguajes y aplicaciones de producción conectadas simultáneamente.*
 
 ---
 
 ### Logs del Hub (`nerve start`)
 
-Los registros del terminal del Hub muestran cada evento de registro, ruta de mensaje y desconexión con una salida a color. Esto es lo que el servidor ve cuando los clientes se conectan.
+Los registros del terminal del Hub muestran cada evento de registro, ruta de mensaje y desconexión con una salida a color. Esto es lo que el servidor ve cuando las aplicaciones cliente se conectan.
 
 <p align="center">
-  <img src="assets/images/hub-logs-clients.png" alt="Logs del Hub mostrando el banner ASCII de NERVE y a los 6 clientes registrándose" width="48%">
+  <img src="assets/images/hub-logs-clients.png" alt="Logs del Hub mostrando el banner ASCII y registro de clientes" width="48%">
   &nbsp;
-  <img src="assets/images/hub-logs-giftly.png" alt="Logs del Hub mostrando a Giftly y Framegrid registrándose junto a nerve-monitor y nerve-dashboard" width="48%">
+  <img src="assets/images/hub-logs-giftly.png" alt="Logs del Hub mostrando el tráfico de red local" width="48%">
 </p>
 
-*Izquierda: Secuencia de arranque del Hub con todos los clientes registrándose (py, js, go, rs). Derecha: Giftly y Framegrid registrándose como nodos nativos de Nerve.*
+*Secuencia de arranque del Hub y registro transparente de eventos y reconexiones automáticas.*
 
 ---
 
@@ -254,9 +271,18 @@ Una interfaz web local ligera que renderiza una **Vista de Topología de Red** e
   <img src="assets/images/dashboard-full.png" alt="Dashboard Completo en la Web — barra lateral con la lista de nodos, tiempo de actividad y mensajes procesados" width="48%">
 </p>
 
-*Izquierda: Grafo de topología puro — el Hub de Nerve al centro, con todos los nodos orbitando alrededor. Derecha: Panel completo con la barra lateral de métricas en vivo mostrando el tiempo de actividad, el tráfico (18.25 KB) y los 1003 mensajes procesados.*
+*Izquierda: Grafo de topología de los nodos interconectados. Derecha: Panel completo con la barra lateral de métricas en vivo mostrando el tráfico (ej. 18.25 KB) y mensajes procesados.*
 
-*(Echa un vistazo a nuestro monorepo [zenith-nerve-tools](https://github.com/Kaia-Alenia/zenith-nerve-tools) para ver herramientas prácticas y del mundo real construidas sobre Nerve).*
+---
+
+## 🏭 Casos de Uso Reales en Producción
+
+Nerve fue construido para operar en entornos exigentes. Actualmente, orquesta el ecosistema de herramientas de **Alenia Studios**, sirviendo como el puente de comunicación en tiempo real para aplicaciones pesadas de escritorio:
+
+* **Framegrid:** Herramienta avanzada de procesamiento de imágenes y hojas de sprites.
+* **Giftly:** Renderizador de exportaciones y automatización de GIFs.
+
+*(Echa un vistazo a nuestro monorepo [zenith-nerve-tools](https://github.com/Kaia-Alenia/zenith-nerve-tools) para ver la implementación de estas herramientas de producción construidas enteramente sobre la arquitectura de Nerve).*
 
 ---
 

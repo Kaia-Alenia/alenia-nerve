@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="nerveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8a2be2" />
+      <stop offset="100%" stop-color="#4b0082" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Base Hexagon -->
+  <polygon points="128,12 230,71 230,185 128,244 26,185 26,71" 
+           fill="url(#nerveGrad)" 
+           stroke="#ffffff" 
+           stroke-width="8" 
+           stroke-linejoin="round"
+           filter="url(#shadow)" />
+
+  <!-- Keyhole Group -->
+  <g fill="#ffffff">
+    <!-- Keyhole Circle -->
+    <circle cx="128" cy="106" r="32" />
+    <!-- Keyhole Base -->
+    <path d="M 116 130 
+             L 100 178 
+             A 12 12 0 0 0 112 192 
+             L 144 192 
+             A 12 12 0 0 0 156 178 
+             L 140 130 
+             Z" />
+  </g>
+</svg>

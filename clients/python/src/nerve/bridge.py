@@ -66,26 +66,24 @@ class NerveBridge:
         # In a full implementation, we'd intercept specific messages. For now we broadcast all to all WS clients,
         # or handle targeted messages if the payload specifies a 'target_ws_id'.
 
-        self.nerve_client.on("bridge_response", self._handle_hub_message)
+        self.nerve_client.listen(self._handle_hub_message)
 
         logger.info(
             f"Starting Nerve Bridge WebSocket server on ws://{self.host}:{self.port}"
         )
 
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        start_server = websockets.serve(self._ws_handler, self.host, self.port)
+        async def serve():
+            async with websockets.serve(self._ws_handler, self.host, self.port):
+                await asyncio.Future()  # run forever
 
         try:
-            loop.run_until_complete(start_server)
-            loop.run_forever()
+            asyncio.run(serve())
         except KeyboardInterrupt:
             logger.info("Bridge stopped.")
         finally:
             self.nerve_client.disconnect()
 
-    def _handle_hub_message(self, type: str, payload: dict):
+    def _handle_hub_message(self, payload: dict):
         target = payload.get("bridge_client_id")
         if target and target in self.client_id_to_ws:
             # Must run thread-safe in asyncio loop, but for simplicity:

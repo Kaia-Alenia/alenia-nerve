@@ -17,19 +17,25 @@ The Python package includes the central CLI tool (`nerve`) used to boot and mana
   <img src="../../assets/python_client.svg" alt="Nerve Hub Console" width="100%">
 </div>
 
-### Running the Hub
+### CLI Commands Reference
 
-Once installed, you can start the central hub from any terminal window:
+Nerve provides a comprehensive suite of commands to manage the IPC Hub, monitor traffic, and securely pack/unpack data.
 
-```bash
-nerve start
-```
+#### Hub & Monitoring
+- **`nerve start`**: Starts the central Nerve Hub (blocking process). Use `--verbose` for detailed real-time message routing logs.
+- **`nerve monitor`**: Launches an interactive, terminal-based UI to view real-time hub statistics, connected nodes, and message throughput.
+- **`nerve dashboard`**: Starts a visual web dashboard accessible at `http://localhost:8080` to monitor the local Nerve network.
+- **`nerve bridge`**: Starts the HTTP/WebSocket bridge (default port `50506`) to allow external applications (e.g., browsers, remote clients) to securely communicate with the local Nerve IPC network.
 
-For detailed packet routing output, run the hub in verbose mode:
+#### Secure Containers (.nrv)
+Nerve includes a high-security encrypted container format (`.nrv`) protected with AES-GCM and Argon2id.
 
-```bash
-nerve start --verbose
-```
+- **`nerve pack <src> <out.nrv>`**: Packs a file or directory into a secure `.nrv` container. It will prompt for a password or use the `NERVE_NRV_PASSWORD` environment variable.
+- **`nerve unpack <file.nrv> <out_dir>`**: Decrypts and unpacks a `.nrv` container into the specified output directory.
+- **`nerve open <file.nrv>`**: Interactive command to open a `.nrv` container. It handles up to 3 password retries and uses native GUI prompts if run outside a terminal.
+- **`nerve associate`**: Registers the `.nrv` file extension with your Operating System (Windows/macOS/Linux) and sets Nerve as the default application to open them.
+- **`nerve unassociate`**: Removes the `.nrv` file association from your system.
+- **`nerve genpass [--mode random|passphrase] [--length N] [--words N]`**: Generates a cryptographically secure random password or memorable passphrase.
 
 ---
 
@@ -91,3 +97,7 @@ client.listen(handle_incoming)
 ## License
 
 This software is distributed under the GNU General Public License v3 (GPL v3).
+
+## Credits
+
+The secure password generator uses the [EFF Large Wordlist](https://www.eff.org/files/2016/07/18/eff_large_wordlist.txt) created by the Electronic Frontier Foundation, distributed under the [Creative Commons Attribution 3.0 License (CC BY 3.0)](https://creativecommons.org/licenses/by/3.0/).

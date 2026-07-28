@@ -1,4 +1,9 @@
 from unittest.mock import patch, MagicMock
+import sys
+import subprocess
+import os
+import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -144,3 +149,75 @@ def test_unrecognized_command(mock_sys_exit, capsys):
     assert BANNER in captured.out
     assert HELP_TEXT in captured.out
     mock_sys_exit.assert_called_once_with(1)
+
+
+# -----------------------------------------------------------------------------
+# End-to-End Subprocess Tests for CLI
+# -----------------------------------------------------------------------------
+
+def run_cli(*args, env=None):
+    cmd = [sys.executable, "-m", "nerve.cli"] + list(args)
+    test_env = os.environ.copy()
+    if env:
+        test_env.update(env)
+    return subprocess.run(cmd, env=test_env, capture_output=True, text=True)
+
+
+def test_cli_pack_no_args():
+    result = run_cli("pack")
+    assert result.returncode == 1
+    assert "Usage: nerve pack <source> <output.nrv>" in result.stdout
+
+
+def test_cli_unpack_no_args():
+    result = run_cli("unpack")
+    assert result.returncode == 1
+    assert "Usage: nerve unpack <nrv_file> <out_dir>" in result.stdout
+
+
+def test_cli_pack_unpack_roundtrip():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        source_file = tmp_path / "secret.txt"
+        source_file.write_text("Hello, Nerve!")
+        
+        nrv_file = tmp_path / "secret.nrv"
+        out_dir = tmp_path / "output"
+        
+        env = {"NERVE_NRV_PASSWORD": "testpassword123"}
+        
+        # Pack
+        pack_res = run_cli("pack", str(source_file), str(nrv_file), env=env)
+        assert pack_res.returncode == 0
+        assert "Pack successful" in pack_res.stdout
+        assert nrv_file.exists()
+        
+        # Unpack
+        unpack_res = run_cli("unpack", str(nrv_file), str(out_dir), env=env)
+        assert unpack_res.returncode == 0
+        assert "Unpack successful" in unpack_res.stdout
+        
+        # Verify
+        unpacked_file = out_dir / "secret.txt"
+        assert unpacked_file.exists()
+        assert unpacked_file.read_text() == "Hello, Nerve!"
+
+
+def test_cli_unpack_wrong_password():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        source_file = tmp_path / "secret.txt"
+        source_file.write_text("Hello, Nerve!")
+        
+        nrv_file = tmp_path / "secret.nrv"
+        out_dir = tmp_path / "output"
+        
+        # Pack
+        run_cli("pack", str(source_file), str(nrv_file), env={"NERVE_NRV_PASSWORD": "correct_pass"})
+        
+        # Unpack with wrong pass
+        unpack_res = run_cli("unpack", str(nrv_file), str(out_dir), env={"NERVE_NRV_PASSWORD": "wrong_pass"})
+        assert unpack_res.returncode == 1
+        assert "Error" in unpack_res.stdout
+        assert "Traceback" not in unpack_res.stderr
+        assert "Traceback" not in unpack_res.stdout

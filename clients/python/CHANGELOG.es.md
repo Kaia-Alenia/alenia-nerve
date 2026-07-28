@@ -2,6 +2,15 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [1.5.2] — 2026-07-28
+- Agregado Empaquetado Seguro de Datos (`.nrv`) con AES-256-GCM y Argon2id.
+- Interfaz CLI mejorada con comandos `pack` y `unpack` para encriptación de archivos de extremo a extremo.
+- Agregado el comando `nerve open` para extracción interactiva con un máximo de 3 intentos de contraseña.
+- Agregados los comandos `nerve associate` y `unassociate` para registrar archivos `.nrv` en el sistema operativo con íconos personalizados en Windows/macOS/Linux.
+- Agregado el comando `nerve genpass` para generar contraseñas y frases (passphrases) seguras.
+- Agregadas ventanas interactivas nativas para solicitar contraseñas (osascript, Tkinter, Zenity) cuando no hay una terminal (TTY) disponible.
+- Mejorada la seguridad de extracción omitiendo enlaces simbólicos y duros absolutos inseguros con una advertencia, en lugar de abortar el proceso.
+
 ## [1.5.1] — 2026-07-20
 
 ### Corregido

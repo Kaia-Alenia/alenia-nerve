@@ -180,10 +180,37 @@ func main() {
 
 For a fully functional, production-ready implementation of Nerve working alongside Zenith in tools like Framegrid and Giftly, visit the [zenith-nerve-tools](https://github.com/Kaia-Alenia/zenith-nerve-tools) repository.
 
+---
+
+### Secure Data Packing (.nrv)
+
+Nerve includes a high-performance streaming cryptographic packer designed for sharing offline resources. It uses AES-256-GCM and Argon2id to secure folders or files in `.nrv` containers.
+
+For maximum security, avoid passing the password as an argument; use the `NERVE_NRV_PASSWORD` environment variable:
+```bash
+NERVE_NRV_PASSWORD="my_secure_password" nerve pack ./my_game my_game.nrv
+NERVE_NRV_PASSWORD="my_secure_password" nerve unpack my_game.nrv ./output
+```
+If the environment variable is not set, the CLI will prompt for the password interactively. If you don't have a password, the CLI will offer to generate a highly secure passphrase for you (using Diceware with the EFF wordlist). You can also generate standalone secure passwords using the `nerve genpass` command.
 
 ##  Command Line Interface (CLI) & The Main Hub
 
-Once installed, start the central hub from any terminal:
+Once installed, the `nerve` command provides a suite of tools for managing your local IPC network and securing files.
+
+### Available Commands
+
+* **`nerve start`**: Spins up the **NexusHub** — the central message router for your local network. It runs immediately with zero configuration and listens for incoming connections. Use `nerve start --verbose` to trace every packet routed in real-time.
+* **`nerve monitor`**: Launches a terminal-based live dashboard showing all connected clients, uptime, message counts, and traffic stats at a glance.
+* **`nerve dashboard`**: Starts a lightweight local web interface on `http://localhost:8080` that renders a live **Network Topology View** of all connected nodes.
+* **`nerve bridge`**: Starts an HTTP/WebSocket proxy on port 50506. This allows web browsers and WebSocket clients to connect and talk directly to the Nerve IPC network. (Requires `websockets` package).
+* **`nerve pack <src> <out.nrv>`**: Securely encrypts and packs a file or directory into a `.nrv` container using AES-256-GCM.
+* **`nerve unpack <nrv> <out>`**: Decrypts and extracts a `.nrv` container to the specified output directory.
+* **`nerve open <file.nrv>`**: Interactively opens a `.nrv` container, handling password prompts via TTY or native GUI dialogs (Zenity/Tkinter/macOS osascript) with up to 3 retry attempts.
+* **`nerve associate`**: Registers the `.nrv` file extension with your operating system (Windows/macOS/Linux) and associates it with the `nerve open` command and a custom icon, enabling double-click extraction.
+* **`nerve unassociate`**: Removes the `.nrv` file extension association from your operating system.
+* **`nerve genpass`**: Generates a highly secure password or passphrase. Use `--mode random` (default length 20) or `--mode passphrase` (default 5 words).
+
+### Starting the Hub
 
 ```bash
 nerve start
@@ -195,15 +222,6 @@ nerve start
 </div>
 
 <br>
-
-This single command spins up the **NexusHub** — the central message router for your entire local network:
-1. **Zero Configuration Needed:** Runs immediately with no setup. Acts as the brain that routes all messages between connected clients.
-2. **Automatic Discovery:** Any `NexusClient` in your tools will auto-discover and connect to this Hub.
-
-For real-time message tracing during development:
-```bash
-nerve start --verbose
-```
 
 ### Help Menu:
 ```bash
