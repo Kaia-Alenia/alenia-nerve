@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.4] — 2026-07-28
+### Fixed
+- Fixed bug where cancelling the password prompt in `.nrv` handling opened a fallback tkinter dialog.
+- Fixed `.nrv` CLI `pack` output to correctly enforce the `.nrv` extension, replacing any other incorrect extension.
+- Added padding to the `.nrv` SVG icon to ensure it isn't perceived as too large compared to standard Linux icons.
+
 ## [1.5.3] — 2026-07-28
 - Added Secure Data Packing (`.nrv`) with AES-256-GCM and Argon2id.
 - Enhanced CLI with `pack` and `unpack` commands for End-to-End file encryption.

@@ -2,6 +2,13 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [1.5.4] — 2026-07-28
+### Modificado
+- **Core**: Forzada la extensión `.nrv` automáticamente al empaquetar si no se provee.
+- **UI**: Corregido bug en Linux donde cancelar el diálogo de contraseña abría una ventana secundaria.
+- **Assets**: Ajustado el padding interno del logo `.nrv` para proporciones correctas en file managers.
+
+
 ## [1.5.3] — 2026-07-28
 - Agregado Empaquetado Seguro de Datos (`.nrv`) con AES-256-GCM y Argon2id.
 - Interfaz CLI mejorada con comandos `pack` y `unpack` para encriptación de archivos de extremo a extremo.

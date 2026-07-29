@@ -82,6 +82,10 @@ class _ChunkWriter:
 
 def pack_nrv(source_path: str, output_nrv_path: str, password: str | None = None):
     """Packs any file or directory into an encrypted .nrv container."""
+    base, ext = os.path.splitext(output_nrv_path)
+    if ext.lower() != ".nrv":
+        output_nrv_path = base + ".nrv"
+
     if not os.path.exists(source_path):
         raise FileNotFoundError(f"[ERROR] Source file not found: {source_path}")
 

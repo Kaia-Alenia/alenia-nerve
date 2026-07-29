@@ -96,10 +96,14 @@ def prompt_password(prompt: str, error: str | None = None) -> str:
                 ["zenity", "--password", "--title", "Nerve"],
                 capture_output=True,
                 text=True,
-                check=True,
+                check=False,
             )
-            return result.stdout.strip("\n\r")
-        except (FileNotFoundError, subprocess.CalledProcessError):
+            if result.returncode == 0:
+                return result.stdout.strip("\n\r")
+            elif result.returncode in (1, 5):
+                return ""
+        except FileNotFoundError:
+            pass
             try:
                 import tkinter as tk
                 from tkinter import simpledialog
