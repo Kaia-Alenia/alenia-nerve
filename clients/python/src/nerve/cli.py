@@ -147,26 +147,47 @@ def main() -> None:
         password = os.environ.get("NERVE_NRV_PASSWORD")
         confirm = None
         if not password:
-            print(f"{PURPLE}[NERVE CLI] No password provided via environment variable.{RESET}")
-            gen_option = input(f"{YELLOW}[NERVE CLI] Would you like Nerve to generate a secure password for you? (y/N): {RESET}").strip().lower()
-            if gen_option == 'y':
+            print(
+                f"{PURPLE}[NERVE CLI] No password provided via environment variable.{RESET}"
+            )
+            gen_option = (
+                input(
+                    f"{YELLOW}[NERVE CLI] Would you like Nerve to generate a secure password for you? (y/N): {RESET}"
+                )
+                .strip()
+                .lower()
+            )
+            if gen_option == "y":
                 from nerve.genpass import generate_passphrase
+
                 passphrase, entropy = generate_passphrase(words=5)
                 print(f"\n{GREEN}--- GENERATED PASSWORD ---{RESET}")
                 print(f"{PURPLE}Password:{RESET} {passphrase}")
                 print(f"{PURPLE}Estimated entropy:{RESET} {entropy:.2f} bits")
-                print(f"\n{RED}> IMPORTANT: Save this password now. It will not be shown again.{RESET}\n")
-                
-                saved_confirm = input("Have you saved the password? (type 'yes' to continue): ").strip().lower()
-                if saved_confirm == 'yes':
+                print(
+                    f"\n{RED}> IMPORTANT: Save this password now. It will not be shown again.{RESET}\n"
+                )
+
+                saved_confirm = (
+                    input("Have you saved the password? (type 'yes' to continue): ")
+                    .strip()
+                    .lower()
+                )
+                if saved_confirm == "yes":
                     password = passphrase
                     confirm = passphrase
                 else:
-                    print(f"{YELLOW}[NERVE CLI] Generation cancelled. Falling back to manual input.{RESET}")
-            
+                    print(
+                        f"{YELLOW}[NERVE CLI] Generation cancelled. Falling back to manual input.{RESET}"
+                    )
+
             if not password:
-                password = getpass.getpass(f"{PURPLE}[NERVE CLI] Enter password to pack: {RESET}")
-                confirm = getpass.getpass(f"{PURPLE}[NERVE CLI] Confirm password: {RESET}")
+                password = getpass.getpass(
+                    f"{PURPLE}[NERVE CLI] Enter password to pack: {RESET}"
+                )
+                confirm = getpass.getpass(
+                    f"{PURPLE}[NERVE CLI] Confirm password: {RESET}"
+                )
             if password != confirm:
                 print(f"{RED}[NERVE CLI] Passwords do not match.{RESET}")
                 sys.exit(1)
@@ -176,6 +197,7 @@ def main() -> None:
             sys.exit(1)
 
         from nerve.nrv import pack_nrv
+
         try:
             pack_nrv(source, output, password)
             print(f"{GREEN}[NERVE CLI] Pack successful: {output}{RESET}")
@@ -196,16 +218,19 @@ def main() -> None:
             sys.exit(1)
         nrv_file = args[1]
         out_dir = args[2]
-        
+
         password = os.environ.get("NERVE_NRV_PASSWORD")
         if not password:
-            password = getpass.getpass(f"{PURPLE}[NERVE CLI] Enter password to unpack: {RESET}")
+            password = getpass.getpass(
+                f"{PURPLE}[NERVE CLI] Enter password to unpack: {RESET}"
+            )
 
         if not password:
             print(f"{RED}[NERVE CLI] Password cannot be empty.{RESET}")
             sys.exit(1)
 
         from nerve.nrv import unpack_nrv
+
         try:
             unpack_nrv(nrv_file, out_dir, password)
             print(f"{GREEN}[NERVE CLI] Unpack successful at: {out_dir}{RESET}")
@@ -225,7 +250,7 @@ def main() -> None:
             print(f"{RED}[NERVE CLI] Usage: nerve open <file.nrv>{RESET}")
             sys.exit(1)
         nrv_file = args[1]
-        
+
         from nerve.nrv import unpack_nrv
         from nerve.ui import prompt_password, show_error
 
@@ -236,7 +261,9 @@ def main() -> None:
         while attempts > 0:
             password = os.environ.get("NERVE_NRV_PASSWORD")
             if not password:
-                password = prompt_password(f"Enter password to unpack {os.path.basename(nrv_file)}:")
+                password = prompt_password(
+                    f"Enter password to unpack {os.path.basename(nrv_file)}:"
+                )
 
             if not password:
                 # If they cancelled or entered empty password, just exit cleanly without an error popup.
@@ -251,7 +278,9 @@ def main() -> None:
                 if "Incorrect password" in str(exc):
                     attempts -= 1
                     if attempts > 0:
-                        show_error(f"Incorrect password. You have {attempts} attempts left.")
+                        show_error(
+                            f"Incorrect password. You have {attempts} attempts left."
+                        )
                         if "NERVE_NRV_PASSWORD" in os.environ:
                             del os.environ["NERVE_NRV_PASSWORD"]
                     else:
@@ -266,9 +295,12 @@ def main() -> None:
 
     elif args[0] == "associate":
         from nerve.associate import associate
+
         try:
             associate()
-            print(f"{GREEN}[NERVE CLI] Successfully associated .nrv files with Nerve.{RESET}")
+            print(
+                f"{GREEN}[NERVE CLI] Successfully associated .nrv files with Nerve.{RESET}"
+            )
         except Exception as exc:
             print(f"{RED}[NERVE CLI] Failed to associate .nrv files: {exc}{RESET}")
             sys.exit(1)
@@ -276,9 +308,12 @@ def main() -> None:
 
     elif args[0] == "unassociate":
         from nerve.associate import unassociate
+
         try:
             unassociate()
-            print(f"{GREEN}[NERVE CLI] Successfully removed .nrv file association.{RESET}")
+            print(
+                f"{GREEN}[NERVE CLI] Successfully removed .nrv file association.{RESET}"
+            )
         except Exception as exc:
             print(f"{RED}[NERVE CLI] Failed to unassociate .nrv files: {exc}{RESET}")
             sys.exit(1)
@@ -286,20 +321,40 @@ def main() -> None:
 
     elif args[0] == "genpass":
         import argparse
-        parser = argparse.ArgumentParser(prog="nerve genpass", description="Generate a secure password/passphrase")
-        parser.add_argument("--mode", choices=["random", "passphrase"], default="passphrase", help="Generation mode (default: passphrase)")
-        parser.add_argument("--length", type=int, default=20, help="Length for random mode (default: 20)")
-        parser.add_argument("--words", type=int, default=5, help="Number of words for passphrase mode (default: 5)")
+
+        parser = argparse.ArgumentParser(
+            prog="nerve genpass", description="Generate a secure password/passphrase"
+        )
+        parser.add_argument(
+            "--mode",
+            choices=["random", "passphrase"],
+            default="passphrase",
+            help="Generation mode (default: passphrase)",
+        )
+        parser.add_argument(
+            "--length",
+            type=int,
+            default=20,
+            help="Length for random mode (default: 20)",
+        )
+        parser.add_argument(
+            "--words",
+            type=int,
+            default=5,
+            help="Number of words for passphrase mode (default: 5)",
+        )
         # Parse specifically sys.argv[2:] (after `nerve genpass`)
         parsed_args = parser.parse_args(args[1:])
 
         if parsed_args.mode == "random":
             from nerve.genpass import generate_random_password
+
             pwd, ent = generate_random_password(length=parsed_args.length)
             print(f"{GREEN}Password:{RESET} {pwd}")
             print(f"{YELLOW}Entropy:{RESET} {ent:.2f} bits")
         else:
             from nerve.genpass import generate_passphrase
+
             pwd, ent = generate_passphrase(words=parsed_args.words)
             print(f"{GREEN}Passphrase:{RESET} {pwd}")
             print(f"{YELLOW}Entropy:{RESET} {ent:.2f} bits")
