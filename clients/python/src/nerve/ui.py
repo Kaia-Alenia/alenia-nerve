@@ -103,7 +103,6 @@ def prompt_password(prompt: str, error: str | None = None) -> str:
             elif result.returncode in (1, 5):
                 return ""
         except FileNotFoundError:
-            pass
             try:
                 import tkinter as tk
                 from tkinter import simpledialog
