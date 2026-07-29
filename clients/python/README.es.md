@@ -80,6 +80,7 @@ Registra una función de callback para escuchar flujos de datos en tiempo real:
 def handle_incoming(data):
     print(f"Received: {data}")
 
+
 client.listen(handle_incoming)
 ```
 

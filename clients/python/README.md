@@ -89,6 +89,7 @@ Register a callback function to listen to data streams in real-time:
 def handle_incoming(data):
     print(f"Received: {data}")
 
+
 client.listen(handle_incoming)
 ```
 
