@@ -39,7 +39,7 @@ __version__ = "1.5.3"
 __author__ = "Alenia Studios"
 __license__ = "GNU General Public License v3 (GPL v3)"
 __email__ = "contact.aleniastudios@gmail.com"
-__all__ = ["NexusHub", "NexusClient", "load_external_config", "pack_nrv", "unpack_nrv"]
+__all__ = ["NexusClient", "NexusHub", "load_external_config", "pack_nrv", "unpack_nrv"]
 
 # pack_nrv: Packs a file or directory into a secure encrypted .nrv container
 # unpack_nrv: Decrypts and extracts a .nrv container safely

@@ -13,19 +13,18 @@
 # You should have received a copy of the GNU General Public License
 # along with Nerve. If not, see <https://www.gnu.org/licenses/>.
 # -----------------------------------------------------------------------------
+import json
 import os
 import sys
-import time
-import json
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from typing import Dict, Any
+import time
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from typing import Any
 
-from nerve.core import NexusClient
 from nerve import __version__
+from nerve.core import NexusClient
 
-
-LATEST_DATA: Dict[str, Any] = {"metrics": {}, "clients": []}
+LATEST_DATA: dict[str, Any] = {"metrics": {}, "clients": []}
 DASHBOARD_DIR = os.path.join(os.path.dirname(__file__), "dashboard")
 
 
@@ -66,7 +65,7 @@ def data_fetcher_loop(client: NexusClient):
             clients = client.list_clients()
             LATEST_DATA["metrics"] = metrics
             LATEST_DATA["clients"] = clients
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
         time.sleep(1.0)
 
@@ -77,7 +76,7 @@ def run_dashboard(port: int = 8080):
     client = NexusClient()
     try:
         client.connect("nerve-dashboard")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"\033[91m[NERVE CLI]\033[0m Could not connect to Hub: {e}")
         print("Is the Nerve Hub running? Run 'nerve start' in another terminal.")
         sys.exit(1)
@@ -93,7 +92,7 @@ def run_dashboard(port: int = 8080):
         server.serve_forever()
     except KeyboardInterrupt:
         print("\n\033[95m[NERVE CLI]\033[0m Stopping dashboard...")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"\033[91m[NERVE CLI]\033[0m Server error: {e}")
     finally:
         client.disconnect()
@@ -111,7 +110,7 @@ def run_monitor():
     client = NexusClient()
     try:
         client.connect("nerve-monitor")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"\033[91m[NERVE CLI]\033[0m Could not connect to Hub: {e}")
         print("Is the Nerve Hub running? Run 'nerve start' in another terminal.")
         sys.exit(1)

@@ -1,6 +1,8 @@
-import pytest
 import importlib.resources
-from nerve.genpass import generate_random_password, generate_passphrase
+
+import pytest
+
+from nerve.genpass import generate_passphrase, generate_random_password
 
 
 def test_random_password_length_and_alphabet():
@@ -47,7 +49,7 @@ def test_resource_localization():
         lines = content.splitlines()
         words = [line for line in lines if line.strip() and not line.startswith("#")]
         assert len(words) == 7776
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         pytest.fail(
             f"Could not load eff_large_wordlist.txt via importlib.resources: {e}"
         )

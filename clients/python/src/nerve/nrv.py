@@ -5,14 +5,15 @@ License: GPL
 Description: Packs and unpacks any file or directory in encrypted .nrv format
 """
 
-import os
-import json
-import struct
 import getpass
+import json
+import os
+import struct
 import tarfile
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+from argon2.low_level import Type, hash_secret_raw
 from cryptography.exceptions import InvalidTag
-from argon2.low_level import hash_secret_raw, Type
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 MAGIC_BYTES = b"NRV\x00"
 VERSION = 1
@@ -362,11 +363,11 @@ def unpack_nrv(nrv_path: str, output_dir: str, password: str | None = None) -> s
                                 tar.extract(
                                     member, path=output_dir, filter=tarfile.data_filter
                                 )
-                            except Exception as filter_err:
+                            except Exception as filter_err:  # noqa: BLE001
                                 print(f"[WARNING] Skipping {member.name}: {filter_err}")
                         else:
                             tar.extract(member, path=output_dir)
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     import shutil
 
                     if os.path.exists(destination_path):
@@ -379,8 +380,7 @@ def unpack_nrv(nrv_path: str, output_dir: str, password: str | None = None) -> s
                     )
         else:
             with open(destination_path, "wb") as f_out:
-                for plaintext in read_decrypted_chunks():
-                    f_out.write(plaintext)
+                f_out.writelines(read_decrypted_chunks())
 
     print(f"[NERVE] File reconstructed at: {destination_path}")
     return destination_path

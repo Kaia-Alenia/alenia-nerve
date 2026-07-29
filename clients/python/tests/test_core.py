@@ -18,7 +18,7 @@ import socket
 import tempfile
 import threading
 import time
-from typing import Any, List
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -26,7 +26,6 @@ import pytest
 import nerve
 from nerve import NexusClient, NexusHub
 from nerve.core import load_external_config as _core_load
-
 
 IS_WINDOWS = platform.system() == "Windows"
 SOCK_PATH = "/tmp/nerve_test.sock"
@@ -529,7 +528,7 @@ class TestNexusClientAPI:
         sender = make_client()
         receiver = make_client()
 
-        received: List[Any] = []
+        received: list[Any] = []
         event = threading.Event()
 
         def on_msg(payload):
@@ -553,8 +552,8 @@ class TestNexusClientAPI:
         r1 = make_client()
         r2 = make_client()
 
-        got_r1: List[Any] = []
-        got_r2: List[Any] = []
+        got_r1: list[Any] = []
+        got_r2: list[Any] = []
         e1 = threading.Event()
         e2 = threading.Event()
 
@@ -587,7 +586,6 @@ class TestNexusClientAPI:
         b.disconnect()
 
     def test_list_clients_timeout(self):
-        import socket
 
         a = make_client()
         a.connect("list_timeout")
@@ -598,7 +596,7 @@ class TestNexusClientAPI:
                 self.sock = sock
 
             def recv(self, *args, **kwargs):
-                raise socket.timeout()
+                raise TimeoutError()
 
             def __getattr__(self, name):
                 return getattr(self.sock, name)
@@ -685,8 +683,8 @@ class TestIntegrationEndToEnd:
         alice = make_client()
         bob = make_client()
 
-        alice_received: List[Any] = []
-        bob_received: List[Any] = []
+        alice_received: list[Any] = []
+        bob_received: list[Any] = []
         alice_event = threading.Event()
         bob_event = threading.Event()
 
@@ -725,7 +723,7 @@ class TestIntegrationEndToEnd:
 
         MESSAGES = 20
         collector = make_client()
-        received: List[Any] = []
+        received: list[Any] = []
         done = threading.Event()
 
         collector.connect("collector")

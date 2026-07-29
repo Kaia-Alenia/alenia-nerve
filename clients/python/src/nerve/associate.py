@@ -1,10 +1,10 @@
-import sys
-import os
-import platform
-import subprocess
-import shutil
 import importlib.resources
 import logging
+import os
+import platform
+import shutil
+import subprocess
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +42,8 @@ def unassociate() -> bool:
 
 def _associate_windows() -> bool:
     try:
-        import winreg
         import ctypes
+        import winreg
 
         # Paths
         ico_path = str(
@@ -79,19 +79,19 @@ def _associate_windows() -> bool:
         # SHChangeNotify to refresh icons
         try:
             ctypes.windll.shell32.SHChangeNotify(0x08000000, 0, None, None)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(f"Could not refresh icons: {e}")
 
         return True
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Windows association failed: {e}")
         return False
 
 
 def _unassociate_windows() -> bool:
     try:
-        import winreg
         import ctypes
+        import winreg
 
         def delete_key_recursively(root, subkey):
             try:
@@ -109,11 +109,11 @@ def _unassociate_windows() -> bool:
 
         try:
             ctypes.windll.shell32.SHChangeNotify(0x08000000, 0, None, None)
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
         return True
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Windows unassociation failed: {e}")
         return False
 
@@ -205,7 +205,7 @@ fi
                 stderr=subprocess.DEVNULL,
                 check=False,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
         # Register with Launch Services
@@ -214,7 +214,7 @@ fi
             subprocess.run([lsregister, "-f", app_dir], check=False)
 
         return True
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"macOS association failed: {e}")
         return False
 
@@ -232,7 +232,7 @@ def _unassociate_macos() -> bool:
             shutil.rmtree(app_dir)
 
         return True
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"macOS unassociation failed: {e}")
         return False
 
@@ -302,7 +302,7 @@ NoDisplay=true
                 ["update-mime-database", os.path.join(home, ".local", "share", "mime")],
                 check=False,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
         try:
@@ -315,7 +315,7 @@ NoDisplay=true
                 ],
                 check=False,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
         try:
@@ -323,11 +323,11 @@ NoDisplay=true
                 ["xdg-mime", "default", "nerve.desktop", "application/x-nerve"],
                 check=False,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
         return True
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Linux association failed: {e}")
         return False
 
@@ -372,7 +372,7 @@ def _unassociate_linux() -> bool:
                 ["update-mime-database", os.path.join(home, ".local", "share", "mime")],
                 check=False,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
         try:
@@ -385,10 +385,10 @@ def _unassociate_linux() -> bool:
                 ],
                 check=False,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
         return True
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Linux unassociation failed: {e}")
         return False

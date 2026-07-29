@@ -1,7 +1,9 @@
 import os
 import struct
+
 import pytest
-from nerve.nrv import pack_nrv, unpack_nrv, CHUNK_SIZE
+
+from nerve.nrv import CHUNK_SIZE, pack_nrv, unpack_nrv
 
 
 def test_empty_file(tmp_path):
@@ -162,10 +164,9 @@ def test_directory_packing_and_symlinks(tmp_path):
 
     evil_path = os.path.join(res_path, "evil.txt")
     # Validate that evil_path is not an absolute symlink to /etc/passwd.
-    if os.path.exists(evil_path):
-        if os.path.islink(evil_path):
-            target = os.readlink(evil_path)
-            assert not os.path.isabs(target) or not target.startswith("/etc")
+    if os.path.exists(evil_path) and os.path.islink(evil_path):
+        target = os.readlink(evil_path)
+        assert not os.path.isabs(target) or not target.startswith("/etc")
 
 
 def test_large_file_simulation(tmp_path):
@@ -173,8 +174,7 @@ def test_large_file_simulation(tmp_path):
     source_file = tmp_path / "large.bin"
     # Write 5MB to disk sequentially
     with open(source_file, "wb") as f:
-        for _ in range(5):
-            f.write(os.urandom(1024 * 1024))
+        f.writelines(os.urandom(1024 * 1024) for _ in range(5))
 
     nrv_file = tmp_path / "large.nrv"
     out_dir = tmp_path / "out"

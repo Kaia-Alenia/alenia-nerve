@@ -64,3 +64,6 @@ license-files = []
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 timeout = 120
+
+[tool.ruff.lint]
+ignore = ["EXE002"]

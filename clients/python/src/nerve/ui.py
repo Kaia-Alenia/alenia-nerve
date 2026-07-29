@@ -1,7 +1,7 @@
-import sys
 import getpass
 import platform
 import subprocess
+import sys
 
 
 def is_tty() -> bool:
@@ -21,7 +21,7 @@ def show_error(message: str) -> None:
                 ["osascript", "-e", f'display alert "{escaped_msg}" as critical'],
                 check=False,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
     elif system == "Windows":
         try:
@@ -38,7 +38,8 @@ def show_error(message: str) -> None:
     elif system == "Linux":
         try:
             result = subprocess.run(
-                ["zenity", "--error", "--text", message, "--title", "Error"]
+                ["zenity", "--error", "--text", message, "--title", "Error"],
+                check=False,
             )
             if result.returncode in (0, 1, 5):
                 return
@@ -74,7 +75,7 @@ def prompt_password(prompt: str, error: str | None = None) -> str:
                 ["osascript", "-e", script], capture_output=True, text=True, check=True
             )
             return result.stdout.strip("\n\r")
-        except Exception:
+        except Exception:  # noqa: BLE001
             return ""
     elif system == "Windows":
         try:

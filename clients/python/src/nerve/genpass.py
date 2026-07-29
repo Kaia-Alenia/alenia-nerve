@@ -1,7 +1,7 @@
+import importlib.resources
+import math
 import secrets
 import string
-import math
-import importlib.resources
 
 
 def generate_random_password(length: int = 20) -> tuple[str, float]:

@@ -16,7 +16,7 @@
 import asyncio
 import json
 import logging
-from typing import Set, Dict, Any
+from typing import Any
 
 try:
     import websockets
@@ -40,7 +40,7 @@ class NerveBridge:
         self,
         host: str = "127.0.0.1",
         port: int = 50506,
-        hub_config: Dict[str, Any] = None,
+        hub_config: dict[str, Any] | None = None,
     ):
         self.host = host
         self.port = port
@@ -49,9 +49,9 @@ class NerveBridge:
         # We use a single NexusClient for the bridge to communicate with the Hub.
         # But we could also create a virtual client ID for each WS connection.
         self.nerve_client = NexusClient(**self.hub_config)
-        self.active_websockets: Set[Any] = set()
-        self.ws_to_client_id: Dict[Any, str] = {}
-        self.client_id_to_ws: Dict[str, Any] = {}
+        self.active_websockets: set[Any] = set()
+        self.ws_to_client_id: dict[Any, str] = {}
+        self.client_id_to_ws: dict[str, Any] = {}
 
     def start(self):
         if not WEBSOCKETS_AVAILABLE:
@@ -109,7 +109,7 @@ class NerveBridge:
                         to=data.get("to", "hub"),
                         payload={"ws_id": ws_id, "data": data.get("payload", {})},
                     )
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     logger.error(f"Error processing WS message: {e}")
         except websockets.exceptions.ConnectionClosed:
             pass

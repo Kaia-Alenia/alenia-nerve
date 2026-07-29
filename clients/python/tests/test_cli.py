@@ -1,14 +1,14 @@
-from unittest.mock import patch, MagicMock
-import sys
-import subprocess
 import os
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from nerve import __version__
-from nerve.cli import main, BANNER, HELP_TEXT, PURPLE, RESET, YELLOW, RED
+from nerve.cli import BANNER, HELP_TEXT, PURPLE, RED, RESET, YELLOW, main
 
 
 @pytest.fixture
@@ -27,9 +27,8 @@ def mock_sys_exit():
     ],
 )
 def test_print_help_and_exit(args, mock_sys_exit, capsys):
-    with patch("sys.argv", ["nerve"] + args):
-        with pytest.raises(SystemExit):
-            main()
+    with patch("sys.argv", ["nerve"] + args), pytest.raises(SystemExit):
+        main()
 
     captured = capsys.readouterr()
     assert BANNER in captured.out
@@ -45,9 +44,8 @@ def test_print_help_and_exit(args, mock_sys_exit, capsys):
     ],
 )
 def test_print_version_and_exit(args, mock_sys_exit, capsys):
-    with patch("sys.argv", ["nerve"] + args):
-        with pytest.raises(SystemExit):
-            main()
+    with patch("sys.argv", ["nerve"] + args), pytest.raises(SystemExit):
+        main()
 
     captured = capsys.readouterr()
     assert f"alenia-nerve {__version__}\n" == captured.out
@@ -97,9 +95,8 @@ def test_start_keyboard_interrupt(mock_nexus_hub, mock_sys_exit, capsys):
     mock_hub_instance.start.side_effect = KeyboardInterrupt()
     mock_nexus_hub.return_value = mock_hub_instance
 
-    with patch("sys.argv", ["nerve", "start"]):
-        with pytest.raises(SystemExit):
-            main()
+    with patch("sys.argv", ["nerve", "start"]), pytest.raises(SystemExit):
+        main()
 
     mock_hub_instance.stop.assert_called_once()
     captured = capsys.readouterr()
@@ -114,9 +111,8 @@ def test_start_os_error(mock_nexus_hub, mock_sys_exit, capsys):
     mock_hub_instance.start.side_effect = OSError(error_msg)
     mock_nexus_hub.return_value = mock_hub_instance
 
-    with patch("sys.argv", ["nerve", "start"]):
-        with pytest.raises(SystemExit):
-            main()
+    with patch("sys.argv", ["nerve", "start"]), pytest.raises(SystemExit):
+        main()
 
     captured = capsys.readouterr()
     assert f"{RED}[NERVE CLI] Socket error: {error_msg}{RESET}\n" in captured.out
@@ -130,9 +126,8 @@ def test_start_critical_error(mock_nexus_hub, mock_sys_exit, capsys):
     mock_hub_instance.start.side_effect = Exception(error_msg)
     mock_nexus_hub.return_value = mock_hub_instance
 
-    with patch("sys.argv", ["nerve", "start"]):
-        with pytest.raises(SystemExit):
-            main()
+    with patch("sys.argv", ["nerve", "start"]), pytest.raises(SystemExit):
+        main()
 
     captured = capsys.readouterr()
     assert f"{RED}[NERVE CLI] Critical error: {error_msg}{RESET}\n" in captured.out
@@ -140,9 +135,8 @@ def test_start_critical_error(mock_nexus_hub, mock_sys_exit, capsys):
 
 
 def test_unrecognized_command(mock_sys_exit, capsys):
-    with patch("sys.argv", ["nerve", "foo"]):
-        with pytest.raises(SystemExit):
-            main()
+    with patch("sys.argv", ["nerve", "foo"]), pytest.raises(SystemExit):
+        main()
 
     captured = capsys.readouterr()
     assert f"{RED}[NERVE CLI] Unrecognized command: 'foo'{RESET}\n" in captured.out
@@ -161,7 +155,9 @@ def run_cli(*args, env=None):
     test_env = os.environ.copy()
     if env:
         test_env.update(env)
-    return subprocess.run(cmd, env=test_env, capture_output=True, text=True)
+    return subprocess.run(
+        cmd, env=test_env, capture_output=True, text=True, check=False
+    )
 
 
 def test_cli_pack_no_args():
