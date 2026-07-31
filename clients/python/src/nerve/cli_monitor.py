@@ -107,7 +107,9 @@ def run_dashboard(port: int = 8080):
     print(f"\033[95m[NERVE CLI]\033[0m Starting Dashboard on http://localhost:{port}")
 
     if not _probe_hub():
-        print("\033[91m[NERVE CLI]\033[0m Could not connect to Hub: hub is not running or unreachable.")
+        print(
+            "\033[91m[NERVE CLI]\033[0m Could not connect to Hub: hub is not running or unreachable."
+        )
         print("Is the Nerve Hub running? Run 'nerve start' in another terminal.")
         sys.exit(1)
 
@@ -141,7 +143,9 @@ def format_bytes(b: int) -> str:
 
 def run_monitor():
     if not _probe_hub():
-        print("\033[91m[NERVE CLI]\033[0m Could not connect to Hub: hub is not running or unreachable.")
+        print(
+            "\033[91m[NERVE CLI]\033[0m Could not connect to Hub: hub is not running or unreachable."
+        )
         print("Is the Nerve Hub running? Run 'nerve start' in another terminal.")
         sys.exit(1)
 
