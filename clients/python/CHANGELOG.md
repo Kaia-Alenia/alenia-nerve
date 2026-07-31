@@ -2,11 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.5.5] — 2026-07-31
+## [1.5.6] — 2026-07-31
 ### Fixed
 - **Core** (`core.py`): Fixed critical bug in `NexusHub.start()` where `raise OSError` for "address already in use" was caught by its own `except` block, causing the socket to always be removed even when an active hub was listening.
 - **Bridge** (`bridge.py`): Fixed infinite hang in `NerveBridge.start()` when hub is not running. Implemented real message routing in `_handle_hub_message` using `asyncio.run_coroutine_threadsafe`. Fixed `KeyError` in `_ws_handler` cleanup by using `discard()` and `.pop()` instead of `remove()` and `del`.
 - **CLI Monitor** (`cli_monitor.py`): `nerve dashboard` and `nerve monitor` no longer hang indefinitely when the hub is not active. Both commands now display a clear error and exit immediately.
+### Changed
+- Synchronized version to `1.5.6` across all client packages (Python, JavaScript/npm, Rust/crates.io).
 
 ## [1.5.3] — 2026-07-28
 - Added Secure Data Packing (`.nrv`) with AES-256-GCM and Argon2id.
