@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.5] — 2026-07-31
+### Fixed
+- **Core** (`core.py`): Fixed critical bug in `NexusHub.start()` where the `raise OSError` for "address already in use" was caught by its own `except OSError` block, causing the hub to always attempt socket removal even when an active instance was listening on that path.
+- **Bridge** (`bridge.py`): Fixed infinite hang in `NerveBridge.start()` — now probes hub availability before connecting. Completed `_handle_hub_message` with `asyncio.run_coroutine_threadsafe` for real routing to WebSocket clients. Fixed potential `KeyError` in `_ws_handler` cleanup by using `discard()` and `.pop()` instead of `remove()` and `del`.
+- **CLI Monitor** (`cli_monitor.py`): Fixed indefinite hang in `nerve dashboard` and `nerve monitor` commands when the hub was not running. Both commands now fail fast with a clear error message using a socket probe before connecting.
+
 ## [1.5.4] — 2026-07-28
 ### Fixed
 - Fixed bug where cancelling the password prompt in `.nrv` handling opened a fallback tkinter dialog.

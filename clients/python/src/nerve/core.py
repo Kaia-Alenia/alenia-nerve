@@ -510,15 +510,23 @@ class NexusHub:
             and os.path.exists(self.address)
         ):
             test_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            _hub_active = False
             try:
                 test_sock.connect(self.address)
-                test_sock.close()
-                raise OSError(f"Address '{self.address}' is already in use.")
+                _hub_active = True
             except OSError:
+                _hub_active = False
+            finally:
                 try:
-                    os.remove(self.address)
+                    test_sock.close()
                 except OSError:
                     pass
+            if _hub_active:
+                raise OSError(f"Address '{self.address}' is already in use.")
+            try:
+                os.remove(self.address)
+            except OSError:
+                pass
 
         self._server = socket.socket(self.socket_family, socket.SOCK_STREAM)
         if self.is_windows:

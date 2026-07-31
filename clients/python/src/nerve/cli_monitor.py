@@ -70,16 +70,49 @@ def data_fetcher_loop(client: NexusClient):
         time.sleep(1.0)
 
 
+def _probe_hub(timeout: float = 2.0) -> bool:
+    """Return True if a Nerve Hub appears reachable; False otherwise."""
+    import platform
+    import socket as _socket
+
+    from nerve.core import load_external_config
+
+    config = load_external_config()
+    is_windows = platform.system() == "Windows"
+    if is_windows:
+        host = str(config.get("host", "127.0.0.1"))
+        port = int(config.get("port", 50505))
+        address: tuple | str = (host, port)
+        family = _socket.AF_INET
+    else:
+        address = str(config.get("socket_path", "/tmp/nerve.sock"))
+        family = _socket.AF_UNIX
+
+    sock = _socket.socket(family, _socket.SOCK_STREAM)
+    sock.settimeout(timeout)
+    try:
+        sock.connect(address)
+        sock.close()
+        return True
+    except OSError:
+        return False
+    finally:
+        try:
+            sock.close()
+        except OSError:
+            pass
+
+
 def run_dashboard(port: int = 8080):
     print(f"\033[95m[NERVE CLI]\033[0m Starting Dashboard on http://localhost:{port}")
 
-    client = NexusClient()
-    try:
-        client.connect("nerve-dashboard")
-    except Exception as e:  # noqa: BLE001
-        print(f"\033[91m[NERVE CLI]\033[0m Could not connect to Hub: {e}")
+    if not _probe_hub():
+        print("\033[91m[NERVE CLI]\033[0m Could not connect to Hub: hub is not running or unreachable.")
         print("Is the Nerve Hub running? Run 'nerve start' in another terminal.")
         sys.exit(1)
+
+    client = NexusClient()
+    client.connect("nerve-dashboard")
 
     fetcher_thread = threading.Thread(
         target=data_fetcher_loop, args=(client,), daemon=True
@@ -107,13 +140,13 @@ def format_bytes(b: int) -> str:
 
 
 def run_monitor():
-    client = NexusClient()
-    try:
-        client.connect("nerve-monitor")
-    except Exception as e:  # noqa: BLE001
-        print(f"\033[91m[NERVE CLI]\033[0m Could not connect to Hub: {e}")
+    if not _probe_hub():
+        print("\033[91m[NERVE CLI]\033[0m Could not connect to Hub: hub is not running or unreachable.")
         print("Is the Nerve Hub running? Run 'nerve start' in another terminal.")
         sys.exit(1)
+
+    client = NexusClient()
+    client.connect("nerve-monitor")
 
     sys.stdout.write("\033[?25l")
     sys.stdout.flush()

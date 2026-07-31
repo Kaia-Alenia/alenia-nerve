@@ -2,6 +2,12 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [1.5.5] — 2026-07-31
+### Corregido
+- **Core** (`core.py`): Corregido bug crítico en `NexusHub.start()` donde `raise OSError` por "dirección ya en uso" era capturado por su propio bloque `except`, causando que siempre se intentara eliminar el socket aunque hubiera un hub activo.
+- **Bridge** (`bridge.py`): Corregido bloqueo infinito en `NerveBridge.start()` cuando el hub no estaba corriendo. Implementado routing real en `_handle_hub_message` con `asyncio.run_coroutine_threadsafe`. Corregido `KeyError` en `_ws_handler` cleanup usando `discard()` y `.pop()` seguros.
+- **CLI Monitor** (`cli_monitor.py`): `nerve dashboard` y `nerve monitor` ya no se cuelgan indefinidamente cuando el hub no está activo. Ahora muestran un error claro y salen inmediatamente.
+
 ## [1.5.3] — 2026-07-28
 - Agregado Empaquetado Seguro de Datos (`.nrv`) con AES-256-GCM y Argon2id.
 - Interfaz CLI mejorada con comandos `pack` y `unpack` para encriptación de archivos de extremo a extremo.

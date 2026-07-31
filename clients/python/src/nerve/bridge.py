@@ -16,18 +16,48 @@
 import asyncio
 import json
 import logging
+import platform
+import socket
 from typing import Any
 
 try:
     import websockets
+    import websockets.exceptions
 
     WEBSOCKETS_AVAILABLE = True
 except ImportError:
     WEBSOCKETS_AVAILABLE = False
 
-from .core import NexusClient
+from .core import NexusClient, load_external_config
 
 logger = logging.getLogger(__name__)
+
+
+def _probe_hub(timeout: float = 2.0) -> bool:
+    """Return True if a Nerve Hub appears reachable; False otherwise."""
+    config = load_external_config()
+    is_windows = platform.system() == "Windows"
+    if is_windows:
+        host = str(config.get("host", "127.0.0.1"))
+        port = int(config.get("port", 50505))
+        address: tuple | str = (host, port)
+        family = socket.AF_INET
+    else:
+        address = str(config.get("socket_path", "/tmp/nerve.sock"))
+        family = socket.AF_UNIX
+
+    sock = socket.socket(family, socket.SOCK_STREAM)
+    sock.settimeout(timeout)
+    try:
+        sock.connect(address)
+        return True
+    except OSError:
+        return False
+    finally:
+        try:
+            sock.close()
+        except OSError:
+            pass
 
 
 class NerveBridge:
@@ -52,6 +82,7 @@ class NerveBridge:
         self.active_websockets: set[Any] = set()
         self.ws_to_client_id: dict[Any, str] = {}
         self.client_id_to_ws: dict[str, Any] = {}
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     def start(self):
         if not WEBSOCKETS_AVAILABLE:
@@ -60,12 +91,16 @@ class NerveBridge:
             )
             return
 
+        if not _probe_hub():
+            logger.error(
+                "Nerve Hub is not running or unreachable. "
+                "Start the hub first with 'nerve start'."
+            )
+            return
+
         self.nerve_client.connect("nerve_bridge_node")
 
-        # We need to listen to all broadcast messages and route messages back to the correct WS client.
-        # In a full implementation, we'd intercept specific messages. For now we broadcast all to all WS clients,
-        # or handle targeted messages if the payload specifies a 'target_ws_id'.
-
+        # Listen for messages from the Hub and route them back to the correct WS client.
         self.nerve_client.listen(self._handle_hub_message)
 
         logger.info(
@@ -73,6 +108,7 @@ class NerveBridge:
         )
 
         async def serve():
+            self._loop = asyncio.get_running_loop()
             async with websockets.serve(self._ws_handler, self.host, self.port):
                 await asyncio.Future()  # run forever
 
@@ -84,15 +120,20 @@ class NerveBridge:
             self.nerve_client.disconnect()
 
     def _handle_hub_message(self, payload: dict):
+        """Route a message from the Nerve Hub to the correct WebSocket client."""
         target = payload.get("bridge_client_id")
-        if target and target in self.client_id_to_ws:
-            # Must run thread-safe in asyncio loop, but for simplicity:
-            # We can't await here directly since it's called from nerve_client thread.
-            # We would use asyncio.run_coroutine_threadsafe.
-            # This is just a stub for the architecture.
-            pass
+        if target and target in self.client_id_to_ws and self._loop is not None:
+            ws = self.client_id_to_ws[target]
 
-    async def _ws_handler(self, websocket, path):
+            async def _send():
+                try:
+                    await ws.send(json.dumps(payload))
+                except Exception:  # noqa: BLE001
+                    pass
+
+            asyncio.run_coroutine_threadsafe(_send(), self._loop)
+
+    async def _ws_handler(self, websocket, *args, **kwargs):
         self.active_websockets.add(websocket)
         ws_id = f"ws_{id(websocket)}"
         self.ws_to_client_id[websocket] = ws_id
@@ -104,7 +145,7 @@ class NerveBridge:
             async for message in websocket:
                 try:
                     data = json.loads(message)
-                    # For simplicity, bridge acts as a proxy
+                    # Bridge acts as a proxy: forward the WS message into the Nerve network.
                     self.nerve_client.send(
                         to=data.get("to", "hub"),
                         payload={"ws_id": ws_id, "data": data.get("payload", {})},
@@ -114,9 +155,9 @@ class NerveBridge:
         except websockets.exceptions.ConnectionClosed:
             pass
         finally:
-            self.active_websockets.remove(websocket)
-            del self.ws_to_client_id[websocket]
-            del self.client_id_to_ws[ws_id]
+            self.active_websockets.discard(websocket)
+            self.ws_to_client_id.pop(websocket, None)
+            self.client_id_to_ws.pop(ws_id, None)
             logger.info(f"WebSocket client disconnected: {ws_id}")
 
 
