@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.7] — 2026-07-31
+### Fixed
+- **Bridge** (`bridge.py`): Resolved Ruff S110 lint error — replaced silent `except Exception: pass` in `_handle_hub_message._send()` with `logger.debug(...)` to log the exception instead of swallowing it.
+
 ## [1.5.6] — 2026-07-31
 ### Fixed
 - **Core** (`core.py`): Fixed critical bug in `NexusHub.start()` where `raise OSError` for "address already in use" was caught by its own `except` block, causing the socket to always be removed even when an active hub was listening.

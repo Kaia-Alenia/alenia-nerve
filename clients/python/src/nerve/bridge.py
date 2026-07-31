@@ -128,8 +128,10 @@ class NerveBridge:
             async def _send():
                 try:
                     await ws.send(json.dumps(payload))
-                except Exception:  # noqa: BLE001
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug(
+                        "Failed to forward hub message to WebSocket client: %s", exc
+                    )
 
             asyncio.run_coroutine_threadsafe(_send(), self._loop)
 
