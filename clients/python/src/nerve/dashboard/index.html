@@ -1,655 +1,1607 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nerve IPC Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Nerve IPC Hub — Dashboard</title>
+    <meta name="description" content="Nerve IPC Hub — Real-time high-performance inter-process communication monitor.">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
     <style>
         :root {
-            --bg: #0f172a;
-            --surface: #1e293b;
-            --surface-hover: #334155;
-            --border: #334155;
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
-            --primary: #8b5cf6;
-            --primary-glow: rgba(139, 92, 246, 0.5);
-            --success: #10b981;
-            --info: #38bdf8;
+            --bg-dark: #090a0f;
+            --bg-card: rgba(18, 20, 29, 0.7);
+            --bg-card-hover: rgba(28, 32, 46, 0.8);
+            --bg-input: rgba(12, 14, 22, 0.8);
+
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(99, 102, 241, 0.3);
+
+            --text-main: #f1f5f9;
+            --text-muted: #808ea8;
+            --text-dim: #475569;
+
+            --accent-primary: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.25);
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+
+            --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-full: 9999px;
+
+            --shadow-subtle: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+            --shadow-glow: 0 0 25px -5px rgba(99, 102, 241, 0.3);
         }
 
-        * {
+        *,
+        *::before,
+        *::after {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
         }
 
+        html,
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
+            height: 100%;
+            width: 100%;
+            overflow-x: hidden;
+            font-family: var(--font-sans);
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-image:
+                radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(6, 182, 212, 0.08) 0%, transparent 40%),
+                linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
             display: flex;
             flex-direction: column;
-            overflow-x: hidden;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
         }
 
         header {
-            padding: 1.5rem 2rem;
-            border-bottom: 1px solid var(--border);
+            height: 64px;
+            padding: 0 1.5rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background-color: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(10px);
+            background: rgba(9, 10, 15, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-subtle);
             position: sticky;
             top: 0;
-            z-index: 10;
+            z-index: 50;
         }
 
-        .logo {
-            font-size: 1.5rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #c084fc, #3b82f6);
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.875rem;
+        }
+
+        .logo-box {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-md);
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-cyan));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+            position: relative;
+        }
+
+        .brand-title {
+            font-size: 1.125rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             display: flex;
             align-items: center;
-            gap: 0.75rem;
+            gap: 0.5rem;
+        }
+
+        .brand-tag {
+            font-size: 0.65rem;
+            font-family: var(--font-mono);
+            padding: 0.15rem 0.45rem;
+            border-radius: var(--radius-sm);
+            background: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }
 
         .status-badge {
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            background-color: rgba(16, 185, 129, 0.1);
-            color: var(--success);
-            border-radius: 9999px;
+            padding: 0.4rem 0.85rem;
+            border-radius: var(--radius-full);
+            font-size: 0.775rem;
             font-weight: 600;
-            font-size: 0.875rem;
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            color: var(--accent-green);
+            transition: all 0.25s ease;
         }
 
-        .status-dot {
-            width: 8px;
-            height: 8px;
+        .status-badge.disconnected {
+            background: rgba(244, 63, 94, 0.1);
+            border-color: rgba(244, 63, 94, 0.25);
+            color: var(--accent-rose);
+        }
+
+        .status-badge.connecting {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.25);
+            color: var(--accent-amber);
+        }
+
+        .pulse-dot {
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
-            background-color: var(--success);
-            box-shadow: 0 0 8px var(--success);
-            animation: pulse 2s infinite;
+            background: currentColor;
+            box-shadow: 0 0 8px currentColor;
+            animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
 
-        @keyframes pulse {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        @keyframes pulse-ring {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.3);
+                opacity: 0.5;
+            }
         }
 
-        main {
-            flex: 1;
-            padding: 2rem;
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.45rem 0.9rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border-subtle);
+            background: var(--bg-card);
+            color: var(--text-main);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            user-select: none;
+        }
+
+        .btn:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(255, 255, 255, 0.18);
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary), #4f46e5);
+            border-color: transparent;
+            color: #ffffff;
+            box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #4f46e5, #4338ca);
+        }
+
+        .btn-icon {
+            padding: 0.45rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .metrics-banner {
             display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 2rem;
-            max-width: 1600px;
-            margin: 0 auto;
-            width: 100%;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            background: var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
         }
 
-        .sidebar {
+        .metric-card {
+            background: var(--bg-dark);
+            padding: 1.15rem 1.5rem;
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
-        }
-
-        .card {
-            background-color: var(--surface);
-            border-radius: 1rem;
-            border: 1px solid var(--border);
-            padding: 1.5rem;
-            transition: transform 0.2s, box-shadow 0.2s;
+            justify-content: space-between;
             position: relative;
             overflow: hidden;
+            transition: background 0.2s ease;
         }
 
-        .card::before {
+        .metric-card:hover {
+            background: rgba(18, 20, 29, 0.6);
+        }
+
+        .metric-card::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 4px;
-            background: linear-gradient(90deg, #8b5cf6, #38bdf8);
-            opacity: 0;
-            transition: opacity 0.3s;
+            width: 3px;
+            height: 0%;
+            background: var(--accent-primary);
+            transition: height 0.3s ease;
         }
 
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        .metric-card:hover::before {
+            height: 100%;
         }
 
-        .card:hover::before {
-            opacity: 1;
-        }
-
-        .stat-label {
-            color: var(--text-muted);
-            font-size: 0.875rem;
-            font-weight: 500;
+        .metric-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             margin-bottom: 0.5rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
         }
 
-        .stat-value {
-            font-size: 2rem;
+        .metric-label {
+            font-size: 0.725rem;
             font-weight: 700;
-            color: var(--text);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+        }
+
+        .metric-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: var(--radius-sm);
+            background: rgba(255, 255, 255, 0.04);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+        }
+
+        .metric-main {
             display: flex;
             align-items: baseline;
-            gap: 0.25rem;
+            gap: 0.5rem;
         }
 
-        .stat-unit {
-            font-size: 1rem;
+        .metric-value {
+            font-size: 1.625rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            font-family: var(--font-sans);
+            color: var(--text-main);
+        }
+
+        .metric-unit {
+            font-size: 0.825rem;
+            font-weight: 600;
             color: var(--text-muted);
-            font-weight: 500;
         }
 
-        .topology-container {
-            background-color: var(--surface);
-            border-radius: 1rem;
-            border: 1px solid var(--border);
+        .metric-sparkline {
+            height: 32px;
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 310px 1fr;
+            grid-template-rows: minmax(480px, 1fr) auto;
+            background: var(--border-subtle);
+            gap: 1px;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .sidebar-panel {
+            background: var(--bg-dark);
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            grid-row: 1 / span 2;
+        }
+
+        .panel-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(18, 20, 29, 0.4);
+        }
+
+        .panel-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .count-pill {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
+            padding: 0.15rem 0.5rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .search-box {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-subtle);
             position: relative;
         }
 
-        .topology-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .search-input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+            font-family: var(--font-sans);
+            font-size: 0.8rem;
+            color: var(--text-main);
+            outline: none;
+            transition: all 0.2s ease;
         }
 
-        .topology-title {
-            font-weight: 600;
-            font-size: 1.125rem;
+        .search-input:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1.6rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-dim);
+            pointer-events: none;
+        }
+
+        .client-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.625rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.375rem;
+        }
+
+        .empty-state-card {
+            padding: 2.5rem 1rem;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+
+        .node-card {
+            background: rgba(18, 20, 29, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: var(--radius-md);
+            padding: 0.75rem 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .node-card:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(255, 255, 255, 0.12);
+            transform: translateX(2px);
+        }
+
+        .node-card.selected {
+            background: rgba(99, 102, 241, 0.12);
+            border-color: rgba(99, 102, 241, 0.4);
+            box-shadow: inset 3px 0 0 var(--accent-primary);
+        }
+
+        .node-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            min-width: 0;
+        }
+
+        .node-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            flex-shrink: 0;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+
+        .node-name {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .node-meta {
+            text-align: right;
+            font-family: var(--font-mono);
+            font-size: 0.725rem;
+            color: var(--text-muted);
+        }
+
+        .topology-panel {
+            background: var(--bg-dark);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
         }
 
         .canvas-container {
             flex: 1;
             position: relative;
-            min-height: 500px;
+            cursor: grab;
         }
 
-        canvas {
+        .canvas-container:active {
+            cursor: grabbing;
+        }
+
+        canvas#topology-canvas {
+            display: block;
             width: 100%;
             height: 100%;
-            display: block;
         }
 
-        .client-list {
-            margin-top: 1.5rem;
+        .canvas-controls {
+            position: absolute;
+            bottom: 1.25rem;
+            right: 1.25rem;
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(18, 20, 29, 0.85);
+            backdrop-filter: blur(12px);
+            padding: 0.35rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-subtle);
+            box-shadow: var(--shadow-subtle);
+            z-index: 10;
+        }
+
+        .bottom-panel {
+            grid-column: 2;
+            height: 240px;
+            background: var(--bg-dark);
+            border-top: 1px solid var(--border-subtle);
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            overflow: hidden;
+        }
+
+        .log-terminal {
             display: flex;
             flex-direction: column;
+            border-right: 1px solid var(--border-subtle);
+            background: rgba(12, 14, 22, 0.6);
+        }
+
+        .terminal-bar {
+            padding: 0.5rem 1rem;
+            background: rgba(18, 20, 29, 0.7);
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .terminal-title {
+            font-size: 0.725rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
             gap: 0.5rem;
         }
 
-        .client-item {
-            background-color: rgba(255, 255, 255, 0.03);
+        .log-stream {
+            flex: 1;
             padding: 0.75rem 1rem;
-            border-radius: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            border: 1px solid transparent;
-            transition: border-color 0.2s, background-color 0.2s;
-        }
-
-        .client-item:hover {
-            background-color: rgba(255, 255, 255, 0.05);
-            border-color: rgba(139, 92, 246, 0.3);
-        }
-
-        .client-icon {
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            background-color: rgba(139, 92, 246, 0.1);
-        }
-
-        .client-name {
-            font-weight: 500;
-            font-family: monospace;
-            font-size: 0.9rem;
-        }
-
-        /* Error overlay */
-        #error-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(15, 23, 42, 0.9);
-            z-index: 100;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            line-height: 1.6;
             display: flex;
             flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .log-entry {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            animation: fadeIn 0.2s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .log-time {
+            color: var(--text-dim);
+            flex-shrink: 0;
+        }
+
+        .log-tag {
+            padding: 0.05rem 0.35rem;
+            border-radius: 4px;
+            font-size: 0.675rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        .log-tag.info {
+            background: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+        }
+
+        .log-tag.rpc {
+            background: rgba(6, 182, 212, 0.15);
+            color: #67e8f9;
+        }
+
+        .log-tag.event {
+            background: rgba(16, 185, 129, 0.15);
+            color: #6ee7b7;
+        }
+
+        .log-tag.warn {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fde047;
+        }
+
+        .log-tag.error {
+            background: rgba(244, 63, 94, 0.15);
+            color: #fca5a5;
+        }
+
+        .log-msg {
+            color: var(--text-main);
+            word-break: break-all;
+        }
+
+        .inspector-panel {
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+            background: rgba(18, 20, 29, 0.3);
+            overflow-y: auto;
+        }
+
+        .inspector-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 0.85rem;
+        }
+
+        .inspector-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-grid-compact {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+
+        .compact-stat-label {
+            font-size: 0.675rem;
+            color: var(--text-dim);
+        }
+
+        .compact-stat-val {
+            font-size: 0.85rem;
+            font-family: var(--font-mono);
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(9, 10, 15, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.3s;
+            transition: opacity 0.25s ease;
         }
 
-        #error-overlay.active {
+        .modal-overlay.active {
             opacity: 1;
             pointer-events: all;
         }
 
-        .error-box {
-            background-color: var(--surface);
-            padding: 2rem;
-            border-radius: 1rem;
-            border: 1px solid rgba(239, 68, 68, 0.5);
-            text-align: center;
-            max-width: 400px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 0 20px rgba(239, 68, 68, 0.2);
+        .modal-card {
+            background: #12141d;
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 440px;
+            padding: 1.75rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            transform: scale(0.95);
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .error-icon {
-            font-size: 3rem;
-            color: #ef4444;
-            margin-bottom: 1rem;
+        .modal-overlay.active .modal-card {
+            transform: scale(1);
         }
 
-        .error-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
+        .canvas-tooltip {
+            position: absolute;
+            pointer-events: none;
+            background: rgba(18, 20, 29, 0.95);
+            border: 1px solid var(--border-glow);
+            border-radius: var(--radius-md);
+            padding: 0.6rem 0.85rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            z-index: 30;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            transform: translate(-50%, -120%);
         }
 
-        .error-msg {
-            color: var(--text-muted);
-            margin-bottom: 1.5rem;
-        }
-
-        .retry-btn {
-            background-color: #ef4444;
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .retry-btn:hover {
-            background-color: #dc2626;
-        }
-
-        @media (max-width: 900px) {
+        @media (max-width: 1024px) {
             main {
                 grid-template-columns: 1fr;
+                grid-template-rows: auto 450px auto;
             }
-            .canvas-container {
-                min-height: 400px;
+
+            .sidebar-panel {
+                grid-row: auto;
+                max-height: 260px;
+            }
+
+            .bottom-panel {
+                grid-column: 1;
+                grid-template-columns: 1fr;
+                height: 280px;
+            }
+
+            .inspector-panel {
+                display: none;
+            }
+
+            .metrics-banner {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .metrics-banner {
+                grid-template-columns: 1fr;
+            }
+
+            header {
+                padding: 0 1rem;
+            }
+
+            .brand-tag {
+                display: none;
             }
         }
     </style>
 </head>
+
 <body>
 
     <header>
-        <div class="logo">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>
-            Nerve Dashboard
+        <div class="header-brand">
+            <div class="logo-box">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3" />
+                    <path
+                        d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" />
+                </svg>
+            </div>
+            <div>
+                <div class="brand-title">
+                    NERVE IPC <span class="brand-tag">HUB MONITOR</span>
+                </div>
+            </div>
         </div>
-        <div class="status-badge" id="conn-status">
-            <div class="status-dot"></div>
-            Connected
+
+        <div class="header-actions">
+            <div class="status-badge connecting" id="conn-status">
+                <span class="pulse-dot"></span>
+                <span id="status-text">Connecting to Hub...</span>
+            </div>
+
+            <button class="btn btn-primary" id="btn-refresh-now" title="Manual metric refresh">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                </svg>
+                <span>Refresh</span>
+            </button>
         </div>
     </header>
 
+    <section class="metrics-banner">
+        <div class="metric-card">
+            <div class="metric-top">
+                <span class="metric-label">Hub Uptime</span>
+                <div class="metric-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                </div>
+            </div>
+            <div class="metric-main">
+                <span class="metric-value" id="val-uptime">00:00:00</span>
+            </div>
+            <svg class="metric-sparkline" id="sparkline-uptime"></svg>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-top">
+                <span class="metric-label">Total Traffic</span>
+                <div class="metric-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                </div>
+            </div>
+            <div class="metric-main">
+                <span class="metric-value" id="val-traffic">0.00</span>
+                <span class="metric-unit" id="unit-traffic">MB</span>
+            </div>
+            <svg class="metric-sparkline" id="sparkline-traffic"></svg>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-top">
+                <span class="metric-label">IPC Messages</span>
+                <div class="metric-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                </div>
+            </div>
+            <div class="metric-main">
+                <span class="metric-value" id="val-messages">0</span>
+                <span class="metric-unit">msgs</span>
+            </div>
+            <svg class="metric-sparkline" id="sparkline-messages"></svg>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-top">
+                <span class="metric-label">Active Bus Nodes</span>
+                <div class="metric-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="2" width="8" height="8" rx="2" />
+                        <rect x="14" y="2" width="8" height="8" rx="2" />
+                        <rect x="14" y="14" width="8" height="8" rx="2" />
+                        <rect x="2" y="14" width="8" height="8" rx="2" />
+                    </svg>
+                </div>
+            </div>
+            <div class="metric-main">
+                <span class="metric-value" id="val-nodes">0</span>
+                <span class="metric-unit">connected</span>
+            </div>
+            <svg class="metric-sparkline" id="sparkline-nodes"></svg>
+        </div>
+    </section>
+
     <main>
-        <div class="sidebar">
-            <div class="card">
-                <div class="stat-label">Uptime</div>
-                <div class="stat-value" id="uptime">00:00:00</div>
+        <aside class="sidebar-panel">
+            <div class="panel-header">
+                <span class="panel-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="2" y1="12" x2="22" y2="12" />
+                    </svg>
+                    Bus Nodes
+                </span>
+                <span class="count-pill" id="node-count-badge">0</span>
             </div>
-            
-            <div class="card">
-                <div class="stat-label">Total Traffic (I/O)</div>
-                <div class="stat-value" id="traffic">
-                    0 <span class="stat-unit">B</span>
+
+            <div class="search-box">
+                <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input type="text" class="search-input" id="search-nodes" placeholder="Filter node ID...">
+            </div>
+
+            <div class="client-list" id="client-list">
+                <div class="empty-state-card">Waiting for connected nodes from Nerve Hub...</div>
+            </div>
+        </aside>
+
+        <section class="topology-panel">
+            <div class="panel-header"
+                style="position: absolute; top: 0; left: 0; right: 0; z-index: 10; background: linear-gradient(to bottom, rgba(9,10,15,0.9), transparent); border-bottom: none;">
+                <span class="panel-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                        <polyline points="2 17 12 22 22 17" />
+                        <polyline points="2 12 12 17 22 12" />
+                    </svg>
+                    Topology Mesh Graph
+                </span>
+                <div style="display:flex; gap:0.5rem; align-items:center;">
+                    <span style="font-size:0.7rem; color:var(--text-muted); font-family:var(--font-mono)">Drag to Pan •
+                        Scroll to Zoom</span>
                 </div>
             </div>
 
-            <div class="card">
-                <div class="stat-label">Messages Processed</div>
-                <div class="stat-value" id="messages">0</div>
+            <div class="canvas-container" id="canvas-wrap">
+                <canvas id="topology-canvas"></canvas>
+                <div class="canvas-tooltip" id="canvas-tooltip"></div>
             </div>
 
-            <div class="card" style="flex: 1; display: flex; flex-direction: column;">
-                <div class="stat-label">Connected Nodes (<span id="client-count">0</span>)</div>
-                <div class="client-list" id="client-list">
-                    <!-- Populated dynamically -->
-                    <div style="color: var(--text-muted); font-size: 0.875rem; text-align: center; padding: 1rem 0;">Waiting for data...</div>
+            <div class="canvas-controls">
+                <button class="btn btn-icon" id="btn-zoom-in" title="Zoom In">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                </button>
+                <button class="btn btn-icon" id="btn-zoom-out" title="Zoom Out">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                </button>
+                <button class="btn btn-icon" id="btn-zoom-reset" title="Reset View">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                        <path d="M3 3v5h5" />
+                    </svg>
+                </button>
+            </div>
+        </section>
+
+        <section class="bottom-panel">
+            <div class="log-terminal">
+                <div class="terminal-bar">
+                    <span class="terminal-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="4 17 10 11 4 5" />
+                            <line x1="12" y1="19" x2="20" y2="19" />
+                        </svg>
+                        IPC Stream Log
+                    </span>
+                    <div style="display:flex; gap:0.4rem;">
+                        <button class="btn btn-icon" id="btn-pause-log" title="Pause Stream">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <rect x="6" y="4" width="4" height="16" />
+                                <rect x="14" y="4" width="4" height="16" />
+                            </svg>
+                        </button>
+                        <button class="btn btn-icon" id="btn-clear-log" title="Clear Stream">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path
+                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="log-stream" id="log-stream-container">
+                    <!-- Streamed dynamically from Nerve API -->
                 </div>
             </div>
-        </div>
 
-        <div class="topology-container">
-            <div class="topology-header">
-                <div class="topology-title">Network Topology</div>
-                <div style="color: var(--text-muted); font-size: 0.875rem;">Real-time visualization</div>
+            <div class="inspector-panel" id="inspector-panel">
+                <div class="inspector-card">
+                    <div class="inspector-title">Target Node Info</div>
+                    <div id="inspector-node-details">
+                        <div style="color:var(--text-dim); font-size:0.775rem;">Select a node in the graph or list to
+                            inspect its stats.</div>
+                    </div>
+                </div>
             </div>
-            <div class="canvas-container" id="canvas-container">
-                <canvas id="topology"></canvas>
-            </div>
-        </div>
+        </section>
     </main>
 
-    <div id="error-overlay">
-        <div class="error-box">
-            <div class="error-icon">⚠️</div>
-            <div class="error-title">Connection Lost</div>
-            <div class="error-msg">Cannot reach Nerve Dashboard API. Make sure the Hub and Monitor are running.</div>
-            <button class="retry-btn" onclick="fetchMetrics()">Retry Now</button>
+    <div class="modal-overlay" id="error-modal">
+        <div class="modal-card">
+            <div
+                style="width:48px; height:48px; border-radius:12px; background:rgba(244,63,94,0.1); border:1px solid rgba(244,63,94,0.2); display:flex; align-items:center; justify-content:center; margin-bottom:1rem; color:var(--accent-rose);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+            </div>
+            <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:0.4rem;">Nerve Hub Endpoint Unreachable</h3>
+            <p style="font-size:0.825rem; color:var(--text-muted); line-height:1.5; margin-bottom:1.5rem;">
+                Could not fetch real metrics from <code>/api/metrics</code>. Ensure your Nerve Hub process is running.
+            </p>
+            <div style="display:flex; gap:0.75rem;">
+                <button class="btn btn-primary" style="flex:1; justify-content:center;"
+                    onclick="app.fetchMetrics()">Retry Endpoint</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // Formatting utilities
-        function formatBytes(bytes) {
-            if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' <span class="stat-unit">' + sizes[i] + '</span>';
-        }
-
-        function formatUptime(seconds) {
-            const h = Math.floor(seconds / 3600);
-            const m = Math.floor((seconds % 3600) / 60);
-            const s = Math.floor(seconds % 60);
-            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-        }
-
-        // DOM Elements
-        const elUptime = document.getElementById('uptime');
-        const elTraffic = document.getElementById('traffic');
-        const elMessages = document.getElementById('messages');
-        const elClientCount = document.getElementById('client-count');
-        const elClientList = document.getElementById('client-list');
-        const elError = document.getElementById('error-overlay');
-        const elStatus = document.getElementById('conn-status');
-
-        let lastClients = [];
-
-        // Canvas Setup
-        const canvas = document.getElementById('topology');
-        const ctx = canvas.getContext('2d');
-        const container = document.getElementById('canvas-container');
-
-        let width, height;
-        let nodes = [];
-        let edges = [];
-
-        function resizeCanvas() {
-            width = container.clientWidth;
-            height = container.clientHeight;
-            canvas.width = width;
-            canvas.height = height;
-        }
-
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
-
-        // Node animation system
-        class HubNode {
+        class DashboardApp {
             constructor() {
-                this.x = width / 2;
-                this.y = height / 2;
-                this.radius = 40;
-                this.pulse = 0;
-            }
-            update() {
-                this.x = width / 2;
-                this.y = height / 2;
-                this.pulse += 0.05;
-            }
-            draw(ctx) {
-                // Glow
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius + 15 + Math.sin(this.pulse) * 5, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(139, 92, 246, 0.2)';
-                ctx.fill();
+                this.isLogPaused = false;
+                this.selectedNodeId = null;
+                this.lastClientIds = [];
+                this.isInitialFetch = true;
 
-                // Core
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                const grad = ctx.createLinearGradient(this.x - this.radius, this.y - this.radius, this.x + this.radius, this.y + this.radius);
-                grad.addColorStop(0, '#8b5cf6');
-                grad.addColorStop(1, '#3b82f6');
-                ctx.fillStyle = grad;
-                ctx.fill();
-                ctx.strokeStyle = '#c084fc';
-                ctx.lineWidth = 2;
-                ctx.stroke();
+                // Clean real telemetry state
+                this.metrics = {
+                    uptimeSec: 0,
+                    totalBytesSent: 0,
+                    totalBytesRecv: 0,
+                    totalMessages: 0,
+                    trafficMB: '0.00'
+                };
 
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 14px Inter';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('Nerve Hub', this.x, this.y);
-            }
-        }
+                // Real historical buffers for SVG sparklines
+                this.history = {
+                    uptime: Array(20).fill(0),
+                    traffic: Array(20).fill(0),
+                    messages: Array(20).fill(0),
+                    nodes: Array(20).fill(0)
+                };
 
-        class ClientNode {
-            constructor(id, index, total) {
-                this.id = id;
-                this.targetAngle = (Math.PI * 2 * index) / total;
-                this.angle = this.targetAngle;
-                this.dist = 180;
-                this.x = width / 2 + Math.cos(this.angle) * this.dist;
-                this.y = height / 2 + Math.sin(this.angle) * this.dist;
-                this.radius = 8;
-            }
-            update(index, total) {
-                this.targetAngle = (Math.PI * 2 * index) / total;
-                // Smoothly interpolate angle
-                let diff = this.targetAngle - this.angle;
-                // Normalize diff
-                while (diff > Math.PI) diff -= Math.PI * 2;
-                while (diff < -Math.PI) diff += Math.PI * 2;
-                this.angle += diff * 0.05;
-                
-                const targetX = width / 2 + Math.cos(this.angle) * this.dist;
-                const targetY = height / 2 + Math.sin(this.angle) * this.dist;
-                
-                this.x += (targetX - this.x) * 0.1;
-                this.y += (targetY - this.y) * 0.1;
-            }
-            draw(ctx) {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = '#10b981';
-                ctx.fill();
-                ctx.strokeStyle = '#059669';
-                ctx.lineWidth = 2;
-                ctx.stroke();
+                // Real node list fetched from Nerve Hub
+                this.nodesPool = [];
 
-                ctx.fillStyle = '#94a3b8';
-                ctx.font = '12px monospace';
-                ctx.textAlign = 'center';
-                
-                // Position text outside
-                const textDist = 20;
-                const tx = this.x + Math.cos(this.angle) * textDist;
-                const ty = this.y + Math.sin(this.angle) * textDist;
-                ctx.fillText(this.id, tx, ty);
+                this.initUI();
+                this.initSparklines();
+                this.startPolling();
             }
-        }
 
-        class DataPacket {
-            constructor(startX, startY, endX, endY) {
-                this.startX = startX;
-                this.startY = startY;
-                this.endX = endX;
-                this.endY = endY;
-                this.progress = 0;
-                this.speed = 0.02 + Math.random() * 0.02;
+            initUI() {
+                this.elStatus = document.getElementById('conn-status');
+                this.elStatusText = document.getElementById('status-text');
+                this.elUptime = document.getElementById('val-uptime');
+                this.elTraffic = document.getElementById('val-traffic');
+                this.elUnitTraffic = document.getElementById('unit-traffic');
+                this.elMessages = document.getElementById('val-messages');
+                this.elNodesCount = document.getElementById('val-nodes');
+                this.elBadgeCount = document.getElementById('node-count-badge');
+                this.elClientList = document.getElementById('client-list');
+                this.elLogStream = document.getElementById('log-stream-container');
+                this.elSearch = document.getElementById('search-nodes');
+
+                document.getElementById('btn-refresh-now').addEventListener('click', () => this.fetchMetrics());
+                document.getElementById('btn-pause-log').addEventListener('click', (e) => {
+                    this.isLogPaused = !this.isLogPaused;
+                    e.currentTarget.style.color = this.isLogPaused ? 'var(--accent-amber)' : '';
+                });
+                document.getElementById('btn-clear-log').addEventListener('click', () => {
+                    this.elLogStream.innerHTML = '';
+                });
+
+                this.elSearch.addEventListener('input', () => this.renderNodesList());
+
+                this.log('info', 'Dashboard initialized. Polling /api/metrics...');
             }
-            update() {
-                this.progress += this.speed;
-                return this.progress >= 1;
+
+            initSparklines() {
+                this.sparklineEls = {
+                    uptime: document.getElementById('sparkline-uptime'),
+                    traffic: document.getElementById('sparkline-traffic'),
+                    messages: document.getElementById('sparkline-messages'),
+                    nodes: document.getElementById('sparkline-nodes')
+                };
             }
-            draw(ctx) {
-                const x = this.startX + (this.endX - this.startX) * this.progress;
-                const y = this.startY + (this.endY - this.startY) * this.progress;
-                ctx.beginPath();
-                ctx.arc(x, y, 3, 0, Math.PI * 2);
-                ctx.fillStyle = '#38bdf8';
-                ctx.fill();
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = '#38bdf8';
+
+            updateSparkline(key, data, color = '#6366f1') {
+                const svg = this.sparklineEls[key];
+                if (!svg) return;
+                const width = svg.clientWidth || 180;
+                const height = svg.clientHeight || 32;
+                if (width === 0) return;
+
+                const min = Math.min(...data);
+                const max = Math.max(...data) || 1;
+                const points = data.map((val, idx) => {
+                    const x = (idx / (data.length - 1)) * width;
+                    const y = height - ((val - min) / (max - min || 1)) * (height - 6) - 3;
+                    return `${x},${y}`;
+                }).join(' ');
+
+                svg.innerHTML = `
+                    <defs>
+                        <linearGradient id="grad-${key}" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="${color}" stop-opacity="0.3"/>
+                            <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+                        </linearGradient>
+                    </defs>
+                    <polygon points="0,${height} ${points} ${width},${height}" fill="url(#grad-${key})" />
+                    <polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                `;
             }
-        }
 
-        const hub = new HubNode();
-        let clientNodes = {};
-        let packets = [];
+            startPolling() {
+                this.fetchMetrics();
+                setInterval(() => this.fetchMetrics(), 1000);
+            }
 
-        function animate() {
-            ctx.clearRect(0, 0, width, height);
-            
-            // Update & Draw Hub
-            hub.update();
-            
-            // Draw Edges
-            Object.values(clientNodes).forEach(c => {
-                ctx.beginPath();
-                ctx.moveTo(hub.x, hub.y);
-                ctx.lineTo(c.x, c.y);
-                ctx.strokeStyle = 'rgba(51, 65, 85, 0.5)';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            });
+            async fetchMetrics() {
+                try {
+                    const res = await fetch('/api/metrics');
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const data = await res.json();
 
-            // Update & Draw Packets
-            const activePackets = [];
-            packets.forEach(p => {
-                if (!p.update()) {
-                    p.draw(ctx);
-                    activePackets.push(p);
+                    document.getElementById('error-modal').classList.remove('active');
+                    this.elStatus.className = 'status-badge';
+                    this.elStatusText.textContent = 'Hub Connected';
+
+                    this.processApiData(data);
+                } catch (err) {
+                    this.elStatus.className = 'status-badge disconnected';
+                    this.elStatusText.textContent = 'Disconnected';
+                    document.getElementById('error-modal').classList.add('active');
+                    this.log('error', `API polling failed: ${err.message}`);
                 }
-            });
-            packets = activePackets;
-            ctx.shadowBlur = 0; // reset
+            }
 
-            // Update & Draw Clients
-            const keys = Object.keys(clientNodes);
-            keys.forEach((k, i) => {
-                const c = clientNodes[k];
-                c.update(i, keys.length);
-                c.draw(ctx);
-            });
+            processApiData(data) {
+                const rawMetrics = data.metrics || {};
+                const rawClients = data.clients || data.nodes || [];
 
-            hub.draw(ctx);
+                // Store previous metric counts to detect real traffic deltas
+                const prevMsgs = this.metrics.totalMessages;
+                const prevBytes = this.metrics.totalBytesSent + this.metrics.totalBytesRecv;
 
-            requestAnimationFrame(animate);
-        }
-        animate();
+                // Parse metrics from Nerve Hub API response
+                const uptime = rawMetrics.uptimeSec ?? rawMetrics.uptime ?? 0;
+                const bytesSent = rawMetrics.total_bytes_sent ?? rawMetrics.totalBytesSent ?? 0;
+                this.formatBytes(bytesSent);
+                const bytesRecv = rawMetrics.total_bytes_received ?? rawMetrics.totalBytesRecv ?? 0;
+                const totalBytes = bytesSent + bytesRecv;
 
-        // Data fetching
-        async function fetchMetrics() {
-            try {
-                const res = await fetch('/api/metrics');
-                if (!res.ok) throw new Error('API Error');
-                const data = await res.json();
-                
-                // Hide error
-                elError.classList.remove('active');
-                elStatus.innerHTML = '<div class="status-dot"></div> Connected';
-                elStatus.style.color = 'var(--success)';
-                elStatus.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
-                elStatus.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+                const msgsSent = rawMetrics.total_messages_sent ?? rawMetrics.totalMessagesSent ?? 0;
+                const msgsRecv = rawMetrics.total_messages_received ?? rawMetrics.totalMessagesReceived ?? 0;
+                const totalMsgs = rawMetrics.total_messages ?? (msgsSent + msgsRecv);
 
-                const m = data.metrics || {};
-                const c = data.clients || [];
+                this.metrics = {
+                    uptimeSec: uptime,
+                    totalBytesSent: bytesSent,
+                    totalBytesRecv: bytesRecv,
+                    totalMessages: totalMsgs
+                };
 
-                // Update text
-                elUptime.innerText = formatUptime(m.uptime || 0);
-                elTraffic.innerHTML = formatBytes((m.total_bytes_sent || 0) + (m.total_bytes_received || 0));
-                elMessages.innerText = ((m.total_messages_sent || 0) + (m.total_messages_received || 0)).toLocaleString();
-                elClientCount.innerText = c.length;
+                // Calculate real traffic deltas since last poll
+                const msgDelta = this.isInitialFetch ? 0 : Math.max(0, totalMsgs - prevMsgs);
+                const byteDelta = this.isInitialFetch ? 0 : Math.max(0, totalBytes - prevBytes);
+                this.isInitialFetch = false;
 
-                // Update Client List UI if changed
-                if (JSON.stringify(c) !== JSON.stringify(lastClients)) {
-                    lastClients = [...c];
-                    
-                    if (c.length === 0) {
-                        elClientList.innerHTML = '<div style="color: var(--text-muted); font-size: 0.875rem; text-align: center; padding: 1rem 0;">No clients connected</div>';
-                    } else {
-                        elClientList.innerHTML = c.map(id => `
-                            <div class="client-item">
-                                <div class="client-icon">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-                                </div>
-                                <div class="client-name">${id}</div>
+                // Trigger packet animations ONLY when real network activity occurs
+                if ((msgDelta > 0 || byteDelta > 0) && window.topologyCanvas) {
+                    const packetCount = msgDelta > 0 ? msgDelta : Math.min(5, Math.ceil(byteDelta / 1024));
+                    window.topologyCanvas.emitPackets(packetCount);
+                }
+
+                // Normalize dynamic connected clients list
+                const parsedNodes = rawClients.map((client, idx) => {
+                    if (typeof client === 'string') {
+                        return {
+                            id: client,
+                            status: 'active',
+                            latency: rawMetrics.client_latencies?.[client] ?? '--'
+                        };
+                    } else if (typeof client === 'object' && client !== null) {
+                        return {
+                            id: client.id || client.name || `Node-${idx + 1}`,
+                            status: client.status || 'active',
+                            latency: client.latency ?? '--'
+                        };
+                    }
+                    return { id: `Node-${idx + 1}`, status: 'active', latency: '--' };
+                });
+
+                // Detect join/leave events for live logging
+                const currentIds = parsedNodes.map(n => n.id);
+                const joined = currentIds.filter(id => !this.lastClientIds.includes(id));
+                const left = this.lastClientIds.filter(id => !currentIds.includes(id));
+
+                joined.forEach(id => this.log('event', `Client joined bus: [${id}]`));
+                left.forEach(id => this.log('warn', `Client left bus: [${id}]`));
+
+                this.lastClientIds = currentIds;
+                this.nodesPool = parsedNodes;
+
+                // Push samples into sparklines
+                this.history.uptime.shift(); this.history.uptime.push(this.metrics.uptimeSec);
+
+                const mb = (totalBytes / (1024 * 1024)).toFixed(2);
+                this.history.traffic.shift(); this.history.traffic.push(parseFloat(mb));
+                this.history.messages.shift(); this.history.messages.push(this.metrics.totalMessages);
+                this.history.nodes.shift(); this.history.nodes.push(this.nodesPool.length);
+
+                this.updateUI(totalBytes);
+            }
+
+            formatBytes(b) {
+                if (b === 0) return { val: '0.00', unit: 'B' };
+                const k = 1024, s = ['B', 'KB', 'MB', 'GB', 'TB'];
+                const i = Math.floor(Math.log(b) / Math.log(k));
+                return {
+                    val: parseFloat((b / Math.pow(k, i)).toFixed(2)),
+                    unit: s[i]
+                };
+            }
+
+            updateUI(totalBytes) {
+                // Format Uptime
+                const hrs = String(Math.floor(this.metrics.uptimeSec / 3600)).padStart(2, '0');
+                const mins = String(Math.floor((this.metrics.uptimeSec % 3600) / 60)).padStart(2, '0');
+                const secs = String(Math.floor(this.metrics.uptimeSec % 60)).padStart(2, '0');
+                this.elUptime.textContent = `${hrs}:${mins}:${secs}`;
+
+                const tf = this.formatBytes(totalBytes);
+                this.elTraffic.textContent = tf.val;
+                this.elUnitTraffic.textContent = tf.unit;
+
+                this.elMessages.textContent = this.metrics.totalMessages.toLocaleString();
+                this.elNodesCount.textContent = this.nodesPool.length;
+                this.elBadgeCount.textContent = this.nodesPool.length;
+
+                // Render Sparklines
+                this.updateSparkline('uptime', this.history.uptime, '#6366f1');
+                this.updateSparkline('traffic', this.history.traffic, '#06b6d4');
+                this.updateSparkline('messages', this.history.messages, '#10b981');
+                this.updateSparkline('nodes', this.history.nodes, '#f59e0b');
+
+                this.renderNodesList();
+                this.renderInspector();
+            }
+
+            renderNodesList() {
+                const query = this.elSearch.value.toLowerCase();
+                const filtered = this.nodesPool.filter(n => n.id.toLowerCase().includes(query));
+
+                if (filtered.length === 0) {
+                    this.elClientList.innerHTML = `<div class="empty-state-card">${this.nodesPool.length === 0 ? 'No connected nodes reported by Hub.' : 'No nodes match search filter.'}</div>`;
+                    return;
+                }
+
+                this.elClientList.innerHTML = filtered.map(node => `
+                    <div class="node-card ${this.selectedNodeId === node.id ? 'selected' : ''}" onclick="app.selectNode('${node.id}')">
+                        <div class="node-info">
+                            <span class="node-status-dot"></span>
+                            <div>
+                                <div class="node-name">${node.id}</div>
                             </div>
-                        `).join('');
-                    }
+                        </div>
+                        <div class="node-meta">
+                            <div>${node.latency}${typeof node.latency === 'number' ? 'ms' : ''}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
 
-                    // Update topology nodes
-                    const newClientNodes = {};
-                    c.forEach((id, i) => {
-                        if (clientNodes[id]) {
-                            newClientNodes[id] = clientNodes[id];
-                        } else {
-                            newClientNodes[id] = new ClientNode(id, i, c.length);
-                        }
-                    });
-                    clientNodes = newClientNodes;
+            selectNode(id) {
+                this.selectedNodeId = id;
+                this.renderNodesList();
+                this.renderInspector();
+                if (window.topologyCanvas) window.topologyCanvas.focusNode(id);
+            }
+
+            renderInspector() {
+                const panel = document.getElementById('inspector-node-details');
+                if (!this.selectedNodeId) {
+                    panel.innerHTML = `<div style="color:var(--text-dim); font-size:0.775rem;">Select a node in the graph or list to inspect real-time stats.</div>`;
+                    return;
+                }
+                const node = this.nodesPool.find(n => n.id === this.selectedNodeId);
+                if (!node) {
+                    panel.innerHTML = `<div style="color:var(--text-dim); font-size:0.775rem;">Selected node disconnected.</div>`;
+                    return;
                 }
 
-                // Randomly spawn packets to simulate activity based on messages
-                if (c.length > 0 && Math.random() > 0.5) {
-                    const randomId = c[Math.floor(Math.random() * c.length)];
-                    const node = clientNodes[randomId];
-                    if (node) {
-                        // Hub to client
-                        packets.push(new DataPacket(hub.x, hub.y, node.x, node.y));
-                        // Client to hub
-                        if (Math.random() > 0.5) {
-                            packets.push(new DataPacket(node.x, node.y, hub.x, hub.y));
-                        }
-                    }
-                }
+                panel.innerHTML = `
+                    <div style="font-family:var(--font-mono); font-weight:700; font-size:0.9rem; margin-bottom:0.6rem; color:var(--accent-cyan); display:flex; align-items:center; justify-content:space-between;">
+                        ${node.id}
+                        <span style="font-size:0.65rem; padding:0.1rem 0.4rem; border-radius:4px; background:rgba(16,185,129,0.15); color:var(--accent-green)">Connected</span>
+                    </div>
+                    <div class="stat-grid-compact">
+                        <div>
+                            <div class="compact-stat-label">Latency</div>
+                            <div class="compact-stat-val">${node.latency}${typeof node.latency === 'number' ? ' ms' : ''}</div>
+                        </div>
+                        <div>
+                            <div class="compact-stat-label">Status</div>
+                            <div class="compact-stat-val" style="color:var(--accent-green)">Active</div>
+                        </div>
+                    </div>
+                `;
+            }
 
-            } catch (err) {
-                console.error(err);
-                elError.classList.add('active');
-                elStatus.innerHTML = 'Disconnected';
-                elStatus.style.color = '#ef4444';
-                elStatus.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-                elStatus.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+            log(type, msg) {
+                if (this.isLogPaused) return;
+                const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+                const el = document.createElement('div');
+                el.className = 'log-entry';
+                el.innerHTML = `
+                    <span class="log-time">${time}</span>
+                    <span class="log-tag ${type}">${type}</span>
+                    <span class="log-msg">${msg}</span>
+                `;
+                this.elLogStream.appendChild(el);
+                this.elLogStream.scrollTop = this.elLogStream.scrollHeight;
+
+                if (this.elLogStream.children.length > 80) {
+                    this.elLogStream.removeChild(this.elLogStream.firstChild);
+                }
             }
         }
 
-        // Poll every 1s
-        setInterval(fetchMetrics, 1000);
-        fetchMetrics();
+        class NetworkTopologyCanvas {
+            constructor(canvasId, appInstance) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.app = appInstance;
+                this.wrap = document.getElementById('canvas-wrap');
+
+                this.scale = 1;
+                this.panX = 0;
+                this.panY = 0;
+                this.isDragging = false;
+                this.dragStart = { x: 0, y: 0 };
+
+                this.hub = { x: 0, y: 0, r: 32 };
+                this.nodes = [];
+                this.packets = [];
+
+                this.hoveredNode = null;
+                this.tooltip = document.getElementById('canvas-tooltip');
+
+                this.initEvents();
+                this.resize();
+                this.loop();
+            }
+
+            resize() {
+                this.width = this.wrap.clientWidth;
+                this.height = this.wrap.clientHeight;
+                this.canvas.width = this.width;
+                this.canvas.height = this.height;
+                this.hub.x = this.width / 2;
+                this.hub.y = this.height / 2;
+            }
+
+            syncNodes() {
+                const total = this.app.nodesPool.length;
+                this.nodes = this.app.nodesPool.map((n, i) => {
+                    const angle = (Math.PI * 2 * i) / total - Math.PI / 2;
+                    const radius = Math.min(this.width, this.height) * 0.32;
+                    return {
+                        id: n.id,
+                        angle: angle,
+                        x: this.hub.x + Math.cos(angle) * radius,
+                        y: this.hub.y + Math.sin(angle) * radius,
+                        r: 10
+                    };
+                });
+            }
+
+            initEvents() {
+                window.addEventListener('resize', () => {
+                    this.resize();
+                    this.syncNodes();
+                });
+
+                this.canvas.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+                    this.scale = Math.max(0.5, Math.min(2.5, this.scale * zoomFactor));
+                }, { passive: false });
+
+                this.canvas.addEventListener('mousedown', (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const mouseX = e.clientX - rect.left;
+                    const mouseY = e.clientY - rect.top;
+
+                    const clickedNode = this.hitTest(mouseX, mouseY);
+                    if (clickedNode) {
+                        this.app.selectNode(clickedNode.id);
+                        return;
+                    }
+
+                    this.isDragging = true;
+                    this.dragStart = { x: e.clientX - this.panX, y: e.clientY - this.panY };
+                });
+
+                window.addEventListener('mousemove', (e) => {
+                    if (this.isDragging) {
+                        this.panX = e.clientX - this.dragStart.x;
+                        this.panY = e.clientY - this.dragStart.y;
+                        return;
+                    }
+
+                    const rect = this.canvas.getBoundingClientRect();
+                    const mouseX = e.clientX - rect.left;
+                    const mouseY = e.clientY - rect.top;
+                    const node = this.hitTest(mouseX, mouseY);
+
+                    if (node !== this.hoveredNode) {
+                        this.hoveredNode = node;
+                        if (node) {
+                            this.tooltip.style.opacity = '1';
+                            this.tooltip.innerHTML = `<div><strong>${node.id}</strong></div><div style="color:var(--accent-green)">Connected</div>`;
+                        } else {
+                            this.tooltip.style.opacity = '0';
+                        }
+                    }
+
+                    if (node) {
+                        this.tooltip.style.left = `${mouseX}px`;
+                        this.tooltip.style.top = `${mouseY}px`;
+                    }
+                });
+
+                window.addEventListener('mouseup', () => {
+                    this.isDragging = false;
+                });
+
+                document.getElementById('btn-zoom-in').addEventListener('click', () => this.scale = Math.min(2.5, this.scale * 1.2));
+                document.getElementById('btn-zoom-out').addEventListener('click', () => this.scale = Math.max(0.5, this.scale * 0.8));
+                document.getElementById('btn-zoom-reset').addEventListener('click', () => {
+                    this.scale = 1;
+                    this.panX = 0;
+                    this.panY = 0;
+                });
+            }
+
+            hitTest(mx, my) {
+                const cx = (mx - this.panX) / this.scale;
+                const cy = (my - this.panY) / this.scale;
+
+                for (let n of this.nodes) {
+                    const dx = cx - n.x;
+                    const dy = cy - n.y;
+                    if (Math.sqrt(dx * dx + dy * dy) <= n.r + 6) return n;
+                }
+                return null;
+            }
+
+            focusNode(id) {
+                const n = this.nodes.find(item => item.id === id);
+                if (n) {
+                    this.panX = this.width / 2 - n.x * this.scale;
+                    this.panY = this.height / 2 - n.y * this.scale;
+                }
+            }
+
+            loop() {
+                this.update();
+                this.draw();
+                requestAnimationFrame(() => this.loop());
+            }
+
+            update() {
+                if (this.nodes.length !== this.app.nodesPool.length ||
+                    !this.nodes.every((n, i) => n.id === this.app.nodesPool[i]?.id)) {
+                    this.syncNodes();
+                }
+
+                // Advance real packet movement & clean up completed ones
+                this.packets = this.packets.filter(p => {
+                    p.progress += p.speed;
+                    return p.progress < 1;
+                });
+            }
+
+            // Emit packets ONLY on real message events reported by the Hub
+            emitPackets(count, targetNodeId = null) {
+                if (this.nodes.length === 0) return;
+                const actualCount = Math.min(count, 15); // Stagger cap for clean UI
+
+                for (let i = 0; i < actualCount; i++) {
+                    let targetNode;
+                    if (targetNodeId) {
+                        targetNode = this.nodes.find(n => n.id === targetNodeId);
+                    }
+                    if (!targetNode) {
+                        targetNode = this.nodes[Math.floor(Math.random() * this.nodes.length)];
+                    }
+                    if (!targetNode) continue;
+
+                    const toClient = Math.random() > 0.5;
+                    this.packets.push({
+                        x1: toClient ? this.hub.x : targetNode.x,
+                        y1: toClient ? this.hub.y : targetNode.y,
+                        x2: toClient ? targetNode.x : this.hub.x,
+                        y2: toClient ? targetNode.y : this.hub.y,
+                        progress: -i * 0.08, // Stagger start time
+                        speed: 0.02 + Math.random() * 0.015
+                    });
+                }
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.width, this.height);
+
+                this.ctx.save();
+                this.ctx.translate(this.panX, this.panY);
+                this.ctx.scale(this.scale, this.scale);
+
+                // Draw Edges
+                this.nodes.forEach(n => {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(this.hub.x, this.hub.y);
+                    this.ctx.lineTo(n.x, n.y);
+                    this.ctx.strokeStyle = this.app.selectedNodeId === n.id ? 'rgba(99, 102, 241, 0.6)' : 'rgba(255, 255, 255, 0.08)';
+                    this.ctx.lineWidth = this.app.selectedNodeId === n.id ? 2 : 1;
+                    this.ctx.stroke();
+                });
+
+                // Draw Packets (only when progress >= 0)
+                this.packets.forEach(p => {
+                    if (p.progress < 0) return;
+                    const x = p.x1 + (p.x2 - p.x1) * p.progress;
+                    const y = p.y1 + (p.y2 - p.y1) * p.progress;
+
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+                    this.ctx.fillStyle = '#06b6d4';
+                    this.ctx.fill();
+                });
+
+                // Draw Central Hub Node
+                this.ctx.beginPath();
+                this.ctx.arc(this.hub.x, this.hub.y, this.hub.r, 0, Math.PI * 2);
+                this.ctx.fillStyle = '#6366f1';
+                this.ctx.shadowColor = '#6366f1';
+                this.ctx.shadowBlur = 18;
+                this.ctx.fill();
+                this.ctx.shadowBlur = 0;
+
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.font = '700 10px "Plus Jakarta Sans", sans-serif';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillText('HUB', this.hub.x, this.hub.y);
+
+                // Draw Dynamic Client Nodes from Nerve API
+                if (this.nodes.length === 0) {
+                    this.ctx.fillStyle = '#475569';
+                    this.ctx.font = '500 12px "Plus Jakarta Sans", sans-serif';
+                    this.ctx.fillText('Waiting for nodes to connect...', this.hub.x, this.hub.y + 60);
+                } else {
+                    this.nodes.forEach(n => {
+                        const isSelected = this.app.selectedNodeId === n.id;
+
+                        if (isSelected || this.hoveredNode === n) {
+                            this.ctx.beginPath();
+                            this.ctx.arc(n.x, n.y, n.r + 5, 0, Math.PI * 2);
+                            this.ctx.fillStyle = 'rgba(99, 102, 241, 0.25)';
+                            this.ctx.fill();
+                        }
+
+                        this.ctx.beginPath();
+                        this.ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+                        this.ctx.fillStyle = '#10b981';
+                        this.ctx.shadowColor = '#10b981';
+                        this.ctx.shadowBlur = 10;
+                        this.ctx.fill();
+                        this.ctx.shadowBlur = 0;
+
+                        this.ctx.font = '500 11px "JetBrains Mono", monospace';
+                        this.ctx.fillStyle = isSelected ? '#ffffff' : '#94a3b8';
+                        this.ctx.textAlign = 'center';
+                        this.ctx.fillText(n.id, n.x, n.y + n.r + 14);
+                    });
+                }
+
+                this.ctx.restore();
+            }
+        }
+
+        let app;
+        window.addEventListener('load', () => {
+            app = new DashboardApp();
+            window.topologyCanvas = new NetworkTopologyCanvas('topology-canvas', app);
+        });
     </script>
 </body>
+
 </html>
