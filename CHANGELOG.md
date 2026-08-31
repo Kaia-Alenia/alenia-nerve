@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.9] — 2026-08-31
+### Fixed
+- **CI** (`ci.yml`): Pinned `ruff` to `0.15.20` to prevent version drift causing cascading lint failures on CI environments using `pip install ruff` (latest).
+- **CI** (Python): Resolved `ruff check` failures — import ordering (`I001`), unused `noqa` directives (`RUF100`), list concatenation (`RUF005`), bare `asyncio.ensure_future` (`RUF006`), and nested `with` statements (`SIM117`) in test files.
+- **CI** (Go): Removed two duplicate `TestListClientsError` function declarations in `client_test.go` that caused `go vet` to fail.
+- **CI** (Rust / `crates.io`): Re-publishes `1.5.8` fix from `client_tests.rs` — the `cargo fmt --check` fix was in `main` but the `v1.5.8` tag predated it. This release ensures `crates.io` receives the correctly formatted version.
+
 ## [1.5.8] — 2026-08-31
 ### Added
 - **Core** (`core.py`): Extracted `_process_message()` from `_handle_client()` — message-dispatch logic now lives in its own method, reducing function complexity and making the handler easier to test.
