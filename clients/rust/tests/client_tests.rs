@@ -126,7 +126,10 @@ async fn test_nexus_client_reconnect() {
 
     // Wait for the reconnect to happen
     let reconnect_result = tokio::time::timeout(Duration::from_secs(2), reconnect_rx.recv()).await;
-    assert!(reconnect_result.is_ok(), "Client failed to reconnect within timeout");
+    assert!(
+        reconnect_result.is_ok(),
+        "Client failed to reconnect within timeout"
+    );
 
     client.disconnect();
     let _ = server_handle.await;

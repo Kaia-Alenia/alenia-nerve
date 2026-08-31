@@ -1,11 +1,15 @@
 import asyncio
 import http
 import pytest
-import websockets
 from unittest.mock import MagicMock, patch, AsyncMock
-import nerve.bridge
 
-from nerve.bridge import NerveBridge
+websockets = pytest.importorskip(
+    "websockets",
+    reason="optional 'bridge' dependency not installed (pip install alenia-nerve[bridge])",
+)
+import nerve.bridge  # noqa: E402
+
+from nerve.bridge import NerveBridge  # noqa: E402
 
 @pytest.fixture
 def mock_websockets_serve():
