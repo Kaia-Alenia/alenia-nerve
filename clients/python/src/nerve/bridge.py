@@ -87,7 +87,9 @@ class NerveBridge:
         self.client_id_to_ws: dict[str, Any] = {}
         self._loop: asyncio.AbstractEventLoop | None = None
 
-    def _process_request(self, path: str, request_headers: Any) -> tuple[http.HTTPStatus, list[tuple[str, str]], bytes] | None:
+    def _process_request(
+        self, path: str, request_headers: Any
+    ) -> tuple[http.HTTPStatus, list[tuple[str, str]], bytes] | None:
         """Validate the Origin header of the incoming WebSocket request."""
         origin = request_headers.get("Origin")
         if origin is not None:

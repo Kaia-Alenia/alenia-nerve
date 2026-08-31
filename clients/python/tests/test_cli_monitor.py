@@ -24,15 +24,16 @@ from nerve.cli_monitor import format_bytes, data_fetcher_loop, LATEST_DATA
 def test_format_bytes(b, expected):
     assert format_bytes(b) == expected
 
+
 def test_data_fetcher_loop_success():
-    # Note: the issue description shows current_dashboard_data, 
+    # Note: the issue description shows current_dashboard_data,
     # but the actual implementation uses LATEST_DATA and get_metrics().
     # We prioritize writing tests that pass against the real, existing codebase.
     client_mock = MagicMock()
-    
+
     mock_metrics = {"uptime": 100.0}
     mock_clients = ["client1", "client2"]
-    
+
     client_mock.get_metrics.return_value = mock_metrics
     client_mock.list_clients.return_value = mock_clients
 
@@ -45,9 +46,10 @@ def test_data_fetcher_loop_success():
     assert LATEST_DATA["metrics"] == mock_metrics
     assert LATEST_DATA["clients"] == mock_clients
 
+
 def test_data_fetcher_loop_exception():
     client_mock = MagicMock()
-    
+
     client_mock.get_metrics.side_effect = Exception("Failed to get metrics")
 
     with patch("nerve.cli_monitor.time.sleep", side_effect=StopIteration) as sleep_mock:
@@ -55,5 +57,5 @@ def test_data_fetcher_loop_exception():
             data_fetcher_loop(client_mock)
         except StopIteration:
             pass
-            
+
     sleep_mock.assert_called_once_with(1.0)

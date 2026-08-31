@@ -621,13 +621,13 @@ class TestNexusClientAPI:
         a = make_client()
         a.connect("unbounded_test")
         time.sleep(0.1)
-        
+
         class MockSocketForBufferTest:
             def __init__(self, sock):
                 self.sock = sock
-                self.chunks = [b"A" * 4096] * ( (10 * 1024 * 1024) // 4096 + 10)
+                self.chunks = [b"A" * 4096] * ((10 * 1024 * 1024) // 4096 + 10)
                 self.idx = 0
-            
+
             def recv(self, size):
                 if self.idx < len(self.chunks):
                     chunk = self.chunks[self.idx]
@@ -637,13 +637,13 @@ class TestNexusClientAPI:
 
             def __getattr__(self, name):
                 return getattr(self.sock, name)
-                
+
         original_sock = a._socket
         a._socket = MockSocketForBufferTest(original_sock)
-        
+
         clients = a.list_clients()
         assert clients == []
-        
+
         a._socket = original_sock
         a.disconnect()
 

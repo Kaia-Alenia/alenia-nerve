@@ -135,7 +135,7 @@ def run_dashboard(port: int = 8080):
 def format_bytes(b: int) -> str:
     if abs(b) < 1024:
         return f"{int(b)} B"
-        
+
     b_float = float(b)
     for unit in ["B", "KB", "MB", "GB"]:
         if abs(b_float) < 1024.0:

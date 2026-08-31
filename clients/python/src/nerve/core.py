@@ -222,16 +222,16 @@ class NexusHub:
             raw_bytes = (json.dumps(payload) + "\n").encode("utf-8")
         except (TypeError, ValueError):
             return False
-            
+
         with self._lock:
             targets = [
                 (client_id, conn, self._write_locks.get(conn))
                 for client_id, conn in self._clients.items()
             ]
-            
+
         bytes_sent = 0
         messages_sent = 0
-        
+
         for client_id, conn, lock in targets:
             if client_id == exclude or lock is None:
                 continue
@@ -242,12 +242,12 @@ class NexusHub:
                 messages_sent += 1
             except OSError:
                 pass
-                
+
         if bytes_sent > 0:
             with self._lock:
                 self._total_bytes_sent += bytes_sent
                 self._total_messages_sent += messages_sent
-                
+
         return True
 
     def _start_heartbeat(self) -> None:
@@ -297,7 +297,13 @@ class NexusHub:
             except Exception:  # noqa: BLE001, S110
                 pass
 
-    def _process_message(self, msg_type: Any, msg: dict[str, Any], client_id: str | None, conn: socket.socket) -> tuple[bool, str | None]:
+    def _process_message(
+        self,
+        msg_type: Any,
+        msg: dict[str, Any],
+        client_id: str | None,
+        conn: socket.socket,
+    ) -> tuple[bool, str | None]:
         if msg_type == "ping":
             return True, client_id
 
@@ -307,9 +313,7 @@ class NexusHub:
         if msg_type == "register":
             raw_id = msg.get("id")
             if not raw_id or not isinstance(raw_id, str):
-                self._log(
-                    "91", "Register message missing valid 'id' field."
-                )
+                self._log("91", "Register message missing valid 'id' field.")
                 return True, client_id
 
             if self.auth_token:
@@ -356,10 +360,7 @@ class NexusHub:
             try:
                 conn.sendall(
                     (
-                        json.dumps(
-                            {"type": "registered", "status": "success"}
-                        )
-                        + "\n"
+                        json.dumps({"type": "registered", "status": "success"}) + "\n"
                     ).encode("utf-8")
                 )
             except OSError:
@@ -414,9 +415,7 @@ class NexusHub:
                     with lock:
                         conn.sendall(
                             (
-                                json.dumps(
-                                    {"type": "list", "clients": client_list}
-                                )
+                                json.dumps({"type": "list", "clients": client_list})
                                 + "\n"
                             ).encode("utf-8")
                         )
@@ -440,9 +439,7 @@ class NexusHub:
                     lock = self._write_locks.get(conn)
                 if lock is not None:
                     with lock:
-                        conn.sendall(
-                            (json.dumps(metrics) + "\n").encode("utf-8")
-                        )
+                        conn.sendall((json.dumps(metrics) + "\n").encode("utf-8"))
             except OSError:
                 pass
 
@@ -514,7 +511,9 @@ class NexusHub:
 
                     msg_type = msg.get("type")
 
-                    should_continue, client_id = self._process_message(msg_type, msg, client_id, conn)
+                    should_continue, client_id = self._process_message(
+                        msg_type, msg, client_id, conn
+                    )
                     if not should_continue:
                         break
 
