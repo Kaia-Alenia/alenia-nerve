@@ -607,3 +607,47 @@ impl SyncNexusClient {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn test_load_external_config_json() {
+        let mut file = NamedTempFile::new().unwrap();
+        let json_content = r#"{
+            "str_key": "value",
+            "int_key": 42,
+            "bool_key": true
+        }"#;
+        writeln!(file, "{}", json_content).unwrap();
+
+        let config = load_external_config(file.path().to_str().unwrap());
+        assert_eq!(config.get("str_key").unwrap(), "value");
+        assert_eq!(config.get("int_key").unwrap(), "42");
+        assert_eq!(config.get("bool_key").unwrap(), "true");
+    }
+
+    #[test]
+    fn test_load_external_config_env() {
+        let mut file = NamedTempFile::new().unwrap();
+        let env_content = "
+# this is a comment
+KEY1=value1
+KEY2 = value2
+";
+        writeln!(file, "{}", env_content).unwrap();
+
+        let config = load_external_config(file.path().to_str().unwrap());
+        assert_eq!(config.get("KEY1").unwrap(), "value1");
+        assert_eq!(config.get("KEY2").unwrap(), "value2");
+    }
+
+    #[test]
+    fn test_load_external_config_non_existent() {
+        let config = load_external_config("/non/existent/path/that/should/not/exist.json");
+        assert!(config.is_empty());
+    }
+}

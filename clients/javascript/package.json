@@ -1,6 +1,6 @@
 {
   "name": "alenia-nerve",
-  "version": "1.5.7",
+  "version": "1.5.8",
   "description": "JavaScript/Node.js client for the Alenia Nerve local IPC engine (UDS + TCP)",
   "main": "index.js",
   "types": "index.d.ts",
@@ -11,7 +11,7 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "test": "node test.js",
+    "test": "mocha test.js",
     "lint": "npx --yes eslint index.js --env node --rule 'no-unused-vars: warn'"
   },
   "keywords": [
@@ -37,5 +37,8 @@
   },
   "engines": {
     "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "mocha": "^10.8.2"
   }
 }

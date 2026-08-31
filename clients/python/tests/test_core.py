@@ -269,6 +269,13 @@ class TestNexusHubClientRegistration:
         assert self.hub._running is True
         sock.close()
 
+    def test_unbounded_buffer_does_not_crash_hub(self):
+        sock = self._raw_connect()
+        sock.sendall(b"A" * (10 * 1024 * 1024 + 100))
+        time.sleep(0.2)
+        assert self.hub._running is True
+        sock.close()
+
     def test_list_clients(self):
         print("DEBUG: test_list_clients started")
         a = self._raw_connect()
@@ -607,6 +614,36 @@ class TestNexusClientAPI:
         result = a.list_clients()
         assert result == []
 
+        a._socket = original_sock
+        a.disconnect()
+
+    def test_client_unbounded_buffer_dropped(self):
+        a = make_client()
+        a.connect("unbounded_test")
+        time.sleep(0.1)
+        
+        class MockSocketForBufferTest:
+            def __init__(self, sock):
+                self.sock = sock
+                self.chunks = [b"A" * 4096] * ( (10 * 1024 * 1024) // 4096 + 10)
+                self.idx = 0
+            
+            def recv(self, size):
+                if self.idx < len(self.chunks):
+                    chunk = self.chunks[self.idx]
+                    self.idx += 1
+                    return chunk
+                return b""
+
+            def __getattr__(self, name):
+                return getattr(self.sock, name)
+                
+        original_sock = a._socket
+        a._socket = MockSocketForBufferTest(original_sock)
+        
+        clients = a.list_clients()
+        assert clients == []
+        
         a._socket = original_sock
         a.disconnect()
 

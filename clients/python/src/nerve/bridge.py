@@ -14,6 +14,7 @@
 # along with Nerve. If not, see <https://www.gnu.org/licenses/>.
 # -----------------------------------------------------------------------------
 import asyncio
+import http
 import json
 import logging
 import platform
@@ -71,10 +72,12 @@ class NerveBridge:
         host: str = "127.0.0.1",
         port: int = 50506,
         hub_config: dict[str, Any] | None = None,
+        allowed_origins: list[str] | None = None,
     ):
         self.host = host
         self.port = port
         self.hub_config = hub_config or {}
+        self.allowed_origins = allowed_origins
 
         # We use a single NexusClient for the bridge to communicate with the Hub.
         # But we could also create a virtual client ID for each WS connection.
@@ -83,6 +86,21 @@ class NerveBridge:
         self.ws_to_client_id: dict[Any, str] = {}
         self.client_id_to_ws: dict[str, Any] = {}
         self._loop: asyncio.AbstractEventLoop | None = None
+
+    def _process_request(self, path: str, request_headers: Any) -> tuple[http.HTTPStatus, list[tuple[str, str]], bytes] | None:
+        """Validate the Origin header of the incoming WebSocket request."""
+        origin = request_headers.get("Origin")
+        if origin is not None:
+            if self.allowed_origins is not None:
+                allowed = self.allowed_origins
+            else:
+                allowed = [
+                    f"http://{self.host}:{self.port}",
+                    f"https://{self.host}:{self.port}",
+                ]
+            if origin not in allowed:
+                return (http.HTTPStatus.FORBIDDEN, [], b"Origin not allowed\n")
+        return None
 
     def start(self):
         if not WEBSOCKETS_AVAILABLE:
@@ -109,7 +127,12 @@ class NerveBridge:
 
         async def serve():
             self._loop = asyncio.get_running_loop()
-            async with websockets.serve(self._ws_handler, self.host, self.port):
+            async with websockets.serve(
+                self._ws_handler,
+                self.host,
+                self.port,
+                process_request=self._process_request,
+            ):
                 await asyncio.Future()  # run forever
 
         try:

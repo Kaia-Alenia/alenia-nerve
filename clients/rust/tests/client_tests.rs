@@ -77,3 +77,57 @@ fn test_sync_wrapper() {
     let sync_client = SyncNexusClient::new(Duration::from_millis(100), "non_existent.config", None);
     sync_client.disconnect();
 }
+#[tokio::test]
+async fn test_nexus_client_reconnect() {
+    let server = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = server.local_addr().unwrap().port();
+
+    let (reconnect_tx, mut reconnect_rx) = tokio::sync::mpsc::channel(1);
+
+    let server_handle = tokio::spawn(async move {
+        // First connection
+        if let Ok((mut stream, _)) = server.accept().await {
+            let (r, mut w) = stream.split();
+            let mut reader = BufReader::new(r);
+            let mut line = String::new();
+            if let Ok(n) = reader.read_line(&mut line).await {
+                if n > 0 {
+                    let reg: serde_json::Value = serde_json::from_str(&line).unwrap();
+                    assert_eq!(reg["type"], "register");
+                    assert_eq!(reg["id"], "test_reconnect_client");
+                    w.write_all(ok_response().as_bytes()).await.unwrap();
+                }
+            }
+            // Stream is dropped here, causing disconnect
+        }
+
+        // Second connection (reconnect)
+        if let Ok((mut stream, _)) = server.accept().await {
+            let (r, mut w) = stream.split();
+            let mut reader = BufReader::new(r);
+            let mut line = String::new();
+            if let Ok(n) = reader.read_line(&mut line).await {
+                if n > 0 {
+                    let reg: serde_json::Value = serde_json::from_str(&line).unwrap();
+                    assert_eq!(reg["type"], "register");
+                    assert_eq!(reg["id"], "test_reconnect_client");
+                    w.write_all(ok_response().as_bytes()).await.unwrap();
+                    let _ = reconnect_tx.send(()).await;
+                }
+            }
+        }
+    });
+
+    let mut client = NexusClient::new(Duration::from_millis(50), "non_existent.config", None);
+    client.address = ConnectionAddress::Tcp("127.0.0.1".to_string(), port);
+    client.is_windows = true;
+
+    assert!(client.connect("test_reconnect_client").await.is_ok());
+
+    // Wait for the reconnect to happen
+    let reconnect_result = tokio::time::timeout(Duration::from_secs(2), reconnect_rx.recv()).await;
+    assert!(reconnect_result.is_ok(), "Client failed to reconnect within timeout");
+
+    client.disconnect();
+    let _ = server_handle.await;
+}

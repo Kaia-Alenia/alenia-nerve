@@ -25,6 +25,9 @@ from collections.abc import Callable
 from typing import Any, Optional
 
 
+MAX_BUFFER_SIZE = 10 * 1024 * 1024
+
+
 def load_external_config(config_path: str = "nerve.config") -> dict[str, Any]:
     """
     Load an external configuration file for Nerve.
@@ -219,12 +222,32 @@ class NexusHub:
             raw_bytes = (json.dumps(payload) + "\n").encode("utf-8")
         except (TypeError, ValueError):
             return False
+            
         with self._lock:
-            targets = list(self._clients.keys())
-        for client_id in targets:
-            if client_id == exclude:
+            targets = [
+                (client_id, conn, self._write_locks.get(conn))
+                for client_id, conn in self._clients.items()
+            ]
+            
+        bytes_sent = 0
+        messages_sent = 0
+        
+        for client_id, conn, lock in targets:
+            if client_id == exclude or lock is None:
                 continue
-            self._send_raw_bytes_to(client_id, raw_bytes)
+            try:
+                with lock:
+                    conn.sendall(raw_bytes)
+                bytes_sent += len(raw_bytes)
+                messages_sent += 1
+            except OSError:
+                pass
+                
+        if bytes_sent > 0:
+            with self._lock:
+                self._total_bytes_sent += bytes_sent
+                self._total_messages_sent += messages_sent
+                
         return True
 
     def _start_heartbeat(self) -> None:
@@ -274,6 +297,163 @@ class NexusHub:
             except Exception:  # noqa: BLE001, S110
                 pass
 
+    def _process_message(self, msg_type: Any, msg: dict[str, Any], client_id: str | None, conn: socket.socket) -> tuple[bool, str | None]:
+        if msg_type == "ping":
+            return True, client_id
+
+        if msg_type == "pong":
+            return True, client_id
+
+        if msg_type == "register":
+            raw_id = msg.get("id")
+            if not raw_id or not isinstance(raw_id, str):
+                self._log(
+                    "91", "Register message missing valid 'id' field."
+                )
+                return True, client_id
+
+            if self.auth_token:
+                client_token = msg.get("token")
+                if not client_token or client_token != self.auth_token:
+                    self._log(
+                        "91",
+                        "Authentication failed for client registration.",
+                    )
+                    try:
+                        conn.sendall(
+                            (
+                                json.dumps(
+                                    {
+                                        "type": "registered",
+                                        "status": "failed",
+                                        "reason": "auth",
+                                    }
+                                )
+                                + "\n"
+                            ).encode("utf-8")
+                        )
+                    except OSError:
+                        pass
+                    return False, client_id
+
+            client_id = raw_id
+            with self._lock:
+                if raw_id in self._clients:
+                    self._log(
+                        "93",
+                        f"Re-registration of ID '{raw_id}': closing old connection.",
+                    )
+                    old_conn = self._clients[raw_id]
+                    try:
+                        old_conn.close()
+                    except OSError:
+                        pass
+                    self._clients.pop(raw_id, None)
+                    self._write_locks.pop(old_conn, None)
+                self._clients[client_id] = conn
+                self._write_locks[conn] = threading.Lock()
+            self._log("92", f"Registered: {client_id}")
+            try:
+                conn.sendall(
+                    (
+                        json.dumps(
+                            {"type": "registered", "status": "success"}
+                        )
+                        + "\n"
+                    ).encode("utf-8")
+                )
+            except OSError:
+                pass
+            if self.on_connect:
+                try:
+                    self.on_connect(client_id)
+                except Exception:  # noqa: BLE001, S110
+                    pass
+
+        elif msg_type == "send":
+            target = msg.get("to")
+            payload = msg.get("payload")
+            if not target or not isinstance(target, str):
+                self._log("91", "Send message missing valid 'to' field.")
+                return True, client_id
+            if self.verbose:
+                self._log(
+                    "95",
+                    f"[VERBOSE] Routing '{client_id}' → '{target}'",
+                )
+            wrapped = {
+                "type": "send",
+                "from": client_id,
+                "payload": payload,
+            }
+            success = self._send_to(target, wrapped)
+            if not success and self.verbose:
+                self._log(
+                    "93",
+                    f"Target '{target}' not found or unreachable.",
+                )
+
+        elif msg_type == "broadcast":
+            payload = msg.get("payload")
+            if self.verbose:
+                self._log("95", f"[VERBOSE] Broadcast from '{client_id}'")
+            wrapped = {
+                "type": "broadcast",
+                "from": client_id,
+                "payload": payload,
+            }
+            self.broadcast(wrapped, exclude=client_id)
+
+        elif msg_type == "list":
+            client_list = self.connected_clients
+            try:
+                lock = None
+                with self._lock:
+                    lock = self._write_locks.get(conn)
+                if lock is not None:
+                    with lock:
+                        conn.sendall(
+                            (
+                                json.dumps(
+                                    {"type": "list", "clients": client_list}
+                                )
+                                + "\n"
+                            ).encode("utf-8")
+                        )
+            except OSError:
+                pass
+
+        elif msg_type == "metrics":
+            with self._lock:
+                metrics = {
+                    "type": "metrics",
+                    "uptime": time.time() - self._uptime_start,
+                    "clients": len(self._clients),
+                    "total_messages_sent": self._total_messages_sent,
+                    "total_messages_received": self._total_messages_received,
+                    "total_bytes_sent": self._total_bytes_sent,
+                    "total_bytes_received": self._total_bytes_received,
+                }
+            try:
+                lock = None
+                with self._lock:
+                    lock = self._write_locks.get(conn)
+                if lock is not None:
+                    with lock:
+                        conn.sendall(
+                            (json.dumps(metrics) + "\n").encode("utf-8")
+                        )
+            except OSError:
+                pass
+
+        else:
+            self._log(
+                "93",
+                f"Unknown message type: '{msg_type}' from '{client_id}'.",
+            )
+
+        return True, client_id
+
     def _handle_client(self, conn: socket.socket) -> None:
         client_id = None
         buffer = ""
@@ -306,7 +486,7 @@ class NexusHub:
                         break
 
                 buffer += chunk.decode("utf-8", errors="replace")
-                if len(buffer) > 10 * 1024 * 1024:
+                if len(buffer) > MAX_BUFFER_SIZE:
                     break
 
                 while "\n" in buffer:
@@ -334,159 +514,9 @@ class NexusHub:
 
                     msg_type = msg.get("type")
 
-                    if msg_type == "ping":
-                        continue
-
-                    if msg_type == "pong":
-                        continue
-
-                    if msg_type == "register":
-                        raw_id = msg.get("id")
-                        if not raw_id or not isinstance(raw_id, str):
-                            self._log(
-                                "91", "Register message missing valid 'id' field."
-                            )
-                            continue
-
-                        if self.auth_token:
-                            client_token = msg.get("token")
-                            if not client_token or client_token != self.auth_token:
-                                self._log(
-                                    "91",
-                                    "Authentication failed for client registration.",
-                                )
-                                try:
-                                    conn.sendall(
-                                        (
-                                            json.dumps(
-                                                {
-                                                    "type": "registered",
-                                                    "status": "failed",
-                                                    "reason": "auth",
-                                                }
-                                            )
-                                            + "\n"
-                                        ).encode("utf-8")
-                                    )
-                                except OSError:
-                                    pass
-                                break
-
-                        client_id = raw_id
-                        with self._lock:
-                            if raw_id in self._clients:
-                                self._log(
-                                    "93",
-                                    f"Re-registration of ID '{raw_id}': closing old connection.",
-                                )
-                                old_conn = self._clients[raw_id]
-                                try:
-                                    old_conn.close()
-                                except OSError:
-                                    pass
-                                self._clients.pop(raw_id, None)
-                                self._write_locks.pop(old_conn, None)
-                            self._clients[client_id] = conn
-                            self._write_locks[conn] = threading.Lock()
-                        self._log("92", f"Registered: {client_id}")
-                        try:
-                            conn.sendall(
-                                (
-                                    json.dumps(
-                                        {"type": "registered", "status": "success"}
-                                    )
-                                    + "\n"
-                                ).encode("utf-8")
-                            )
-                        except OSError:
-                            pass
-                        if self.on_connect:
-                            try:
-                                self.on_connect(client_id)
-                            except Exception:  # noqa: BLE001, S110
-                                pass
-
-                    elif msg_type == "send":
-                        target = msg.get("to")
-                        payload = msg.get("payload")
-                        if not target or not isinstance(target, str):
-                            self._log("91", "Send message missing valid 'to' field.")
-                            continue
-                        if self.verbose:
-                            self._log(
-                                "95",
-                                f"[VERBOSE] Routing '{client_id}' → '{target}'",
-                            )
-                        wrapped = {
-                            "type": "send",
-                            "from": client_id,
-                            "payload": payload,
-                        }
-                        success = self._send_to(target, wrapped)
-                        if not success and self.verbose:
-                            self._log(
-                                "93",
-                                f"Target '{target}' not found or unreachable.",
-                            )
-
-                    elif msg_type == "broadcast":
-                        payload = msg.get("payload")
-                        if self.verbose:
-                            self._log("95", f"[VERBOSE] Broadcast from '{client_id}'")
-                        wrapped = {
-                            "type": "broadcast",
-                            "from": client_id,
-                            "payload": payload,
-                        }
-                        self.broadcast(wrapped, exclude=client_id)
-
-                    elif msg_type == "list":
-                        client_list = self.connected_clients
-                        try:
-                            lock = None
-                            with self._lock:
-                                lock = self._write_locks.get(conn)
-                            if lock is not None:
-                                with lock:
-                                    conn.sendall(
-                                        (
-                                            json.dumps(
-                                                {"type": "list", "clients": client_list}
-                                            )
-                                            + "\n"
-                                        ).encode("utf-8")
-                                    )
-                        except OSError:
-                            pass
-
-                    elif msg_type == "metrics":
-                        with self._lock:
-                            metrics = {
-                                "type": "metrics",
-                                "uptime": time.time() - self._uptime_start,
-                                "clients": len(self._clients),
-                                "total_messages_sent": self._total_messages_sent,
-                                "total_messages_received": self._total_messages_received,
-                                "total_bytes_sent": self._total_bytes_sent,
-                                "total_bytes_received": self._total_bytes_received,
-                            }
-                        try:
-                            lock = None
-                            with self._lock:
-                                lock = self._write_locks.get(conn)
-                            if lock is not None:
-                                with lock:
-                                    conn.sendall(
-                                        (json.dumps(metrics) + "\n").encode("utf-8")
-                                    )
-                        except OSError:
-                            pass
-
-                    else:
-                        self._log(
-                            "93",
-                            f"Unknown message type: '{msg_type}' from '{client_id}'.",
-                        )
+                    should_continue, client_id = self._process_message(msg_type, msg, client_id, conn)
+                    if not should_continue:
+                        break
 
         except Exception as exc:  # noqa: BLE001
             if self.verbose:
@@ -729,6 +759,8 @@ class NexusClient:
                     if not chunk:
                         break
                     buffer += chunk.decode("utf-8", errors="replace")
+                    if len(buffer) > MAX_BUFFER_SIZE:
+                        break
                     if "\n" in buffer:
                         line, _ = buffer.split("\n", 1)
                         try:
@@ -872,6 +904,8 @@ class NexusClient:
                         if not chunk:
                             break
                         buffer += chunk.decode("utf-8", errors="replace")
+                        if len(buffer) > MAX_BUFFER_SIZE:
+                            break
                         while "\n" in buffer:
                             line, buffer = buffer.split("\n", 1)
                             line = line.strip()
@@ -920,6 +954,8 @@ class NexusClient:
                         if not chunk:
                             break
                         buffer += chunk.decode("utf-8", errors="replace")
+                        if len(buffer) > MAX_BUFFER_SIZE:
+                            break
                         while "\n" in buffer:
                             line, buffer = buffer.split("\n", 1)
                             line = line.strip()
@@ -978,6 +1014,9 @@ class NexusClient:
                             break
 
                         buffer += chunk.decode("utf-8", errors="replace")
+                        if len(buffer) > MAX_BUFFER_SIZE:
+                            print("[NERVE] Buffer size limit exceeded. Reconnecting...")
+                            break
                         while "\n" in buffer:
                             line, buffer = buffer.split("\n", 1)
                             line = line.strip()

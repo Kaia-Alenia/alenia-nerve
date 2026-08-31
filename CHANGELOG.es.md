@@ -2,6 +2,25 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [1.5.8] — 2026-08-31
+### Agregado
+- **Core** (`core.py`): Extraído `_process_message()` de `_handle_client()` — la lógica de despacho de mensajes ahora vive en su propio método, reduciendo la complejidad de la función y facilitando las pruebas.
+- **Core** (`core.py`): Añadida constante `MAX_BUFFER_SIZE` (10 MB) para limitar los búferes de lectura de socket sin límite y prevenir agotamiento de memoria bajo entrada adversarial.
+- **Core** (`core.py`): `broadcast()` ahora registra métricas de `total_bytes_sent` y `total_messages_sent`, manteniendo las estadísticas coherentes con los envíos directos.
+- **Bridge** (`bridge.py`): Añadido parámetro `allowed_origins` a `NerveBridge` — rechaza conexiones WebSocket cuyo encabezado `Origin` no esté en la lista permitida (por defecto limita al propio `host:port`). Cierra un vector de ataque CSRF/cross-origin.
+- **Tests** (Rust): Tests unitarios para `load_external_config` (JSON, key=value y ruta inexistente). Añadida dependencia de desarrollo `tempfile`.
+- **Tests** (JavaScript): Suite de tests migrada de una función procedural `runTests()` a bloques BDD `describe/it` de `mocha`. Añadido `mocha ^10.8.2` como dependencia de desarrollo.
+- **Tests** (Go): Ampliada la cobertura de `client_test.go` con 301 líneas de nuevos casos de prueba.
+- **Tests** (Python): Añadidos `test_bridge.py` y `test_cli_monitor.py` a la suite de pytest; extendido `test_core.py` con 37 aserciones adicionales.
+
+### Corregido
+- **Core** (`core.py`): Eliminado `import hmac` no utilizado (Ruff F401).
+- **CLI Monitor** (`cli_monitor.py`): Corregido `format_bytes()` — los valores negativos y los límites exactos de kilobyte se redondeaban incorrectamente. Ahora maneja `abs(b) < 1024` de forma separada antes de entrar al bucle de unidades.
+- **CLI Monitor** (`cli_monitor.py`): Eliminado el encabezado permisivo `Access-Control-Allow-Origin: *` del endpoint de métricas `/api/metrics` del dashboard.
+
+### Cambiado
+- Versión sincronizada a `1.5.8` en todos los paquetes cliente (Python, JavaScript/npm, Rust/crates.io).
+
 ## [1.5.7] — 2026-07-31
 ### Corregido
 - **Bridge** (`bridge.py`): Resuelto error de lint Ruff S110 — reemplazado `except Exception: pass` silencioso en `_handle_hub_message._send()` por `logger.debug(...)` para registrar la excepción en lugar de ignorarla.

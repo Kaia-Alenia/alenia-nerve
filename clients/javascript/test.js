@@ -10,11 +10,12 @@
 
 const assert = require('assert');
 const net = require('net');
+const fs = require('fs');
 const { NexusClient } = require('./index');
 
 /**
  * Creates a mock hub server on a random port.
- * Returns { server, port }.
+ * Returns { server, port, connections }.
  */
 function createMockHub() {
   const connections = [];
@@ -69,30 +70,51 @@ function makeClient(port, token) {
   return client;
 }
 
-async function runTests() {
-  console.log('Running JavaScript client test suite...');
+describe('NexusClient', function () {
+  let hub, server, port, connections;
+  let client;
 
-  const hub = await createMockHub();
-  const { server, port } = hub;
-  let { connections } = hub;
-  console.log(`Mock hub listening on 127.0.0.1:${port}`);
+  before(async function () {
+    hub = await createMockHub();
+    server = hub.server;
+    port = hub.port;
+    connections = hub.connections;
+  });
 
-  try {
-    // 1. Connection and handshake
-    const client = makeClient(port);
+  after(function () {
+    if (server) {
+      server.close();
+    }
+  });
+
+  afterEach(function () {
+    if (client && !client.closed) {
+      client.disconnect();
+    }
+  });
+
+  it('1. should connect and perform handshake', async function () {
+    client = makeClient(port);
     await client.connect('test_client');
     assert.strictEqual(client.clientId, 'test_client');
     assert.strictEqual(client.connecting, false);
-    console.log('✓ Connection and handshake passed.');
+  });
 
-    // 2. listClients and list_clients alias
+  it('2. should list clients', async function () {
+    client = makeClient(port);
+    await client.connect('test_client');
+
     const clients = await client.listClients();
     assert.deepStrictEqual(clients, ['test_client', 'dummy_peer']);
+    
     const clientsAlt = await client.list_clients();
     assert.deepStrictEqual(clientsAlt, ['test_client', 'dummy_peer']);
-    console.log('✓ listClients and list_clients commands passed.');
+  });
 
-    // 3. listen/events and receive message
+  it('3. should listen to events and receive message', async function () {
+    client = makeClient(port);
+    await client.connect('test_client');
+
     let receivedPayload = null;
     let eventReceivedPayload = null;
 
@@ -101,51 +123,108 @@ async function runTests() {
 
     client.send('dummy_peer', { hello: 'world' });
     await new Promise((r) => setTimeout(r, 80));
+    
     assert.deepStrictEqual(receivedPayload, { hello: 'world' });
     assert.deepStrictEqual(eventReceivedPayload, { hello: 'world' });
-    console.log('✓ send, listen, and event message reception passed.');
+  });
 
-    // 4. broadcast command
-    receivedPayload = null;
+  it('4. should send and receive broadcast command', async function () {
+    client = makeClient(port);
+    await client.connect('test_client');
+
+    let receivedPayload = null;
+    client.listen((msg) => { receivedPayload = msg.payload; });
+    
     client.broadcast({ all: 'nodes' });
     await new Promise((r) => setTimeout(r, 80));
+    
     assert.deepStrictEqual(receivedPayload, { all: 'nodes' });
-    console.log('✓ broadcast and message reception passed.');
+  });
 
-    // 5. Auto-reconnection
+  it('5. should auto-reconnect on connection loss', async function () {
+    client = makeClient(port);
+    await client.connect('test_client');
+
     let reconnected = false;
     client.listen(() => {}, () => { reconnected = true; });
 
-    console.log('Simulating connection loss...');
-    for (const conn of connections) conn.destroy();
-    connections = [];
+    // Force disconnect
+    for (const conn of connections) {
+      conn.destroy();
+    }
+    // Clear connections to ensure we aren't tracking old ones
+    connections.length = 0;
 
     await new Promise((r) => setTimeout(r, 400));
     assert.strictEqual(reconnected, true);
-    console.log('✓ Auto-reconnection passed.');
+  });
 
-    // 6. Authentication failure
+  it('6. should handle authentication failure', async function () {
     const authClient = makeClient(port, 'invalid_token');
     await assert.rejects(
       authClient.connect('auth_failure_client'),
       /Authentication failed/
     );
     assert.strictEqual(authClient.closed, true);
-    console.log('✓ Authentication failure handling passed.');
+  });
+  
+  it('7. should handle invalid JSON', async function () {
+    client = makeClient(port);
+    await client.connect('test_client');
+    
+    let crashed = false;
+    const crashListener = (err) => {
+      crashed = true;
+    };
+    process.on('uncaughtException', crashListener);
+    client.socket.emit('data', Buffer.from('{invalid: json}\\n'));
+    await new Promise((r) => setTimeout(r, 80));
+    assert.strictEqual(crashed, false);
+    process.removeListener('uncaughtException', crashListener);
+  });
 
-    // 7. Graceful disconnect
+  it('8. should swallow SSL configuration errors on retry', async function () {
+    const originalReadFileSync = fs.readFileSync;
+    let mockCaRead = false;
+    let sslErrorSwallowed = true;
+
+    try {
+      fs.readFileSync = (filepath, options) => {
+        if (filepath === 'dummy_missing_ca.pem') {
+          mockCaRead = true;
+          throw new Error('Simulated CA read error');
+        }
+        return originalReadFileSync(filepath, options);
+      };
+
+      const sslClient = new NexusClient({
+        useSsl: true,
+        sslCa: 'dummy_missing_ca.pem',
+        retryInterval: 0.1
+      });
+      sslClient.address = { host: '127.0.0.1', port };
+      sslClient.isWindows = true;
+
+      try {
+        sslClient._connectLoop(() => {}, () => {});
+      } catch (err) {
+        if (err.message === 'Simulated CA read error') {
+          sslErrorSwallowed = false;
+        }
+      }
+
+      assert.strictEqual(mockCaRead, true);
+      assert.strictEqual(sslErrorSwallowed, true);
+      sslClient.disconnect();
+    } finally {
+      fs.readFileSync = originalReadFileSync;
+    }
+  });
+
+  it('9. should disconnect gracefully', async function () {
+    client = makeClient(port);
+    await client.connect('test_client');
     client.disconnect();
-    authClient.disconnect();
-    console.log('✓ Graceful disconnection passed.');
-
-    console.log('\nAll JavaScript client tests passed successfully.');
-    server.close();
-    process.exit(0);
-  } catch (error) {
-    console.error('\nJavaScript client tests FAILED:', error);
-    server.close();
-    process.exit(1);
-  }
-}
-
-runTests();
+    assert.strictEqual(client.closed, true);
+  });
+});

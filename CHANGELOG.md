@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.8] — 2026-08-31
+### Added
+- **Core** (`core.py`): Extracted `_process_message()` from `_handle_client()` — message-dispatch logic now lives in its own method, reducing function complexity and making the handler easier to test.
+- **Core** (`core.py`): Added `MAX_BUFFER_SIZE` constant (10 MB) to cap unbounded socket read buffers and prevent memory exhaustion under adversarial input.
+- **Core** (`core.py`): `broadcast()` now tracks `total_bytes_sent` and `total_messages_sent` metrics, keeping statistics consistent with direct sends.
+- **Bridge** (`bridge.py`): Added `allowed_origins` parameter to `NerveBridge` — rejects WebSocket connections whose `Origin` header is not in the allowlist (defaults to `host:port` self-origin). Closes a CSRF/cross-origin attack vector.
+- **Tests** (Rust): Unit tests for `load_external_config` (JSON, key=value, and non-existent path). Added `tempfile` dev-dependency.
+- **Tests** (JavaScript): Migrated test suite from a single procedural `runTests()` function to `mocha` BDD `describe/it` blocks. Added `mocha ^10.8.2` as dev-dependency.
+- **Tests** (Go): Expanded `client_test.go` coverage with 301 lines of new test cases.
+- **Tests** (Python): Added `test_bridge.py` and `test_cli_monitor.py` to the pytest suite; extended `test_core.py` with 37 additional assertions.
+
+### Fixed
+- **Core** (`core.py`): Removed unused `import hmac` (Ruff F401).
+- **CLI Monitor** (`cli_monitor.py`): Fixed `format_bytes()` — negative values and exact kilobyte boundaries were rounding incorrectly. Now handles `abs(b) < 1024` separately before entering the unit loop.
+- **CLI Monitor** (`cli_monitor.py`): Removed permissive `Access-Control-Allow-Origin: *` header from `/api/metrics` dashboard endpoint.
+
+### Changed
+- Synchronized version to `1.5.8` across all client packages (Python, JavaScript/npm, Rust/crates.io).
+
 ## [1.5.7] — 2026-07-31
 ### Fixed
 - **Bridge** (`bridge.py`): Resolved Ruff S110 lint error — replaced silent `except Exception: pass` in `_handle_hub_message._send()` with `logger.debug(...)` to log the exception instead of swallowing it.

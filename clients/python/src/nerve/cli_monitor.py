@@ -33,7 +33,6 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if self.path == "/api/metrics":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(json.dumps(LATEST_DATA).encode("utf-8"))
         elif self.path == "/" or self.path == "/index.html":
@@ -134,11 +133,17 @@ def run_dashboard(port: int = 8080):
 
 
 def format_bytes(b: int) -> str:
+    if abs(b) < 1024:
+        return f"{int(b)} B"
+        
+    b_float = float(b)
     for unit in ["B", "KB", "MB", "GB"]:
-        if b < 1024.0:
-            return f"{b:.1f} {unit}"
-        b /= 1024.0
-    return f"{b:.1f} TB"
+        if abs(b_float) < 1024.0:
+            if unit == "B":
+                return f"{int(b_float)} B"
+            return f"{b_float:.1f} {unit}"
+        b_float /= 1024.0
+    return f"{b_float:.1f} TB"
 
 
 def run_monitor():
