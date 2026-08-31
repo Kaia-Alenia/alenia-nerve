@@ -1,7 +1,7 @@
 import asyncio
 import http
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 
 websockets = pytest.importorskip(
     "websockets",
@@ -135,7 +135,7 @@ async def test_ws_handler_and_hub_message(mock_nexus_client):
 
     # Check if nerve client was called
     mock_nexus_client.send.assert_called_once()
-    args, kwargs = mock_nexus_client.send.call_args
+    _args, kwargs = mock_nexus_client.send.call_args
     assert kwargs["to"] == "hub"
     assert kwargs["payload"]["data"] == {"foo": "bar"}
     ws_id = kwargs["payload"]["ws_id"]
@@ -159,7 +159,7 @@ async def test_ws_handler_and_hub_message(mock_nexus_client):
     # hit the failure branch for _handle_hub_message
     class ErrorWebsocket:
         async def send(self, msg):
-            raise Exception("Fail")
+            raise RuntimeError("Fail")
 
     bridge.client_id_to_ws[ws_id] = ErrorWebsocket()
     with patch(
@@ -184,20 +184,20 @@ def test_bridge_start_no_hub(mock_probe_hub, mock_nexus_client):
 
 
 def test_probe_hub_windows():
-    with patch("platform.system", return_value="Windows"):
-        with patch("socket.socket") as mock_sock:
-            mock_instance = mock_sock.return_value
-            mock_instance.connect.side_effect = OSError()
-            assert not nerve.bridge._probe_hub()
-            mock_instance.close.side_effect = OSError()
-            assert not nerve.bridge._probe_hub()
+    with (
+        patch("platform.system", return_value="Windows"),
+        patch("socket.socket") as mock_sock,
+    ):
+        mock_instance = mock_sock.return_value
+        mock_instance.connect.side_effect = OSError()
+        assert not nerve.bridge._probe_hub()
+        mock_instance.close.side_effect = OSError()
+        assert not nerve.bridge._probe_hub()
 
 
 def test_probe_hub_unix():
-    with patch("platform.system", return_value="Linux"):
-        with patch("socket.socket") as mock_sock:
-            mock_instance = mock_sock.return_value
-            assert nerve.bridge._probe_hub()
+    with patch("platform.system", return_value="Linux"), patch("socket.socket"):
+        assert nerve.bridge._probe_hub()
 
 
 def test_run_bridge():
@@ -206,5 +206,3 @@ def test_run_bridge():
         nerve.bridge.run_bridge(host="10.1.1.1", port=9999)
         mock_bridge_class.assert_called_once_with(host="10.1.1.1", port=9999)
         mock_instance.start.assert_called_once()
-
-    # test __main__ by direct module call coverage not needed, but good

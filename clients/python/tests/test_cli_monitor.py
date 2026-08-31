@@ -1,6 +1,8 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from nerve.cli_monitor import format_bytes, data_fetcher_loop, LATEST_DATA
+
+from nerve.cli_monitor import LATEST_DATA, data_fetcher_loop, format_bytes
 
 
 @pytest.mark.parametrize(
