@@ -153,7 +153,7 @@ class NerveBridge:
             async def _send():
                 try:
                     await ws.send(json.dumps(payload))
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     logger.debug(
                         "Failed to forward hub message to WebSocket client: %s", exc
                     )
@@ -177,7 +177,7 @@ class NerveBridge:
                         to=data.get("to", "hub"),
                         payload={"ws_id": ws_id, "data": data.get("payload", {})},
                     )
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     logger.error(f"Error processing WS message: {e}")
         except websockets.exceptions.ConnectionClosed:
             pass

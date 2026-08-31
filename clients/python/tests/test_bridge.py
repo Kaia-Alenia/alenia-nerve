@@ -1,15 +1,15 @@
 import asyncio
 import http
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 websockets = pytest.importorskip(
     "websockets",
     reason="optional 'bridge' dependency not installed (pip install alenia-nerve[bridge])",
 )
-import nerve.bridge  # noqa: E402
-
-from nerve.bridge import NerveBridge  # noqa: E402
+import nerve.bridge
+from nerve.bridge import NerveBridge
 
 
 @pytest.fixture
@@ -144,7 +144,7 @@ async def test_ws_handler_and_hub_message(mock_nexus_client):
     bridge.client_id_to_ws[ws_id] = mock_websocket
 
     def mock_run_coroutine_threadsafe(coro, loop):
-        asyncio.ensure_future(coro, loop=loop)
+        _ = asyncio.ensure_future(coro, loop=loop)
 
     with patch(
         "asyncio.run_coroutine_threadsafe", side_effect=mock_run_coroutine_threadsafe

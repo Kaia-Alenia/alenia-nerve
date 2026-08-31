@@ -21,7 +21,7 @@ def show_error(message: str) -> None:
                 ["osascript", "-e", f'display alert "{escaped_msg}" as critical'],
                 check=False,
             )
-        except Exception:  # noqa: BLE001, S110
+        except Exception:
             pass
     elif system == "Windows":
         try:
@@ -75,7 +75,7 @@ def prompt_password(prompt: str, error: str | None = None) -> str:
                 ["osascript", "-e", script], capture_output=True, text=True, check=True
             )
             return result.stdout.strip("\n\r")
-        except Exception:  # noqa: BLE001
+        except Exception:
             return ""
     elif system == "Windows":
         try:

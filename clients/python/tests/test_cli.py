@@ -27,7 +27,7 @@ def mock_sys_exit():
     ],
 )
 def test_print_help_and_exit(args, mock_sys_exit, capsys):
-    with patch("sys.argv", ["nerve"] + args), pytest.raises(SystemExit):
+    with patch("sys.argv", ["nerve", *args]), pytest.raises(SystemExit):
         main()
 
     captured = capsys.readouterr()
@@ -44,7 +44,7 @@ def test_print_help_and_exit(args, mock_sys_exit, capsys):
     ],
 )
 def test_print_version_and_exit(args, mock_sys_exit, capsys):
-    with patch("sys.argv", ["nerve"] + args), pytest.raises(SystemExit):
+    with patch("sys.argv", ["nerve", *args]), pytest.raises(SystemExit):
         main()
 
     captured = capsys.readouterr()
@@ -80,7 +80,7 @@ def test_start_command_verbose(mock_nexus_hub, args, capsys):
     mock_hub_instance = MagicMock()
     mock_nexus_hub.return_value = mock_hub_instance
 
-    with patch("sys.argv", ["nerve"] + args):
+    with patch("sys.argv", ["nerve", *args]):
         main()
 
     captured = capsys.readouterr()
@@ -151,7 +151,7 @@ def test_unrecognized_command(mock_sys_exit, capsys):
 
 
 def run_cli(*args, env=None):
-    cmd = [sys.executable, "-m", "nerve.cli"] + list(args)
+    cmd = [sys.executable, "-m", "nerve.cli", *args]
     test_env = os.environ.copy()
     if env:
         test_env.update(env)

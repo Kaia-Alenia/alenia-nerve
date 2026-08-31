@@ -64,7 +64,7 @@ def data_fetcher_loop(client: NexusClient):
             clients = client.list_clients()
             LATEST_DATA["metrics"] = metrics
             LATEST_DATA["clients"] = clients
-        except Exception:  # noqa: BLE001, S110
+        except Exception:
             pass
         time.sleep(1.0)
 
@@ -126,7 +126,7 @@ def run_dashboard(port: int = 8080):
         server.serve_forever()
     except KeyboardInterrupt:
         print("\n\033[95m[NERVE CLI]\033[0m Stopping dashboard...")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"\033[91m[NERVE CLI]\033[0m Server error: {e}")
     finally:
         client.disconnect()

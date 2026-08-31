@@ -367,11 +367,11 @@ def unpack_nrv(nrv_path: str, output_dir: str, password: str | None = None) -> s
                                 tar.extract(
                                     member, path=output_dir, filter=tarfile.data_filter
                                 )
-                            except Exception as filter_err:  # noqa: BLE001
+                            except Exception as filter_err:
                                 print(f"[WARNING] Skipping {member.name}: {filter_err}")
                         else:
                             tar.extract(member, path=output_dir)
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     import shutil
 
                     if os.path.exists(destination_path):

@@ -105,7 +105,7 @@ def main() -> None:
         except OSError as exc:
             print(f"{RED}[NERVE CLI] Socket error: {exc}{RESET}")
             sys.exit(1)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             print(f"{RED}[NERVE CLI] Critical error: {exc}{RESET}")
             sys.exit(1)
 
@@ -208,7 +208,7 @@ def main() -> None:
         except ValueError as exc:
             print(f"{RED}[NERVE CLI] Error: Invalid operation - {exc}{RESET}")
             sys.exit(1)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             print(f"{RED}[NERVE CLI] Error packing: {exc}{RESET}")
             sys.exit(1)
         sys.exit(0)
@@ -241,7 +241,7 @@ def main() -> None:
         except ValueError as exc:
             print(f"{RED}[NERVE CLI] Error: Invalid operation - {exc}{RESET}")
             sys.exit(1)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             print(f"{RED}[NERVE CLI] Error unpacking: {exc}{RESET}")
             sys.exit(1)
         sys.exit(0)
@@ -290,7 +290,7 @@ def main() -> None:
                 else:
                     show_error(f"Error unpacking: {exc}")
                     sys.exit(1)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 show_error(f"Error unpacking: {exc}")
                 sys.exit(1)
 
@@ -302,7 +302,7 @@ def main() -> None:
             print(
                 f"{GREEN}[NERVE CLI] Successfully associated .nrv files with Nerve.{RESET}"
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             print(f"{RED}[NERVE CLI] Failed to associate .nrv files: {exc}{RESET}")
             sys.exit(1)
         sys.exit(0)
@@ -315,7 +315,7 @@ def main() -> None:
             print(
                 f"{GREEN}[NERVE CLI] Successfully removed .nrv file association.{RESET}"
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             print(f"{RED}[NERVE CLI] Failed to unassociate .nrv files: {exc}{RESET}")
             sys.exit(1)
         sys.exit(0)

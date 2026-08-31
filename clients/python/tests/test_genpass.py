@@ -49,7 +49,7 @@ def test_resource_localization():
         lines = content.splitlines()
         words = [line for line in lines if line.strip() and not line.startswith("#")]
         assert len(words) == 7776
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         pytest.fail(
             f"Could not load eff_large_wordlist.txt via importlib.resources: {e}"
         )

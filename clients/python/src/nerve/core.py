@@ -24,7 +24,6 @@ from collections import deque
 from collections.abc import Callable
 from typing import Any, Optional
 
-
 MAX_BUFFER_SIZE = 10 * 1024 * 1024
 
 
@@ -294,7 +293,7 @@ class NexusHub:
         if client_id and self.on_disconnect:
             try:
                 self.on_disconnect(client_id)
-            except Exception:  # noqa: BLE001, S110
+            except Exception:
                 pass
 
     def _process_message(
@@ -368,7 +367,7 @@ class NexusHub:
             if self.on_connect:
                 try:
                     self.on_connect(client_id)
-                except Exception:  # noqa: BLE001, S110
+                except Exception:
                     pass
 
         elif msg_type == "send":
@@ -517,7 +516,7 @@ class NexusHub:
                     if not should_continue:
                         break
 
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             if self.verbose:
                 self._log("91", f"Unexpected error in client handler: {exc}")
         finally:
@@ -628,7 +627,7 @@ class NexusHub:
                     continue
                 except OSError:
                     break
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self._log("91", f"Error in server acceptance loop: {exc}")
         finally:
             self.stop()
@@ -1039,9 +1038,9 @@ class NexusClient:
                                     continue
                             try:
                                 callback(payload)
-                            except Exception as exc:  # noqa: BLE001
+                            except Exception as exc:
                                 print(f"[NERVE] Error in message callback: {exc}")
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     if self._closed:
                         break
                     print(f"[NERVE] Unexpected listener error: {exc}")
@@ -1054,7 +1053,7 @@ class NexusClient:
                 if on_reconnect and not self._closed:
                     try:
                         on_reconnect()
-                    except Exception:  # noqa: BLE001, S110
+                    except Exception:
                         pass
 
         threading.Thread(
