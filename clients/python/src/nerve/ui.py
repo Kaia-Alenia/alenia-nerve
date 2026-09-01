@@ -24,6 +24,17 @@ def is_tty() -> bool:
     return sys.stdin.isatty()
 
 
+def print_warning(message: str) -> None:
+    if is_tty():
+        print(f"\033[93m[WARNING] {message}\033[0m", file=sys.stderr)
+    else:
+        print(f"[WARNING] {message}", file=sys.stderr)
+
+
+def print_info(message: str) -> None:
+    print(message)
+
+
 def show_error(message: str) -> None:
     if is_tty():
         print(f"[ERROR] {message}", file=sys.stderr)
