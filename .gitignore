@@ -39,3 +39,10 @@ node_modules/
 .pyenv
 basura/
 no-registry/
+# Test artifacts / pruebas locales
+prueba*.nrv
+prueba*.txt
+prueba*.log
+prueba*.md
+contraseña.txt
+*.nrv
