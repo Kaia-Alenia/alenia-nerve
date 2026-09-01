@@ -84,6 +84,7 @@ class NexusHub:
         ssl_context: Optional["ssl.SSLContext"] = None,
         ssl_cert: str | None = None,
         ssl_key: str | None = None,
+        remote: bool = False,
     ) -> None:
         """
         Initialize the NexusHub server.
@@ -101,6 +102,7 @@ class NexusHub:
         self.on_connect: Callable[[str], None] | None = on_connect
         self.on_disconnect: Callable[[str], None] | None = on_disconnect
         self.heartbeat_interval: float = heartbeat_interval
+        self.remote: bool = remote
         self._clients: dict[str, socket.socket] = {}
         self._write_locks: dict[socket.socket, threading.Lock] = {}
         self._lock: threading.Lock = threading.Lock()
@@ -151,8 +153,15 @@ class NexusHub:
             if cert and key:
                 self.ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
                 self.ssl_context.load_cert_chain(certfile=cert, keyfile=key)
-        if self.is_windows:
-            host = str(config.get("host", "127.0.0.1"))
+                
+        if self.remote and not self.auth_token:
+            raise ValueError("auth_token is required when remote=True")
+            
+        if self.is_windows or self.remote:
+            if self.remote:
+                host = str(config.get("host", "0.0.0.0"))
+            else:
+                host = str(config.get("host", "127.0.0.1"))
             port = int(config.get("port", 50505))
             self.address: tuple[str, int] | str = (host, port)
             self.socket_family = socket.AF_INET
@@ -672,8 +681,11 @@ class NexusClient:
         ssl_cert: str | None = None,
         ssl_key: str | None = None,
         ssl_ca: str | None = None,
+        remote: bool = False,
+        remote_host: str | None = None,
     ) -> None:
         self.retry_interval: float = retry_interval
+        self.remote: bool = remote
         self.client_id: str | None = None
         self.is_windows: bool = platform.system() == "Windows"
         config = load_external_config(config_path)
@@ -699,8 +711,11 @@ class NexusClient:
                 if cert and key:
                     self.ssl_context.load_cert_chain(certfile=cert, keyfile=key)
 
-        if self.is_windows:
-            host = str(config.get("host", "127.0.0.1"))
+        if self.remote and not self.auth_token:
+            raise ValueError("auth_token is required when remote=True")
+
+        if self.is_windows or self.remote:
+            host = remote_host or str(config.get("host", "127.0.0.1"))
             port = int(config.get("port", 50505))
             self.address: tuple[str, int] | str = (host, port)
             self.socket_family = socket.AF_INET

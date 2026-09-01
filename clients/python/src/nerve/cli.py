@@ -67,8 +67,13 @@ Contact: contact.aleniastudios@gmail.com
   nerve connect <IP>              Connect to a remote Nerve host and register peer
   nerve connect <IP> --name NAME  Assign a name to the peer
   nerve connect <IP> --token TOK  Use an explicit auth token
+  nerve scan                      Scan local network for Nerve peers
+  nerve diagnose [IP]             Run evidence-based network diagnostics
   nerve peers                     List known peers
   nerve peers remove <NAME|ID>    Remove a known peer
+  nerve send <PATH> --to <IP|NAME>Send a file to a peer
+  nerve receive                   Start a temporary receive session
+  nerve receive --dir PATH        Temporary receive session with specific dir
 
 {PURPLE}Configuration:{RESET}
   Place a {GREEN}nerve.config{RESET} file in your working directory to customise the
@@ -506,6 +511,103 @@ def main() -> None:
                     else:
                         seen = f"{int(age/3600)}h ago"
                     print(f"  {p.name:<20} {p.last_address:<22} {p.platform:<10} {seen}")
+        sys.exit(0)
+
+    elif args[0] == "send":
+        from nerve.lan.api import NerveLAN
+        if len(args) < 2:
+            print(f"{RED}[NERVE CLI] Usage: nerve send <PATH> --to <IP|NAME>{RESET}")
+            sys.exit(1)
+        path = args[1]
+        
+        to = None
+        if "--to" in args:
+            idx = args.index("--to")
+            if len(args) > idx + 1:
+                to = args[idx + 1]
+                
+        if not to:
+            print(f"{RED}[NERVE CLI] --to <IP|NAME> is required.{RESET}")
+            sys.exit(1)
+            
+        print(f"{PURPLE}[NERVE CLI] Sending '{path}' to '{to}'...{RESET}")
+        
+        def _progress(bytes_sent: int, total: int) -> None:
+            pct = (bytes_sent / total) * 100 if total > 0 else 0
+            print(f"\r{GREEN}Progress: {pct:.1f}% ({bytes_sent}/{total} bytes){RESET}", end="")
+            
+        lan = NerveLAN(verbose=True)
+        res = lan.send(path, to, progress_callback=_progress)
+        print() # new line after progress
+        if res.success:
+            print(f"{GREEN}[NERVE CLI] Transfer complete.{RESET}")
+            sys.exit(0)
+        else:
+            print(f"{RED}[NERVE CLI] Transfer failed: {res.error}{RESET}")
+            sys.exit(1)
+
+    elif args[0] == "receive":
+        from nerve.lan.api import NerveLAN
+        receive_dir = None
+        if "--dir" in args:
+            idx = args.index("--dir")
+            if len(args) > idx + 1:
+                receive_dir = args[idx + 1]
+            else:
+                print(f"{RED}[NERVE CLI] --dir requires a path argument.{RESET}")
+                sys.exit(1)
+                
+        print(f"{PURPLE}[NERVE CLI] Starting temporary receive session...{RESET}")
+        lan = NerveLAN(verbose=True)
+        lan.receive(receive_dir=receive_dir)
+        sys.exit(0)
+
+    elif args[0] == "scan":
+        from nerve.lan.api import NerveLAN
+        print(f"{PURPLE}[NERVE CLI] Scanning local network...{RESET}")
+        lan = NerveLAN()
+        peers = lan.scan()
+        if not peers:
+            print(f"{YELLOW}[NERVE CLI] No Nerve devices found.{RESET}")
+        else:
+            print(f"{GREEN}Nerve devices found:\n{RESET}")
+            for p in peers:
+                print(f"{p.peer_name:<20} {p.address:<15} {p.platform}")
+        sys.exit(0)
+        
+    elif args[0] == "diagnose":
+        from nerve.lan.api import NerveLAN
+        target = args[1] if len(args) > 1 else None
+        
+        print(f"\n{PURPLE}Nerve Diagnostics{RESET}")
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        
+        lan = NerveLAN()
+        rep = lan.diagnose(target_ip=target)
+        
+        print(f"\n{PURPLE}Local Device{RESET}")
+        print(rep["local"].get("interface", ""))
+        print(rep["local"].get("address", ""))
+        
+        if target:
+            print(f"\n{PURPLE}Target{RESET}")
+            print(rep["target"].get("format", ""))
+            
+            print(f"\n{PURPLE}Direct Connection{RESET}")
+            print(rep["direct"].get("tcp", ""))
+            
+            print(f"\n{PURPLE}Nerve Service{RESET}")
+            print(rep["service"].get("auth", ""))
+            
+            if rep["causes"]:
+                print(f"\n{YELLOW}Possible causes{RESET}")
+                for c in rep["causes"]:
+                    print(c)
+                
+                print(f"\n{GREEN}Recommendation{RESET}")
+                print("→ Verify that nerve host is running on the target.")
+                print("→ Verify both devices are on the same non-guest network.")
+                print("→ Verify firewall permissions for Nerve.")
         sys.exit(0)
 
     else:

@@ -29,35 +29,35 @@ Frozen requirements:
   F-12  nerve host shows the receive destination at startup.
   F-13  Existing nerve start / NexusHub is completely unchanged.
 
-Security layer in Phase 1: Layer 1 only (auth_token authentication).
-Layer 2 (TLS) and Layer 3 (NRV_SECURE payload) are Phase 3 concerns.
-
 LAN control plane protocol (Phase 1):
-  host → client:  {"type": "lan_hello", "peer_id": ..., "hostname": ...,
-                   "platform": ..., "protocol_version": 1}
-  client → host:  {"type": "lan_auth", "token": ..., "client_peer_id": ...,
-                   "client_hostname": ..., "client_platform": ...,
-                   "protocol_version": 1}
-  host → client:  {"type": "lan_auth_result", "status": "ok"|"failed",
-                   "peer_id": ..., "hostname": ..., "platform": ...,
-                   "reason": ...}  # reason only on failure
+  host → client:  {type: lan_hello, peer_id, hostname, platform, protocol_version}
+  client → host:  {type: lan_auth, token, client_peer_id, client_hostname,
+                   client_platform, protocol_version}
+  host → client:  {type: lan_auth_result, status: ok|failed, peer_id, hostname,
+                   platform, protocol_version, reason?}
+
+Data Plane:
+  Separate persistent listener on LAN_DATA_PORT_DEFAULT (50510).
+  Registered in _active_peer_threads so stop() owns its lifecycle.
+  Port offset (+3 hack) removed.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 import platform
 import socket
 import threading
 import time
-import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from nerve.core import load_external_config
 from nerve.lan.connect import LAN_CONTROL_PORT_DEFAULT, LAN_PROTOCOL_VERSION
 from nerve.lan.peer_registry import _registry_path
+from nerve.lan.transfer import LAN_DATA_PORT_DEFAULT, receive_file
 from nerve.lan.util import (
     get_or_create_host_identity,
     recv_message,
@@ -65,22 +65,23 @@ from nerve.lan.util import (
     send_message,
 )
 
+logger = logging.getLogger("nerve.lan.host")
 
 PURPLE = "\033[95m"
-GREEN = "\033[92m"
+GREEN  = "\033[92m"
 YELLOW = "\033[93m"
-RED = "\033[91m"
-RESET = "\033[0m"
+RED    = "\033[91m"
+RESET  = "\033[0m"
 
-# Timeout for the accept() call — allows clean shutdown polling.
+# Timeout for accept() — allows clean shutdown polling
 _ACCEPT_TIMEOUT: float = 0.5
 
-# Timeout for each peer's auth handshake.
+# Timeout for auth handshake per peer
 _PEER_HANDSHAKE_TIMEOUT: float = 15.0
 
 
 # ---------------------------------------------------------------------------
-# Receive destination helper (Phase 1: display only)
+# Receive destination resolution
 # ---------------------------------------------------------------------------
 
 
@@ -89,11 +90,9 @@ def _get_os_downloads_dir() -> Path:
     Return the platform Downloads directory (frozen fallback, Decision #2).
 
     Linux / macOS: ~/Downloads
-    Windows:       User's Downloads (resolved via USERPROFILE or shell folder)
+    Windows:       User's Downloads (resolved via registry or USERPROFILE)
     """
-    system = platform.system()
-    home = Path.home()
-    if system == "Windows":
+    if platform.system() == "Windows":
         try:
             import winreg
             key = winreg.OpenKey(
@@ -105,23 +104,17 @@ def _get_os_downloads_dir() -> Path:
             return Path(val)
         except Exception:
             pass
-    return home / "Downloads"
+    return Path.home() / "Downloads"
 
 
-def _resolve_display_receive_dir(
-    cli_receive_dir: str | None,
-    config: dict,
-) -> Path:
+def _resolve_display_receive_dir(cli_receive_dir: Optional[str], config: dict) -> Path:
     """
-    Resolve the receive destination to display at startup (Phase 1 display only).
+    Resolve the receive destination displayed at startup.
 
-    Priority (frozen, Decision #2 / Decision #11):
+    Priority (Decision #2 / Decision #11):
         1. Explicit CLI --receive-dir
         2. Persistent nerve.config receive_dir
         3. OS Downloads directory fallback
-
-    The full destination resolver (per-transfer and nerve receive session tiers)
-    is implemented in Phase 4.
     """
     if cli_receive_dir:
         return Path(cli_receive_dir)
@@ -140,69 +133,57 @@ class NerveHost:
     """
     The Nerve LAN foreground host (nerve host command).
 
-    Starts a TCP listener on a LAN-reachable address, accepts peer connections,
-    and performs authenticated LAN handshakes.
+    Starts a TCP control-plane listener and a persistent Data Plane listener,
+    plus a UDP discovery responder. All owned threads and sockets are tracked
+    so stop() can perform a deterministic, complete shutdown (Decision #9).
 
-    This is architecturally separate from NexusHub (nerve start).
-    Existing local IPC is completely unchanged.
+    Architecturally separate from NexusHub (nerve start). Existing local IPC
+    is completely unchanged (Decision #9 F-13).
     """
 
     def __init__(
         self,
-        receive_dir: str | None = None,
-        lan_port: int | None = None,
-        auth_token: str | None = None,
+        receive_dir: Optional[str] = None,
+        lan_port: Optional[int] = None,
+        auth_token: Optional[str] = None,
         config_path: str = "nerve.config",
         verbose: bool = False,
     ) -> None:
-        """
-        Parameters
-        ----------
-        receive_dir:
-            Incoming receive destination (CLI --receive-dir passthrough).
-            Displayed at startup. Full destination resolution is Phase 4.
-        lan_port:
-            LAN control plane TCP port. Defaults to config lan_port or
-            LAN_CONTROL_PORT_DEFAULT (50507).
-        auth_token:
-            Explicit auth token. If None, loaded from nerve.config or env.
-        config_path:
-            Path to nerve.config.
-        verbose:
-            If True, log additional connection details.
-        """
         self._config_path = config_path
         self._verbose = verbose
         self._config: dict[str, Any] = load_external_config(config_path)
 
-        # Token will be resolved during start() via _ensure_auth_configured
-        self._auth_token_arg: str | None = auth_token
-        self._auth_token: str | None = None
+        # Token resolved at start() time
+        self._auth_token_arg: Optional[str] = auth_token
+        self._auth_token: Optional[str] = None
 
-
-        # Resolve LAN port: constructor param > nerve.config > default
+        # Port resolution: param > config > default
         resolved_port = (
             lan_port
             if lan_port is not None
             else int(self._config.get("lan_port", LAN_CONTROL_PORT_DEFAULT))
         )
         self._lan_port: int = resolved_port
+        self._data_port: int = LAN_DATA_PORT_DEFAULT   # fixed, not derived from +3
 
-        # Stable peer_id for this host instance
+        # Stable peer identity for this host
         self._peer_id: str = get_or_create_host_identity(_registry_path().parent)
 
-        # Receive destination (display only in Phase 1)
-        self._receive_dir: Path = _resolve_display_receive_dir(
-            receive_dir, self._config
-        )
+        # Receive destination (Decision #2)
+        self._receive_dir: Path = _resolve_display_receive_dir(receive_dir, self._config)
 
         # Runtime state
         self._running: bool = False
-        self._server: socket.socket | None = None
+        self._server: Optional[socket.socket] = None
+        self._data_server: Optional[socket.socket] = None
+        self._udp_server: Optional[socket.socket] = None
         self._lock: threading.Lock = threading.Lock()
         self._active_peer_sockets: set[socket.socket] = set()
         self._active_peer_threads: list[threading.Thread] = []
         self._stop_event: threading.Event = threading.Event()
+
+        # Set by _start_server() once bind succeeds — used by start() to confirm readiness
+        self._ready_event: threading.Event = threading.Event()
 
     # ------------------------------------------------------------------
     # Public interface
@@ -212,9 +193,9 @@ class NerveHost:
         """
         Start the foreground LAN host.
 
-        This method blocks until Ctrl+C or stop() is called.
+        Blocks until Ctrl+C or stop() is called.
         Raises SystemExit(1) if authentication is not configured
-        and the context is non-interactive.
+        in a non-interactive context.
         """
         self._ensure_auth_configured()
         self._start_server()
@@ -223,36 +204,38 @@ class NerveHost:
 
     def stop(self) -> None:
         """
-        Stop the host and release all owned resources.
+        Stop the host and release all owned resources (Decision #9 F-6/F-7).
 
-        Called automatically on KeyboardInterrupt (Ctrl+C).
-        Safe to call multiple times.
+        Closes all sockets, joins all registered threads within a bounded
+        deadline, and signals the stop event. Safe to call multiple times.
         """
         self._running = False
         self._stop_event.set()
 
-        server = self._server
-        if server is not None:
-            self._server = None
-            try:
-                server.close()
-            except OSError:
-                pass
+        # Close all owned server sockets
+        for attr in ("_server", "_data_server", "_udp_server"):
+            sock = getattr(self, attr, None)
+            setattr(self, attr, None)
+            if sock is not None:
+                try:
+                    sock.close()
+                except OSError:
+                    pass
 
         with self._lock:
-            sockets = list(self._active_peer_sockets)
+            peer_socks = list(self._active_peer_sockets)
             threads = list(self._active_peer_threads)
             self._active_peer_sockets.clear()
 
-        # Closing sockets unblocks any handlers waiting on recv()
-        for sock in sockets:
+        # Unblock all handler threads waiting on recv
+        for sock in peer_socks:
             try:
                 sock.close()
             except OSError:
                 pass
-                
-        # Cooperative shutdown: wait for threads to exit within a bounded global deadline
-        deadline = time.time() + 2.0
+
+        # Join all threads with a shared bounded deadline (Decision #9)
+        deadline = time.time() + 3.0
         for th in threads:
             remaining = deadline - time.time()
             if remaining <= 0:
@@ -260,49 +243,42 @@ class NerveHost:
             try:
                 th.join(timeout=remaining)
             except RuntimeError:
-                pass  # Thread was not started yet
+                pass
 
     # ------------------------------------------------------------------
     # Authentication enforcement (F-3, F-4, F-5)
     # ------------------------------------------------------------------
 
     def _ensure_auth_configured(self) -> None:
-        """
-        Enforce the authentication requirement before starting the listener.
-        """
         from nerve.lan.util import LanAuthenticationError
-        
         try:
             self._auth_token = resolve_auth_token(
                 self._auth_token_arg, self._config, allow_interactive=True
             )
         except LanAuthenticationError as exc:
-            # Replicate F-5/F-4 legacy behavior for tests
-            print(f"\033[91m[NERVE HOST] {exc}\033[0m")
+            print(f"{RED}[NERVE HOST] {exc}{RESET}")
             raise SystemExit(1)
-            
-        # Optionally persist the generated token if we just generated it and it's not in config
-        if self._auth_token and not self._auth_token_arg and not os.environ.get("NERVE_AUTH_TOKEN") and not self._config.get("auth_token"):
-             self._try_persist_token(self._auth_token)
 
-    # ------------------------------------------------------------------
-    # Authentication token persistence helper
-    # ------------------------------------------------------------------
+        # Persist token to nerve.config if it was just generated
+        if (
+            self._auth_token
+            and not self._auth_token_arg
+            and not os.environ.get("NERVE_AUTH_TOKEN")
+            and not self._config.get("auth_token")
+        ):
+            self._try_persist_token(self._auth_token)
 
     def _try_persist_token(self, token: str) -> None:
-        """Append auth_token to nerve.config if the file already exists."""
         if not os.path.exists(self._config_path):
             return
         try:
             with open(self._config_path, "a", encoding="utf-8") as fh:
                 fh.write(f"\nauth_token={token}\n")
-            print(
-                f"{GREEN}[NERVE HOST] Token saved to {self._config_path}{RESET}"
-            )
+            print(f"{GREEN}[NERVE HOST] Token saved to {self._config_path}{RESET}")
         except OSError as exc:
             print(
                 f"{YELLOW}[NERVE HOST] Could not save token to config: {exc}"
-                f"\nYou must add it manually.{RESET}"
+                f"\nAdd it manually.{RESET}"
             )
 
     # ------------------------------------------------------------------
@@ -310,36 +286,178 @@ class NerveHost:
     # ------------------------------------------------------------------
 
     def _start_server(self) -> None:
-        """Bind and listen on the LAN-reachable TCP address."""
-        srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        # F-2: bind to 0.0.0.0, not loopback.
-        srv.bind(("0.0.0.0", self._lan_port))
-        srv.listen(50)
-        srv.settimeout(_ACCEPT_TIMEOUT)
-        self._server = srv
+        """
+        Bind and listen on all three interfaces:
+          - TCP control plane on self._lan_port
+          - TCP data plane on LAN_DATA_PORT_DEFAULT (50510)
+          - UDP discovery on 50511
+
+        Sets _ready_event after all binds succeed.
+        Registered threads (discovery, data listener) are tracked in
+        _active_peer_threads so stop() owns them.
+        """
+        # Control Plane
+        ctrl = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        ctrl.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        ctrl.bind(("0.0.0.0", self._lan_port))
+        ctrl.listen(50)
+        ctrl.settimeout(_ACCEPT_TIMEOUT)
+        self._server = ctrl
+
+        # Data Plane — persistent listener (fixed port 50510, not +3 offset)
+        data = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        data.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        data.bind(("0.0.0.0", self._data_port))
+        data.listen(10)
+        data.settimeout(_ACCEPT_TIMEOUT)
+        self._data_server = data
+
+        # Discovery UDP
+        udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        udp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        if hasattr(socket, "SO_REUSEPORT"):
+            try:
+                udp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+            except OSError:
+                pass
+        udp.bind(("0.0.0.0", 50511))
+        udp.settimeout(_ACCEPT_TIMEOUT)
+        self._udp_server = udp
+
         self._running = True
         self._stop_event.clear()
 
+        # Discovery thread — registered so stop() joins it
+        disc_th = threading.Thread(
+            target=self._discovery_loop,
+            daemon=True,
+            name="nerve-lan-discovery",
+        )
+        with self._lock:
+            self._active_peer_threads.append(disc_th)
+        disc_th.start()
+
+        # Data Plane listener thread — registered so stop() joins it (Bug #6 fix)
+        data_th = threading.Thread(
+            target=self._data_accept_loop,
+            daemon=True,
+            name="nerve-lan-data",
+        )
+        with self._lock:
+            self._active_peer_threads.append(data_th)
+        data_th.start()
+
+        # Signal readiness after all binds succeed (Bug #7 fix)
+        self._ready_event.set()
+
     def _print_startup_banner(self) -> None:
-        """Display startup information including receive destination (F-12)."""
+        print(f"{PURPLE}[NERVE HOST] Direct device communication host started.{RESET}")
         print(
-            f"{PURPLE}[NERVE HOST] Direct device communication host started.{RESET}"
+            f"{GREEN}[NERVE HOST] Control Plane on port {self._lan_port} "
+            f"(all interfaces){RESET}"
         )
-        print(
-            f"{GREEN}[NERVE HOST] Listening on port {self._lan_port} "
-            f"(LAN-reachable, all interfaces){RESET}"
-        )
-        print(
-            f"{GREEN}[NERVE HOST] Receive destination: {self._receive_dir}{RESET}"
-        )
+        print(f"{GREEN}[NERVE HOST] Data Plane on port {self._data_port}{RESET}")
+        print(f"{GREEN}[NERVE HOST] Discovery active on UDP 50511{RESET}")
+        print(f"{GREEN}[NERVE HOST] Receive destination: {self._receive_dir}{RESET}")
         print(f"{YELLOW}[NERVE HOST] Press Ctrl+C to stop.{RESET}")
+
+    # ------------------------------------------------------------------
+    # Discovery responder
+    # ------------------------------------------------------------------
+
+    def _discovery_loop(self) -> None:
+        """Listen for UDP discovery broadcasts and respond with stable peer_id."""
+        from nerve import __version__
+        while self._running and self._udp_server:
+            try:
+                data, addr = self._udp_server.recvfrom(1024)
+            except TimeoutError:
+                continue
+            except OSError:
+                break
+
+            text = data.decode("utf-8", errors="ignore")
+            if not text.startswith("NERVE_DISCOVERY"):
+                continue
+
+            resp = {
+                "type": "nerve_discovery_response",
+                "peer_id": self._peer_id,          # stable identity (Bug #9 fix)
+                "hostname": socket.gethostname(),
+                "platform": platform.system(),
+                "version": __version__,
+                "control_port": self._lan_port,
+                "transfer_port": self._data_port,
+            }
+            try:
+                self._udp_server.sendto(json.dumps(resp).encode("utf-8"), addr)
+            except OSError:
+                pass
+
+    # ------------------------------------------------------------------
+    # Data Plane accept loop
+    # ------------------------------------------------------------------
+
+    def _data_accept_loop(self) -> None:
+        """
+        Persistent Data Plane TCP listener on self._data_port.
+
+        Spawns a handler thread per incoming data connection. All handler
+        threads are registered in _active_peer_threads.
+        """
+        while self._running and self._data_server:
+            try:
+                dconn, daddr = self._data_server.accept()
+            except TimeoutError:
+                continue
+            except OSError:
+                break
+
+            with self._lock:
+                if not self._running:
+                    try:
+                        dconn.close()
+                    except OSError:
+                        pass
+                    break
+                self._active_peer_sockets.add(dconn)
+
+            dth = threading.Thread(
+                target=self._handle_data_connection,
+                args=(dconn, daddr),
+                daemon=True,
+                name="nerve-lan-data-handler",
+            )
+            with self._lock:
+                self._active_peer_threads.append(dth)
+            dth.start()
+
+    def _handle_data_connection(
+        self, conn: socket.socket, addr: tuple[str, int]
+    ) -> None:
+        """Receive a single file transfer from the Data Plane connection."""
+        try:
+            receive_file(conn, self._receive_dir, conflict_policy="rename")
+        except Exception as exc:
+            if self._verbose:
+                logger.warning("Data plane handler error from %s:%s: %s", addr[0], addr[1], exc)
+        finally:
+            with self._lock:
+                self._active_peer_sockets.discard(conn)
+            try:
+                conn.close()
+            except OSError:
+                pass
+
+    # ------------------------------------------------------------------
+    # Control Plane accept loop
+    # ------------------------------------------------------------------
 
     def _accept_loop(self) -> None:
         """
-        Main blocking accept loop.
+        Main blocking accept loop for the Control Plane.
 
-        Handles KeyboardInterrupt (Ctrl+C) for clean shutdown (F-6, F-7).
+        Handles KeyboardInterrupt for clean shutdown (F-6, F-7).
         """
         try:
             while self._running and self._server:
@@ -376,40 +494,37 @@ class NerveHost:
             print(f"\n{PURPLE}[NERVE HOST] Stopped.{RESET}")
 
     # ------------------------------------------------------------------
-    # Peer handshake handler
+    # Control Plane peer handshake
     # ------------------------------------------------------------------
 
-    def _handle_peer(
-        self, conn: socket.socket, addr: tuple[str, int]
-    ) -> None:
+    def _handle_peer(self, conn: socket.socket, addr: tuple[str, int]) -> None:
         """
-        Handle a single incoming peer connection.
+        Handle a single Control Plane peer connection.
 
-        Performs the LAN auth handshake (Layer 1 only — Phase 1).
-        The connection is closed after the handshake; it is not held open.
-        Phase 3 will extend this to keep the connection alive for transfers.
+        Performs the LAN auth handshake and negotiates transfer requests.
+        The Data Plane connection for file data is made separately by the
+        sender to self._data_port.
         """
         peer_addr = f"{addr[0]}:{addr[1]}"
         try:
             conn.settimeout(_PEER_HANDSHAKE_TIMEOUT)
         except OSError:
-            # Socket was closed by stop() before this thread started.
             with self._lock:
                 self._active_peer_sockets.discard(conn)
             return
+
         buf: bytearray = bytearray()
         try:
-            # Send HELLO
-            hello = {
+            # HELLO
+            send_message(conn, {
                 "type": "lan_hello",
                 "peer_id": self._peer_id,
                 "hostname": socket.gethostname(),
                 "platform": platform.system(),
                 "protocol_version": LAN_PROTOCOL_VERSION,
-            }
-            send_message(conn, hello)
+            })
 
-            # Receive AUTH
+            # AUTH
             auth_msg, buf = recv_message(conn, buf)
             if auth_msg.get("type") != "lan_auth":
                 self._reject(conn, "protocol_error", peer_addr)
@@ -420,34 +535,35 @@ class NerveHost:
                 self._reject(conn, "auth", peer_addr)
                 return
 
-            # Send AUTH_RESULT (ok)
-            result = {
+            # AUTH_RESULT ok
+            send_message(conn, {
                 "type": "lan_auth_result",
                 "status": "ok",
                 "peer_id": self._peer_id,
                 "hostname": socket.gethostname(),
                 "platform": platform.system(),
                 "protocol_version": LAN_PROTOCOL_VERSION,
-            }
-            send_message(conn, result)
+            })
 
-            client_id = auth_msg.get("client_peer_id", "unknown")
             client_host = auth_msg.get("client_hostname", peer_addr)
             if self._verbose:
-                print(
-                    f"{GREEN}[NERVE HOST] Peer authenticated: "
-                    f"{client_host} ({peer_addr}) — id={client_id}{RESET}"
-                )
+                logger.info("Peer authenticated: %s (%s)", client_host, peer_addr)
             else:
-                print(
-                    f"{GREEN}[NERVE HOST] Peer connected: {client_host} ({peer_addr}){RESET}"
-                )
+                print(f"{GREEN}[NERVE HOST] Peer connected: {client_host} ({peer_addr}){RESET}")
+
+            # Transfer request
+            req, buf = recv_message(conn, buf)
+            if req.get("type") == "lan_transfer_request":
+                # Inform sender of the fixed Data Plane port (Bug #5 fix)
+                send_message(conn, {
+                    "type": "lan_transfer_result",
+                    "status": "accepted",
+                    "port": self._data_port,
+                })
 
         except (OSError, TimeoutError, Exception) as exc:
             if self._verbose:
-                print(
-                    f"{YELLOW}[NERVE HOST] Handshake error with {peer_addr}: {exc}{RESET}"
-                )
+                logger.warning("Handshake error with %s: %s", peer_addr, exc)
         finally:
             with self._lock:
                 self._active_peer_sockets.discard(conn)
@@ -457,14 +573,12 @@ class NerveHost:
                 pass
 
     def _reject(self, conn: socket.socket, reason: str, peer_addr: str) -> None:
-        """Send an auth failure result and log the rejection."""
         try:
-            send_message(
-                conn,
-                {"type": "lan_auth_result", "status": "failed", "reason": reason},
-            )
+            send_message(conn, {
+                "type": "lan_auth_result",
+                "status": "failed",
+                "reason": reason,
+            })
         except OSError:
             pass
-        print(
-            f"{RED}[NERVE HOST] Peer rejected ({reason}): {peer_addr}{RESET}"
-        )
+        print(f"{RED}[NERVE HOST] Peer rejected ({reason}): {peer_addr}{RESET}")

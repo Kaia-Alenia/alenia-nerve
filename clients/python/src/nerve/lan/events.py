@@ -63,9 +63,16 @@ class EventDispatcher:
 
     def dispatch(self, event_name: str, *args: Any, **kwargs: Any) -> None:
         """Dispatch an event with structured data to all subscribers."""
+        import logging as _logging
+        _log = _logging.getLogger("nerve.lan.events")
         for callback in self._subscribers[event_name]:
             try:
                 callback(*args, **kwargs)
-            except Exception as e:
-                # Disptacher should not fail on callback errors
-                print(f"[NERVE LAN] Error in event callback for {event_name}: {e}")
+            except Exception as exc:
+                # Dispatcher must not propagate callback errors; report via logger
+                _log.warning(
+                    "Error in event callback for %s: %s",
+                    event_name,
+                    exc,
+                    exc_info=True,
+                )
