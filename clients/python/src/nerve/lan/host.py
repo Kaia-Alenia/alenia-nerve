@@ -507,8 +507,28 @@ class NerveHost:
             f"Data plane connection opened from {addr[0]}:{addr[1]}",
             YELLOW,
         )
+        
+        import time
+        start_time = time.time()
+        last_pct = [0]
+        
+        def _on_progress(filename: str, bytes_rcv: int, total: int) -> None:
+            if total > 0:
+                pct = int((bytes_rcv / total) * 100)
+                # Imprimir el progreso cada 10% (o al llegar al 100%)
+                if pct >= last_pct[0] + 10 or pct == 100:
+                    last_pct[0] = pct if pct < 100 else 101 # evitar imprimir 100% múltiples veces
+                    elapsed = time.time() - start_time
+                    speed = (bytes_rcv / (1024 * 1024)) / elapsed if elapsed > 0 else 0
+                    print(f"{GREEN}[NERVE HOST] Recibiendo '{filename}' desde {addr[0]}: {pct}% ({speed:.1f} MB/s){RESET}")
+
         try:
-            receive_file(conn, self._receive_dir, conflict_policy="rename")
+            receive_file(
+                conn, 
+                self._receive_dir, 
+                progress_callback=_on_progress,
+                conflict_policy="rename"
+            )
             self._vprint(
                 f"File received from {addr[0]}:{addr[1]} → {self._receive_dir}",
                 GREEN,

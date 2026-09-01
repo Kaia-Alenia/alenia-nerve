@@ -559,11 +559,15 @@ def main() -> None:
             print(f"{YELLOW}[NERVE CLI] Maximum 3 files per command. Sending first 3.{RESET}")
             paths = paths[:3]
 
-        def _progress(label: str) -> None:
+        def _progress(label: str):
+            import time
+            start_time = time.time()
             def _cb(bytes_sent: int, total: int) -> None:
                 pct = (bytes_sent / total) * 100 if total > 0 else 0
+                elapsed = time.time() - start_time
+                speed_mb = (bytes_sent / (1024 * 1024)) / elapsed if elapsed > 0 else 0.0
                 print(
-                    f"\r{GREEN}  {label}: {pct:.1f}% ({bytes_sent}/{total} bytes){RESET}",
+                    f"\r{GREEN}  {label}: {pct:.1f}% ({bytes_sent}/{total} bytes) | {speed_mb:.1f} MB/s{RESET}",
                     end="",
                     flush=True,
                 )

@@ -145,7 +145,7 @@ def send_file(
 def receive_file(
     conn: socket.socket,
     out_dir: str | Path,
-    progress_callback: Optional[Callable[[int, int], None]] = None,
+    progress_callback: Optional[Callable[[str, int, int], None]] = None,
     conflict_policy: str = "error",
 ) -> tuple[Optional[Path], dict, str]:
     """
@@ -228,7 +228,7 @@ def receive_file(
 
                 bytes_received += chunk_length
                 if progress_callback:
-                    progress_callback(bytes_received, expected_size)
+                    progress_callback(filename, bytes_received, expected_size)
     except Exception:
         # Best-effort cleanup of the temp file on any receive error
         try:
