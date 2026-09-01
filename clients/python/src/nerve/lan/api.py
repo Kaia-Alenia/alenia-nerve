@@ -81,11 +81,13 @@ class NerveLAN:
         port: Optional[int] = None,
         auth_token: Optional[str] = None,
         verbose: bool = False,
+        max_concurrent_transfers: Optional[int] = None,
     ) -> None:
         self.receive_dir = receive_dir
         self.port = port
         self._auth_token = auth_token
         self.verbose = verbose
+        self.max_concurrent_transfers = max_concurrent_transfers
         self.events = EventDispatcher()
         self._host: Optional[NerveHost] = None
         self._host_thread: Optional[threading.Thread] = None
@@ -120,6 +122,7 @@ class NerveLAN:
             lan_port=self.port,
             auth_token=self._auth_token,
             verbose=self.verbose,
+            max_concurrent_transfers=self.max_concurrent_transfers,
         )
         self._host = host
 
@@ -413,6 +416,18 @@ class NerveLAN:
             req_res, buf = recv_message(sock, buf)
             sock.close()
 
+            if req_res.get("status") == "busy":
+                current = req_res.get("current", "?")
+                max_cap = req_res.get("max", "?")
+                sock.close()
+                return TransferResult(
+                    success=False,
+                    error=(
+                        f"Peer is at capacity ({current}/{max_cap} transfer slots in use). "
+                        "Retry later."
+                    ),
+                )
+
             if req_res.get("status") != "accepted":
                 return TransferResult(success=False, error="Transfer rejected by peer.")
 
@@ -499,6 +514,73 @@ class NerveLAN:
     # ------------------------------------------------------------------
     # Peer / transfer inspection
     # ------------------------------------------------------------------
+
+    def get_peer_capacity(self, to: str) -> dict:
+        """
+        Query the transfer capacity of a remote peer.
+
+        Performs an auth handshake and sends a lightweight ``lan_status``
+        request.  Returns a dict with keys:
+          ``current`` (int) — transfers in progress on the peer
+          ``max``     (int) — maximum concurrent transfers the peer accepts
+          ``error``   (str) — present only on failure
+        """
+        import platform as _platform
+        import socket as _socket
+        from nerve.lan.connect import LAN_PROTOCOL_VERSION
+        from nerve.lan.util import get_or_create_host_identity, recv_message, send_message
+
+        reg = PeerRegistry()
+        target_peer = reg.get(to)
+        address = target_peer.last_address if target_peer else to
+
+        token = self._auth_token
+        if not token:
+            from nerve.core import load_external_config
+            cfg = load_external_config("nerve.config")
+            try:
+                token = resolve_auth_token(None, cfg, allow_interactive=False)
+            except Exception:
+                token = None
+
+        host_str, _, port_str = address.partition(":")
+        ctrl_port = int(port_str) if port_str else (self.port or LAN_CONTROL_PORT_DEFAULT)
+
+        try:
+            sock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+            sock.settimeout(5.0)
+            sock.connect((host_str, ctrl_port))
+
+            buf: bytearray = bytearray()
+            _hello, buf = recv_message(sock, buf)
+
+            my_id = get_or_create_host_identity(reg._path.parent)
+            send_message(sock, {
+                "type": "lan_auth",
+                "token": token or "",
+                "client_peer_id": my_id,
+                "client_hostname": _socket.gethostname(),
+                "client_platform": _platform.system(),
+                "protocol_version": LAN_PROTOCOL_VERSION,
+            })
+
+            auth_res, buf = recv_message(sock, buf)
+            if auth_res.get("status") != "ok":
+                sock.close()
+                return {"error": "Authentication failed."}
+
+            send_message(sock, {"type": "lan_status"})
+            status_res, _ = recv_message(sock, buf)
+            sock.close()
+
+            if status_res.get("type") == "lan_status_result":
+                return {
+                    "current": status_res.get("current", 0),
+                    "max": status_res.get("max", 1),
+                }
+            return {"error": "Unexpected response type from peer."}
+        except Exception as exc:
+            return {"error": str(exc)}
 
     def get_peers(self) -> list[Any]:
         """Return all known registered peers."""

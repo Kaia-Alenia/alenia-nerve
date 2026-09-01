@@ -67,6 +67,41 @@ from nerve.lan.util import (
 
 logger = logging.getLogger("nerve.lan.host")
 
+
+def _auto_detect_capacity() -> int:
+    """
+    Return a safe concurrent transfer limit based on total system RAM.
+
+    Linux: reads /proc/meminfo (MemTotal).
+    Other platforms: uses cpu_count as a rough proxy.
+
+    Thresholds:
+      < 2 GB  → 1 concurrent transfer
+      2–4 GB  → 2 concurrent transfers
+      > 4 GB  → 3 concurrent transfers
+    """
+    ram_gb = 0.0
+    try:
+        if platform.system() == "Linux":
+            with open("/proc/meminfo", "r") as _f:
+                for _line in _f:
+                    if _line.startswith("MemTotal:"):
+                        ram_kb = int(_line.split()[1])
+                        ram_gb = ram_kb / (1024 * 1024)
+                        break
+        else:
+            cpus = os.cpu_count() or 1
+            # Conservative proxy: each CPU can handle ~1 GB
+            ram_gb = float(cpus)
+    except Exception:
+        pass
+
+    if ram_gb >= 4.0:
+        return 3
+    elif ram_gb >= 2.0:
+        return 2
+    return 1
+
 PURPLE = "\033[95m"
 GREEN  = "\033[92m"
 YELLOW = "\033[93m"
@@ -148,6 +183,7 @@ class NerveHost:
         auth_token: Optional[str] = None,
         config_path: str = "nerve.config",
         verbose: bool = False,
+        max_concurrent_transfers: Optional[int] = None,
     ) -> None:
         self._config_path = config_path
         self._verbose = verbose
@@ -172,6 +208,14 @@ class NerveHost:
         # Receive destination (Decision #2)
         self._receive_dir: Path = _resolve_display_receive_dir(receive_dir, self._config)
 
+        # Concurrent transfer capacity (auto-detected from RAM if not provided)
+        if max_concurrent_transfers is not None:
+            self._max_concurrent_transfers: int = max(1, int(max_concurrent_transfers))
+            self._capacity_source: str = "user-set"
+        else:
+            self._max_concurrent_transfers = _auto_detect_capacity()
+            self._capacity_source = "auto-detected"
+
         # Runtime state
         self._running: bool = False
         self._server: Optional[socket.socket] = None
@@ -181,6 +225,10 @@ class NerveHost:
         self._active_peer_sockets: set[socket.socket] = set()
         self._active_peer_threads: list[threading.Thread] = []
         self._stop_event: threading.Event = threading.Event()
+
+        # Active transfer counter (protected by _transfer_lock)
+        self._active_transfers: int = 0
+        self._transfer_lock: threading.Lock = threading.Lock()
 
         # Set by _start_server() once bind succeeds — used by start() to confirm readiness
         self._ready_event: threading.Event = threading.Event()
@@ -359,7 +407,26 @@ class NerveHost:
         print(f"{GREEN}[NERVE HOST] Data Plane on port {self._data_port}{RESET}")
         print(f"{GREEN}[NERVE HOST] Discovery active on UDP 50511{RESET}")
         print(f"{GREEN}[NERVE HOST] Receive destination: {self._receive_dir}{RESET}")
+        cap = self._max_concurrent_transfers
+        src = self._capacity_source
+        cap_label = "file" if cap == 1 else "files"
+        print(
+            f"{YELLOW}[NERVE HOST] Transfer capacity: {cap} concurrent {cap_label} "
+            f"({src}){RESET}"
+        )
         print(f"{YELLOW}[NERVE HOST] Press Ctrl+C to stop.{RESET}")
+
+    # ------------------------------------------------------------------
+    # Verbose print helper
+    # ------------------------------------------------------------------
+
+    def _vprint(self, msg: str, color: str = "") -> None:
+        """Print a timestamped verbose log line to stdout (no-op if not verbose)."""
+        if not self._verbose:
+            return
+        import time as _time
+        ts = _time.strftime("%H:%M:%S")
+        print(f"{color}[{ts}] {msg}{RESET}", flush=True)
 
     # ------------------------------------------------------------------
     # Discovery responder
@@ -436,12 +503,30 @@ class NerveHost:
         self, conn: socket.socket, addr: tuple[str, int]
     ) -> None:
         """Receive a single file transfer from the Data Plane connection."""
+        self._vprint(
+            f"Data plane connection opened from {addr[0]}:{addr[1]}",
+            YELLOW,
+        )
         try:
             receive_file(conn, self._receive_dir, conflict_policy="rename")
+            self._vprint(
+                f"File received from {addr[0]}:{addr[1]} → {self._receive_dir}",
+                GREEN,
+            )
         except Exception as exc:
-            if self._verbose:
-                logger.warning("Data plane handler error from %s:%s: %s", addr[0], addr[1], exc)
+            self._vprint(
+                f"Data plane error from {addr[0]}:{addr[1]}: {exc}",
+                RED,
+            )
         finally:
+            # Release the transfer slot so the next sender can proceed
+            with self._transfer_lock:
+                self._active_transfers = max(0, self._active_transfers - 1)
+                remaining = self._active_transfers
+            self._vprint(
+                f"Slot released — active transfers: {remaining}/{self._max_concurrent_transfers}",
+                YELLOW,
+            )
             with self._lock:
                 self._active_peer_sockets.discard(conn)
             try:
@@ -506,6 +591,7 @@ class NerveHost:
         sender to self._data_port.
         """
         peer_addr = f"{addr[0]}:{addr[1]}"
+        self._vprint(f"Control plane connection from {peer_addr}", YELLOW)
         try:
             conn.settimeout(_PEER_HANDSHAKE_TIMEOUT)
         except OSError:
@@ -546,14 +632,63 @@ class NerveHost:
             })
 
             client_host = auth_msg.get("client_hostname", peer_addr)
+            client_platform = auth_msg.get("client_platform", "?")
             if self._verbose:
-                logger.info("Peer authenticated: %s (%s)", client_host, peer_addr)
+                self._vprint(
+                    f"Peer authenticated: {client_host} [{client_platform}] ({peer_addr})",
+                    GREEN,
+                )
             else:
                 print(f"{GREEN}[NERVE HOST] Peer connected: {client_host} ({peer_addr}){RESET}")
 
-            # Transfer request
+            # Transfer request or status query
             req, buf = recv_message(conn, buf)
-            if req.get("type") == "lan_transfer_request":
+            req_type = req.get("type", "unknown")
+            self._vprint(f"Request from {client_host}: {req_type}", YELLOW)
+
+            if req.get("type") == "lan_status":
+                # Lightweight capacity query — no transfer initiated
+                with self._transfer_lock:
+                    current = self._active_transfers
+                self._vprint(
+                    f"Status query from {client_host} — "
+                    f"capacity: {current}/{self._max_concurrent_transfers}",
+                    GREEN,
+                )
+                send_message(conn, {
+                    "type": "lan_status_result",
+                    "current": current,
+                    "max": self._max_concurrent_transfers,
+                })
+
+            elif req.get("type") == "lan_transfer_request":
+                filename = req.get("filename", "?")
+                filesize = req.get("size", 0)
+                size_kb = filesize / 1024 if filesize else 0
+                with self._transfer_lock:
+                    current = self._active_transfers
+                    if current >= self._max_concurrent_transfers:
+                        # Peer is at capacity — reject gracefully
+                        send_message(conn, {
+                            "type": "lan_transfer_result",
+                            "status": "busy",
+                            "current": current,
+                            "max": self._max_concurrent_transfers,
+                        })
+                        self._vprint(
+                            f"Transfer REJECTED (busy {current}/{self._max_concurrent_transfers}): "
+                            f"{filename} from {client_host}",
+                            RED,
+                        )
+                        return
+                    self._active_transfers += 1
+                    active_now = self._active_transfers
+
+                self._vprint(
+                    f"Transfer ACCEPTED: {filename} ({size_kb:.1f} KB) from {client_host} — "
+                    f"slot {active_now}/{self._max_concurrent_transfers}",
+                    GREEN,
+                )
                 # Inform sender of the fixed Data Plane port (Bug #5 fix)
                 send_message(conn, {
                     "type": "lan_transfer_result",
@@ -562,8 +697,7 @@ class NerveHost:
                 })
 
         except (OSError, TimeoutError, Exception) as exc:
-            if self._verbose:
-                logger.warning("Handshake error with %s: %s", peer_addr, exc)
+            self._vprint(f"Handshake error with {peer_addr}: {exc}", RED)
         finally:
             with self._lock:
                 self._active_peer_sockets.discard(conn)

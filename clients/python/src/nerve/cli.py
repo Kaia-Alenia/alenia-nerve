@@ -63,6 +63,7 @@ Contact: contact.aleniastudios@gmail.com
   nerve host                      Start the LAN host (foreground, blocking)
   nerve host --receive-dir PATH   Set incoming receive directory
   nerve host --port PORT          Set LAN control plane port (default: 50507)
+  nerve host --max-transfers N    Override concurrent transfer limit (default: auto)
   nerve host --verbose            Enable verbose peer logging
   nerve connect <IP>              Connect to a remote Nerve host and register peer
   nerve connect <IP> --name NAME  Assign a name to the peer
@@ -71,9 +72,10 @@ Contact: contact.aleniastudios@gmail.com
   nerve diagnose [IP]             Run evidence-based network diagnostics
   nerve peers                     List known peers
   nerve peers remove <NAME|ID>    Remove a known peer
-  nerve send <PATH> --to <IP|NAME>Send a file to a peer
+  nerve send <PATH> [PATH2 PATH3] --to <IP|NAME>  Send one or more files to a peer
   nerve receive                   Start a temporary receive session
   nerve receive --dir PATH        Temporary receive session with specific dir
+  nerve peer-status <IP|NAME>    Show transfer capacity of a remote peer
 
 {PURPLE}Configuration:{RESET}
   Place a {GREEN}nerve.config{RESET} file in your working directory to customise the
@@ -385,6 +387,7 @@ def main() -> None:
         receive_dir = None
         lan_port = None
         verbose = "--verbose" in args or "-v" in args
+        max_transfers = None
         if "--receive-dir" in args:
             idx = args.index("--receive-dir")
             if len(args) > idx + 1:
@@ -403,11 +406,25 @@ def main() -> None:
             else:
                 print(f"{RED}[NERVE CLI] --port requires a value.{RESET}")
                 sys.exit(1)
+        if "--max-transfers" in args:
+            idx = args.index("--max-transfers")
+            if len(args) > idx + 1:
+                try:
+                    max_transfers = int(args[idx + 1])
+                    if max_transfers < 1:
+                        raise ValueError
+                except ValueError:
+                    print(f"{RED}[NERVE CLI] --max-transfers requires a positive integer.{RESET}")
+                    sys.exit(1)
+            else:
+                print(f"{RED}[NERVE CLI] --max-transfers requires a value.{RESET}")
+                sys.exit(1)
         print(BANNER)
         host = NerveHost(
             receive_dir=receive_dir,
             lan_port=lan_port,
             verbose=verbose,
+            max_concurrent_transfers=max_transfers,
         )
         try:
             host.start()
@@ -516,35 +533,64 @@ def main() -> None:
     elif args[0] == "send":
         from nerve.lan.api import NerveLAN
         if len(args) < 2:
-            print(f"{RED}[NERVE CLI] Usage: nerve send <PATH> --to <IP|NAME>{RESET}")
+            print(f"{RED}[NERVE CLI] Usage: nerve send <PATH> [PATH2 PATH3] --to <IP|NAME>{RESET}")
             sys.exit(1)
-        path = args[1]
-        
+
+        # Collect all paths before --to
         to = None
-        if "--to" in args:
-            idx = args.index("--to")
-            if len(args) > idx + 1:
-                to = args[idx + 1]
-                
+        paths: list[str] = []
+        i = 1
+        while i < len(args):
+            if args[i] == "--to":
+                if i + 1 < len(args):
+                    to = args[i + 1]
+                i += 2
+            else:
+                paths.append(args[i])
+                i += 1
+
+        if not paths:
+            print(f"{RED}[NERVE CLI] At least one file path is required.{RESET}")
+            sys.exit(1)
         if not to:
             print(f"{RED}[NERVE CLI] --to <IP|NAME> is required.{RESET}")
             sys.exit(1)
-            
-        print(f"{PURPLE}[NERVE CLI] Sending '{path}' to '{to}'...{RESET}")
-        
-        def _progress(bytes_sent: int, total: int) -> None:
-            pct = (bytes_sent / total) * 100 if total > 0 else 0
-            print(f"\r{GREEN}Progress: {pct:.1f}% ({bytes_sent}/{total} bytes){RESET}", end="")
-            
+        if len(paths) > 3:
+            print(f"{YELLOW}[NERVE CLI] Maximum 3 files per command. Sending first 3.{RESET}")
+            paths = paths[:3]
+
+        def _progress(label: str) -> None:
+            def _cb(bytes_sent: int, total: int) -> None:
+                pct = (bytes_sent / total) * 100 if total > 0 else 0
+                print(
+                    f"\r{GREEN}  {label}: {pct:.1f}% ({bytes_sent}/{total} bytes){RESET}",
+                    end="",
+                    flush=True,
+                )
+            return _cb
+
         lan = NerveLAN(verbose=True)
-        res = lan.send(path, to, progress_callback=_progress)
-        print() # new line after progress
-        if res.success:
-            print(f"{GREEN}[NERVE CLI] Transfer complete.{RESET}")
+        total = len(paths)
+        ok = 0
+        print(f"{PURPLE}[NERVE CLI] Sending {total} file(s) to '{to}'...{RESET}")
+        for i, path in enumerate(paths, 1):
+            label = f"[{i}/{total}] {path}"
+            print(f"{PURPLE}  → {label}{RESET}")
+            res = lan.send(path, to, progress_callback=_progress(label))
+            print()  # newline after progress bar
+            if res.success:
+                print(f"{GREEN}  ✓ Done{RESET}")
+                ok += 1
+            else:
+                print(f"{RED}  ✗ Failed: {res.error}{RESET}")
+
+        print()
+        if ok == total:
+            print(f"{GREEN}[NERVE CLI] All {ok}/{total} file(s) sent successfully.{RESET}")
             sys.exit(0)
         else:
-            print(f"{RED}[NERVE CLI] Transfer failed: {res.error}{RESET}")
-            sys.exit(1)
+            print(f"{YELLOW}[NERVE CLI] {ok}/{total} file(s) sent. Check errors above.{RESET}")
+            sys.exit(1 if ok == 0 else 0)
 
     elif args[0] == "receive":
         from nerve.lan.api import NerveLAN
@@ -608,6 +654,32 @@ def main() -> None:
                 print("→ Verify that nerve host is running on the target.")
                 print("→ Verify both devices are on the same non-guest network.")
                 print("→ Verify firewall permissions for Nerve.")
+        sys.exit(0)
+
+    elif args[0] == "peer-status":
+        from nerve.lan.api import NerveLAN
+        if len(args) < 2:
+            print(f"{RED}[NERVE CLI] Usage: nerve peer-status <IP|NAME>{RESET}")
+            sys.exit(1)
+        target = args[1]
+        print(f"{PURPLE}[NERVE CLI] Querying capacity of '{target}'...{RESET}")
+        lan = NerveLAN()
+        result = lan.get_peer_capacity(target)
+        if "error" in result:
+            print(f"{RED}[NERVE CLI] Could not reach peer: {result['error']}{RESET}")
+            sys.exit(1)
+        current = result["current"]
+        max_cap = result["max"]
+        slots_free = max_cap - current
+        bar = f"{current}/{max_cap}"
+        status_color = GREEN if slots_free > 0 else RED
+        status_label = "available" if slots_free > 0 else "BUSY (no free slots)"
+        print(
+            f"{PURPLE}Peer transfer capacity:{RESET}\n"
+            f"  Slots in use : {status_color}{bar}{RESET}\n"
+            f"  Free slots   : {status_color}{slots_free}{RESET}\n"
+            f"  Status       : {status_color}{status_label}{RESET}"
+        )
         sys.exit(0)
 
     else:

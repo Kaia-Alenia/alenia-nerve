@@ -19,6 +19,29 @@ import platform
 import subprocess
 import sys
 
+_YELLOW = "\033[93m"
+_CYAN   = "\033[96m"
+_GREEN  = "\033[92m"
+_RESET  = "\033[0m"
+
+
+def _colored(text: str, code: str) -> str:
+    if sys.stdout.isatty():
+        return f"{code}{text}{_RESET}"
+    return text
+
+
+def print_warning(message: str) -> None:
+    print(_colored(f"[WARN] {message}", _YELLOW))
+
+
+def print_info(message: str) -> None:
+    print(_colored(f"[INFO] {message}", _CYAN))
+
+
+def print_success(message: str) -> None:
+    print(_colored(f"[ OK ] {message}", _GREEN))
+
 
 def is_tty() -> bool:
     return sys.stdin.isatty()
