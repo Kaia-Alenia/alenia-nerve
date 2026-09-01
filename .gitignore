@@ -38,3 +38,4 @@ node_modules/
 .cache/
 .pyenv
 basura/
+no-registry/

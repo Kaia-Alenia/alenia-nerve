@@ -59,6 +59,17 @@ Contact: contact.aleniastudios@gmail.com
   nerve --help            Show this help message
   nerve --version         Print the installed version
 
+{PURPLE}Direct device communication (LAN):{RESET}
+  nerve host                      Start the LAN host (foreground, blocking)
+  nerve host --receive-dir PATH   Set incoming receive directory
+  nerve host --port PORT          Set LAN control plane port (default: 50507)
+  nerve host --verbose            Enable verbose peer logging
+  nerve connect <IP>              Connect to a remote Nerve host and register peer
+  nerve connect <IP> --name NAME  Assign a name to the peer
+  nerve connect <IP> --token TOK  Use an explicit auth token
+  nerve peers                     List known peers
+  nerve peers remove <NAME|ID>    Remove a known peer
+
 {PURPLE}Configuration:{RESET}
   Place a {GREEN}nerve.config{RESET} file in your working directory to customise the
   socket path or TCP port without changing any code.
@@ -67,6 +78,8 @@ Contact: contact.aleniastudios@gmail.com
   nerve start
   nerve monitor
   nerve dashboard
+  nerve host --receive-dir ~/Downloads
+  nerve connect 192.168.1.10 --name mi-linux
   NERVE_NRV_PASSWORD="mysecret" nerve pack ./my_game my_game.nrv
   NERVE_NRV_PASSWORD="mysecret" nerve unpack my_game.nrv ./output
 """
@@ -359,6 +372,140 @@ def main() -> None:
             pwd, ent = generate_passphrase(words=parsed_args.words)
             print(f"{GREEN}Passphrase:{RESET} {pwd}")
             print(f"{YELLOW}Entropy:{RESET} {ent:.2f} bits")
+        sys.exit(0)
+
+    elif args[0] == "host":
+        from nerve.lan.host import NerveHost
+
+        receive_dir = None
+        lan_port = None
+        verbose = "--verbose" in args or "-v" in args
+        if "--receive-dir" in args:
+            idx = args.index("--receive-dir")
+            if len(args) > idx + 1:
+                receive_dir = args[idx + 1]
+            else:
+                print(f"{RED}[NERVE CLI] --receive-dir requires a path argument.{RESET}")
+                sys.exit(1)
+        if "--port" in args:
+            idx = args.index("--port")
+            if len(args) > idx + 1:
+                try:
+                    lan_port = int(args[idx + 1])
+                except ValueError:
+                    print(f"{RED}[NERVE CLI] --port requires an integer value.{RESET}")
+                    sys.exit(1)
+            else:
+                print(f"{RED}[NERVE CLI] --port requires a value.{RESET}")
+                sys.exit(1)
+        print(BANNER)
+        host = NerveHost(
+            receive_dir=receive_dir,
+            lan_port=lan_port,
+            verbose=verbose,
+        )
+        try:
+            host.start()
+        except SystemExit:
+            raise
+        except OSError as exc:
+            print(f"{RED}[NERVE CLI] Network error: {exc}{RESET}")
+            sys.exit(1)
+        except Exception as exc:
+            print(f"{RED}[NERVE CLI] Critical error: {exc}{RESET}")
+            sys.exit(1)
+        sys.exit(0)
+
+    elif args[0] == "connect":
+        from nerve.lan.connect import (
+            LanAuthenticationError,
+            LanConnectionError,
+            LanProtocolError,
+            connect_and_register,
+        )
+
+        if len(args) < 2:
+            print(f"{RED}[NERVE CLI] Usage: nerve connect <IP[:PORT]> [--name NAME] [--token TOKEN]{RESET}")
+            sys.exit(1)
+        address = args[1]
+        name = None
+        token = None
+        if "--name" in args:
+            idx = args.index("--name")
+            if len(args) > idx + 1:
+                name = args[idx + 1]
+        if "--token" in args:
+            idx = args.index("--token")
+            if len(args) > idx + 1:
+                token = args[idx + 1]
+        try:
+            peer = connect_and_register(address=address, name=name, token=token)
+            print(
+                f"{GREEN}[NERVE CLI] Peer registered:{RESET}\n"
+                f"  Name:     {peer.name}\n"
+                f"  Hostname: {peer.hostname}\n"
+                f"  Platform: {peer.platform}\n"
+                f"  Address:  {peer.last_address}\n"
+                f"  ID:       {peer.peer_id}"
+            )
+        except LanAuthenticationError as exc:
+            print(f"{RED}[NERVE CLI] Authentication failed: {exc}{RESET}")
+            sys.exit(1)
+        except LanConnectionError as exc:
+            print(f"{RED}[NERVE CLI] Connection failed: {exc}{RESET}")
+            sys.exit(1)
+        except LanProtocolError as exc:
+            print(f"{RED}[NERVE CLI] Protocol error: {exc}{RESET}")
+            sys.exit(1)
+        except Exception as exc:
+            print(f"{RED}[NERVE CLI] Error: {exc}{RESET}")
+            sys.exit(1)
+        sys.exit(0)
+
+    elif args[0] == "peers":
+        from nerve.lan.peer_registry import PeerRegistry
+
+        reg = PeerRegistry()
+        sub = args[1] if len(args) > 1 else "list"
+
+        if sub == "remove":
+            if len(args) < 3:
+                print(f"{RED}[NERVE CLI] Usage: nerve peers remove <NAME|ID>{RESET}")
+                sys.exit(1)
+            
+            target = args[2]
+            # Check for ambiguous name
+            matches = reg.find_by_name(target)
+            if len(matches) > 1 and target not in [p.peer_id for p in matches]:
+                print(f"{RED}[NERVE CLI] Error: Ambiguous peer name '{target}'. Matches {len(matches)} peers.{RESET}")
+                sys.exit(1)
+
+            removed = reg.remove(target)
+            if removed:
+                reg.save()
+                print(f"{GREEN}[NERVE CLI] Peer '{target}' removed.{RESET}")
+            else:
+                print(f"{RED}[NERVE CLI] Peer '{target}' not found.{RESET}")
+                sys.exit(1)
+        else:
+            # Default: list peers
+            peers = reg.list_peers()
+            if not peers:
+                print(f"{YELLOW}[NERVE CLI] No known peers.{RESET}")
+            else:
+                print(f"{PURPLE}Known Nerve peers:{RESET}\n")
+                print(f"  {'NAME':<20} {'ADDRESS':<22} {'PLATFORM':<10} LAST SEEN")
+                print(f"  {'-'*68}")
+                import time as _time
+                for p in peers:
+                    age = _time.time() - p.last_seen
+                    if age < 60:
+                        seen = f"{int(age)}s ago"
+                    elif age < 3600:
+                        seen = f"{int(age/60)}m ago"
+                    else:
+                        seen = f"{int(age/3600)}h ago"
+                    print(f"  {p.name:<20} {p.last_address:<22} {p.platform:<10} {seen}")
         sys.exit(0)
 
     else:
