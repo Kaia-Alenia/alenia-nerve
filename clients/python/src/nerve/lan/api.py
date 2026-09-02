@@ -207,8 +207,24 @@ class NerveLAN:
             sock.settimeout(timeout)
 
             msg = f"NERVE_DISCOVERY\nversion=1\nnonce={nonce}".encode("utf-8")
-            sock.sendto(msg, ("255.255.255.255", 50511))
-
+            
+            bcast_addrs = {"255.255.255.255", "<broadcast>"}
+            try:
+                hostname = _socket.gethostname()
+                _, _, ips = _socket.gethostbyname_ex(hostname)
+                for ip in ips:
+                    if not ip.startswith("127."):
+                        parts = ip.split(".")
+                        if len(parts) == 4:
+                            bcast_addrs.add(f"{parts[0]}.{parts[1]}.{parts[2]}.255")
+            except Exception:
+                pass
+            
+            for b_addr in bcast_addrs:
+                try:
+                    sock.sendto(msg, (b_addr, 50511))
+                except OSError:
+                    pass
             end_time = time.monotonic() + timeout
             seen: set[str] = set()
             while time.monotonic() < end_time:
@@ -269,10 +285,12 @@ class NerveLAN:
             "causes": [],
         }
 
-        host_name = _socket.gethostname()
         try:
-            local_ip = _socket.gethostbyname(host_name)
-        except OSError:
+            with _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM) as s:
+                # Doesn't have to be reachable
+                s.connect(("10.255.255.255", 1))
+                local_ip = s.getsockname()[0]
+        except Exception:
             local_ip = "unavailable"
 
         report["local"]["interface"] = "[CONFIRMED] Network interface available"
