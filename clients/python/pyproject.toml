@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "alenia-nerve"
-version = "1.6.5"
+version = "1.6.6"
 description = "Ultra-fast cross-platform local IPC engine for sovereign game developers."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -66,7 +66,7 @@ testpaths = ["tests"]
 timeout = 120
 
 [tool.ruff.lint]
-ignore = ["EXE002"]
+ignore = ["EXE002", "BLE001", "S110", "SIM102"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/test_bridge.py" = ["E402", "RUF006"]

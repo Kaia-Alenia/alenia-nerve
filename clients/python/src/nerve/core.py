@@ -654,6 +654,10 @@ class NexusHub:
             self._active_sockets.clear()
         for conn in active_socks:
             try:
+                conn.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            try:
                 conn.close()
             except OSError:
                 pass

@@ -464,7 +464,7 @@ class NerveLAN:
             dsock.settimeout(30.0)
             dsock.connect((host_str, data_port))
 
-            file_sha256 = send_file(dsock, src, progress_callback=progress_callback)
+            send_file(dsock, src, progress_callback=progress_callback)
             dsock.close()
 
             return TransferResult(success=True)

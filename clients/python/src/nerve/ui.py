@@ -31,12 +31,7 @@ def _colored(text: str, code: str) -> str:
     return text
 
 
-def print_warning(message: str) -> None:
-    print(_colored(f"[WARN] {message}", _YELLOW))
 
-
-def print_info(message: str) -> None:
-    print(_colored(f"[INFO] {message}", _CYAN))
 
 
 def print_success(message: str) -> None:

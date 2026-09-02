@@ -80,7 +80,7 @@ def tmp_registry(tmp_path: Path):
     return PeerRegistry(registry_path=tmp_path / "peers.json")
 
 
-def _make_peer(peer_id: str = "peer-1", name: str = "test-peer") -> Peer:
+def _make_peer(peer_id: str = "peer-1", name: str = "test-peer"):
     from nerve.lan.peer_registry import Peer
 
     return Peer(
@@ -215,7 +215,7 @@ def test_parse_address_ip_with_port() -> None:
 def test_parse_address_config_override() -> None:
     from nerve.lan.connect import _parse_address
 
-    host, port = _parse_address("10.0.0.1", {"lan_port": "8888"})
+    _host, port = _parse_address("10.0.0.1", {"lan_port": "8888"})
     assert port == 8888
 
 
@@ -469,7 +469,7 @@ def test_nerve_host_no_orphan_threads_after_stop(
     """After stop(), no nerve-lan-peer or accept-loop threads should remain."""
     from nerve.lan.host import NerveHost
 
-    before = {t.name for t in threading.enumerate()}
+    {t.name for t in threading.enumerate()}
     host = NerveHost(
         lan_port=free_port,
         auth_token="tok",
@@ -503,7 +503,7 @@ def test_nerve_host_no_orphan_threads_after_stop(
 
 def _start_test_host(
     free_port: int, auth_token: str, tmp_path: Path
-) -> tuple[NerveHost, threading.Thread, threading.Event]:
+):
     from nerve.lan.host import NerveHost
 
     host = NerveHost(

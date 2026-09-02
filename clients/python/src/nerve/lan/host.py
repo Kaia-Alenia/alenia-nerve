@@ -282,6 +282,10 @@ class NerveHost:
         # Unblock all handler threads waiting on recv
         for sock in peer_socks:
             try:
+                sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            try:
                 sock.close()
             except OSError:
                 pass
