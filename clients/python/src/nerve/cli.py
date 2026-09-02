@@ -641,9 +641,15 @@ def main() -> None:
     elif args[0] == "scan":
         from nerve.lan.api import NerveLAN
 
-        print(f"{PURPLE}[NERVE CLI] Scanning local network...{RESET}")
+        target_ip = args[1] if len(args) > 1 else None
+        if target_ip:
+            print(
+                f"{PURPLE}[NERVE CLI] Scanning {target_ip} directly (unicast)...{RESET}"
+            )
+        else:
+            print(f"{PURPLE}[NERVE CLI] Scanning local network...{RESET}")
         lan = NerveLAN()
-        peers = lan.scan()
+        peers = lan.scan(target_ip=target_ip)
         if not peers:
             print(f"{YELLOW}[NERVE CLI] No Nerve devices found.{RESET}")
         else:

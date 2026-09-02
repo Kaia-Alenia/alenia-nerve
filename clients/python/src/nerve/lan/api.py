@@ -190,9 +190,15 @@ class NerveLAN:
     # Discovery
     # ------------------------------------------------------------------
 
-    def scan(self, timeout: float = 2.0) -> list[DiscoveryResult]:
+    def scan(
+        self, timeout: float = 2.0, target_ip: str | None = None
+    ) -> list[DiscoveryResult]:
         """
         Scan for peers on the local network via UDP broadcast on port 50511.
+
+        If *target_ip* is given, a unicast probe is sent directly to that IP
+        instead of (or in addition to) broadcast — useful on networks where
+        routers block broadcast packets between clients (AP/Client Isolation).
 
         Bug #9 fix: peer_id taken from 'peer_id' field in response.
         Bug #10 fix: nonce generated per scan via secrets.token_hex(8).
@@ -207,21 +213,28 @@ class NerveLAN:
 
             msg = f"NERVE_DISCOVERY\nversion=1\nnonce={nonce}".encode()
 
-            bcast_addrs = {"255.255.255.255", "<broadcast>"}
-            try:
-                hostname = socket.gethostname()
-                _, _, ips = socket.gethostbyname_ex(hostname)
-                for ip in ips:
-                    if not ip.startswith("127."):
-                        parts = ip.split(".")
-                        if len(parts) == 4:
-                            bcast_addrs.add(f"{parts[0]}.{parts[1]}.{parts[2]}.255")
-            except Exception:
-                pass
-
-            for b_addr in bcast_addrs:
+            if target_ip:
+                # Unicast mode: probe the specific IP directly (bypasses AP Isolation).
+                addrs_to_probe = {target_ip}
+            else:
+                # Broadcast mode: probe all known broadcast addresses.
+                addrs_to_probe = {"255.255.255.255", "<broadcast>"}
                 try:
-                    sock.sendto(msg, (b_addr, 50511))
+                    hostname = socket.gethostname()
+                    _, _, ips = socket.gethostbyname_ex(hostname)
+                    for ip in ips:
+                        if not ip.startswith("127."):
+                            parts = ip.split(".")
+                            if len(parts) == 4:
+                                addrs_to_probe.add(
+                                    f"{parts[0]}.{parts[1]}.{parts[2]}.255"
+                                )
+                except Exception:
+                    pass
+
+            for addr_str in addrs_to_probe:
+                try:
+                    sock.sendto(msg, (addr_str, 50511))
                 except OSError:
                     pass
             end_time = time.monotonic() + timeout
