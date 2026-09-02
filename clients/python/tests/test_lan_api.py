@@ -16,6 +16,7 @@
 
 import time
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 from nerve.lan.api import NerveLAN
 from nerve.lan.events import HOST_STARTED, HOST_STARTING, HOST_STOPPED, HOST_STOPPING
@@ -63,9 +64,6 @@ def test_lan_event_dispatcher() -> None:
     lan.events.dispatch(HOST_STARTING)
     # The count of "starting" shouldn't increase
     assert events_fired.count("starting") == 1
-
-
-from unittest.mock import MagicMock, patch
 
 
 def test_lan_api_scan() -> None:
