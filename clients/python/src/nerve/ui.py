@@ -31,9 +31,6 @@ def _colored(text: str, code: str) -> str:
     return text
 
 
-
-
-
 def print_success(message: str) -> None:
     print(_colored(f"[ OK ] {message}", _GREEN))
 

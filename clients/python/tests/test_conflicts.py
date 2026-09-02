@@ -139,7 +139,9 @@ def test_conflict_overwrite(tmp_path: Path):
     def receiver_thread():
         conn, _ = server.accept()
         try:
-            out_path, _meta, _h = receive_file(conn, out_dir, conflict_policy="overwrite")
+            out_path, _meta, _h = receive_file(
+                conn, out_dir, conflict_policy="overwrite"
+            )
             results["out_path"] = out_path
         except Exception as e:
             results["error"] = e

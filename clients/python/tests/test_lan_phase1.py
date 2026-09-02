@@ -501,9 +501,7 @@ def test_nerve_host_no_orphan_threads_after_stop(
 # ---------------------------------------------------------------------------
 
 
-def _start_test_host(
-    free_port: int, auth_token: str, tmp_path: Path
-):
+def _start_test_host(free_port: int, auth_token: str, tmp_path: Path):
     from nerve.lan.host import NerveHost
 
     host = NerveHost(

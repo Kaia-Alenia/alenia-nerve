@@ -68,7 +68,6 @@ class TransferProtocolError(Exception):
     """Raised when binary protocol framing or integrity verification fails."""
 
 
-
 # ---------------------------------------------------------------------------
 # Sender
 # ---------------------------------------------------------------------------
