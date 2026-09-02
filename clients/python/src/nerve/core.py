@@ -153,10 +153,10 @@ class NexusHub:
             if cert and key:
                 self.ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
                 self.ssl_context.load_cert_chain(certfile=cert, keyfile=key)
-                
+
         if self.remote and not self.auth_token:
             raise ValueError("auth_token is required when remote=True")
-            
+
         if self.is_windows or self.remote:
             if self.remote:
                 host = str(config.get("host", "0.0.0.0"))
@@ -583,8 +583,8 @@ class NexusHub:
         self._server.listen(50)
         self._running = True
 
-        if not self.is_windows:
-            os.chmod(str(self.address), 0o600)
+        if not self.is_windows and isinstance(self.address, str):
+            os.chmod(self.address, 0o600)
             self._log("95", f"Hub active via Unix Socket at {self.address}")
         else:
             if isinstance(self.address, tuple):
@@ -653,6 +653,10 @@ class NexusHub:
             active_socks = list(self._active_sockets)
             self._active_sockets.clear()
         for conn in active_socks:
+            try:
+                conn.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
             try:
                 conn.close()
             except OSError:

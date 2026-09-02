@@ -84,12 +84,17 @@ async def test_cross_language_latency(nerve_hub):
 
     # 2. Start secondary clients
     clients_dir = os.path.join(os.path.dirname(__file__), "clients")
+    
+    project_root = os.path.abspath(os.path.join(clients_dir, "../../../"))
+    nerve_config = os.path.join(project_root, "nerve.config")
+    env = os.environ.copy()
+    env["NERVE_CONFIG"] = nerve_config
 
     procs = []
     # JavaScript
     js_client_path = os.path.join(clients_dir, "ping_pong.js")
     if os.path.exists(js_client_path):
-        p = subprocess.Popen(["node", "ping_pong.js"], cwd=clients_dir)
+        p = subprocess.Popen(["node", "ping_pong.js"], cwd=clients_dir, env=env)
         procs.append(("js_client", p))
 
     # Go — build first, then run
@@ -99,25 +104,22 @@ async def test_cross_language_latency(nerve_hub):
             ["go", "build", "-o", "ping_pong_go", "ping_pong.go"],
             cwd=clients_dir,
             check=True,
+            env=env,
         )
-        p = subprocess.Popen(["./ping_pong_go"], cwd=clients_dir)
+        p = subprocess.Popen(["./ping_pong_go"], cwd=clients_dir, env=env)
         procs.append(("go_client", p))
 
     # Python
     py_client_path = os.path.join(clients_dir, "ping_pong.py")
     if os.path.exists(py_client_path):
-        p = subprocess.Popen(["python3", "ping_pong.py"], cwd=clients_dir)
+        p = subprocess.Popen(["python3", "ping_pong.py"], cwd=clients_dir, env=env)
         procs.append(("py_client", p))
 
     # Rust — build first, then run with the correct config path
     rust_client_path = os.path.join(clients_dir, "rust_client")
     if os.path.exists(rust_client_path):
-        subprocess.run(["cargo", "build", "-q"], cwd=rust_client_path, check=True)
+        subprocess.run(["cargo", "build", "-q"], cwd=rust_client_path, check=True, env=env)
         binary_path = os.path.join(rust_client_path, "target", "debug", "rust_client")
-        project_root = os.path.abspath(os.path.join(clients_dir, "../../../"))
-        nerve_config = os.path.join(project_root, "nerve.config")
-        env = os.environ.copy()
-        env["NERVE_CONFIG"] = nerve_config
         p = subprocess.Popen([binary_path], cwd=rust_client_path, env=env)
         procs.append(("rs_client", p))
 

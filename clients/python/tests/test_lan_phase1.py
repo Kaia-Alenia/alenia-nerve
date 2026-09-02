@@ -36,7 +36,7 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -48,15 +48,15 @@ import pytest
 def test_nerve_lan_package_imports() -> None:
     """nerve.lan must be importable without errors."""
     import nerve.lan  # noqa: F401
-    from nerve.lan.peer_registry import Peer, PeerRegistry  # noqa: F401
     from nerve.lan.connect import (  # noqa: F401
+        LAN_CONTROL_PORT_DEFAULT,
         LanAuthenticationError,
         LanConnectionError,
         LanProtocolError,
         connect_and_register,
-        LAN_CONTROL_PORT_DEFAULT,
     )
     from nerve.lan.host import NerveHost  # noqa: F401
+    from nerve.lan.peer_registry import Peer, PeerRegistry  # noqa: F401
 
 
 def test_lan_port_default_does_not_collide() -> None:
@@ -80,7 +80,7 @@ def tmp_registry(tmp_path: Path):
     return PeerRegistry(registry_path=tmp_path / "peers.json")
 
 
-def _make_peer(peer_id: str = "peer-1", name: str = "test-peer") -> "Peer":
+def _make_peer(peer_id: str = "peer-1", name: str = "test-peer"):
     from nerve.lan.peer_registry import Peer
 
     return Peer(
@@ -155,7 +155,7 @@ def test_peer_registry_remove_unknown_returns_false(tmp_registry) -> None:
 
 
 def test_peer_registry_persistence_across_instances(tmp_path: Path) -> None:
-    from nerve.lan.peer_registry import Peer, PeerRegistry
+    from nerve.lan.peer_registry import PeerRegistry
 
     path = tmp_path / "peers.json"
     reg1 = PeerRegistry(registry_path=path)
@@ -197,7 +197,7 @@ def test_peer_registry_list_sorted_by_last_seen(tmp_path: Path) -> None:
 
 
 def test_parse_address_ip_only() -> None:
-    from nerve.lan.connect import _parse_address, LAN_CONTROL_PORT_DEFAULT
+    from nerve.lan.connect import LAN_CONTROL_PORT_DEFAULT, _parse_address
 
     host, port = _parse_address("192.168.1.10", {})
     assert host == "192.168.1.10"
@@ -215,7 +215,7 @@ def test_parse_address_ip_with_port() -> None:
 def test_parse_address_config_override() -> None:
     from nerve.lan.connect import _parse_address
 
-    host, port = _parse_address("10.0.0.1", {"lan_port": "8888"})
+    _host, port = _parse_address("10.0.0.1", {"lan_port": "8888"})
     assert port == 8888
 
 
@@ -365,14 +365,19 @@ def test_nerve_host_rejects_unauthenticated_peer(
             assert hello["type"] == "lan_hello"
 
             # Send wrong token
-            auth = json.dumps({
-                "type": "lan_auth",
-                "token": "wrong-token",
-                "client_peer_id": "test-client",
-                "client_hostname": "test",
-                "client_platform": "Linux",
-                "protocol_version": 1,
-            }) + "\n"
+            auth = (
+                json.dumps(
+                    {
+                        "type": "lan_auth",
+                        "token": "wrong-token",
+                        "client_peer_id": "test-client",
+                        "client_hostname": "test",
+                        "client_platform": "Linux",
+                        "protocol_version": 1,
+                    }
+                )
+                + "\n"
+            )
             s.sendall(auth.encode())
 
             # Read response
@@ -390,9 +395,7 @@ def test_nerve_host_rejects_unauthenticated_peer(
         t.join(timeout=5)
 
 
-def test_nerve_host_accepts_authenticated_peer(
-    free_port: int, tmp_path: Path
-) -> None:
+def test_nerve_host_accepts_authenticated_peer(free_port: int, tmp_path: Path) -> None:
     """Peers with correct token must receive lan_auth_result ok."""
     from nerve.lan.host import NerveHost
 
@@ -431,14 +434,19 @@ def test_nerve_host_accepts_authenticated_peer(
             assert "hostname" in hello
             assert "platform" in hello
 
-            auth = json.dumps({
-                "type": "lan_auth",
-                "token": "shared-secret",
-                "client_peer_id": "test-client-ok",
-                "client_hostname": "test-machine",
-                "client_platform": "Linux",
-                "protocol_version": 1,
-            }) + "\n"
+            auth = (
+                json.dumps(
+                    {
+                        "type": "lan_auth",
+                        "token": "shared-secret",
+                        "client_peer_id": "test-client-ok",
+                        "client_hostname": "test-machine",
+                        "client_platform": "Linux",
+                        "protocol_version": 1,
+                    }
+                )
+                + "\n"
+            )
             s.sendall(auth.encode())
 
             while b"\n" not in buf:
@@ -461,7 +469,7 @@ def test_nerve_host_no_orphan_threads_after_stop(
     """After stop(), no nerve-lan-peer or accept-loop threads should remain."""
     from nerve.lan.host import NerveHost
 
-    before = {t.name for t in threading.enumerate()}
+    {t.name for t in threading.enumerate()}
     host = NerveHost(
         lan_port=free_port,
         auth_token="tok",
@@ -493,9 +501,7 @@ def test_nerve_host_no_orphan_threads_after_stop(
 # ---------------------------------------------------------------------------
 
 
-def _start_test_host(
-    free_port: int, auth_token: str, tmp_path: Path
-) -> tuple["NerveHost", threading.Thread, threading.Event]:
+def _start_test_host(free_port: int, auth_token: str, tmp_path: Path):
     from nerve.lan.host import NerveHost
 
     host = NerveHost(
@@ -517,9 +523,7 @@ def _start_test_host(
     return host, t, started
 
 
-def test_connect_and_register_saves_peer(
-    free_port: int, tmp_path: Path
-) -> None:
+def test_connect_and_register_saves_peer(free_port: int, tmp_path: Path) -> None:
     from nerve.lan.connect import connect_and_register
     from nerve.lan.peer_registry import PeerRegistry
 
@@ -545,9 +549,7 @@ def test_connect_and_register_saves_peer(
         t.join(timeout=5)
 
 
-def test_connect_wrong_token_raises_error(
-    free_port: int, tmp_path: Path
-) -> None:
+def test_connect_wrong_token_raises_error(free_port: int, tmp_path: Path) -> None:
     from nerve.lan.connect import LanAuthenticationError, connect_and_register
     from nerve.lan.peer_registry import PeerRegistry
 
@@ -567,9 +569,7 @@ def test_connect_wrong_token_raises_error(
         t.join(timeout=5)
 
 
-def test_connect_always_closes_connection(
-    free_port: int, tmp_path: Path
-) -> None:
+def test_connect_always_closes_connection(free_port: int, tmp_path: Path) -> None:
     """connect_and_register must close the TCP socket even on error."""
     from nerve.lan.connect import LanConnectionError, connect_and_register
     from nerve.lan.peer_registry import PeerRegistry
@@ -620,7 +620,7 @@ def test_receive_dir_from_config(tmp_path: Path) -> None:
 
 
 def test_receive_dir_fallback_to_downloads() -> None:
-    from nerve.lan.host import _resolve_display_receive_dir, _get_os_downloads_dir
+    from nerve.lan.host import _get_os_downloads_dir, _resolve_display_receive_dir
 
     result = _resolve_display_receive_dir(None, {})
     expected = _get_os_downloads_dir()
@@ -660,7 +660,7 @@ def test_existing_nerve_nrv_imports_unaffected() -> None:
 
 
 def test_existing_nerve_genpass_unaffected() -> None:
-    from nerve.genpass import generate_passphrase, generate_random_password
+    from nerve.genpass import generate_passphrase
 
     pwd, entropy = generate_passphrase(words=3)
     assert len(pwd) > 0
@@ -673,10 +673,10 @@ IS_WINDOWS = platform.system() == "Windows"
 @pytest.mark.skipif(IS_WINDOWS, reason="NexusHub on Linux/macOS uses Unix sockets")
 def test_existing_nexushub_start_stop_unix(tmp_path: Path) -> None:
     """NexusHub (nerve start) must still start and stop cleanly on Unix."""
-    import os
     from unittest.mock import patch
 
-    sock_path = str(tmp_path / "test_hub.sock")
+    # Use a short path in tempdir to avoid AF_UNIX 104 char limit on macOS runners
+    sock_path = os.path.join(tempfile.gettempdir(), "test_hub.sock")
     with patch(
         "nerve.core.load_external_config",
         return_value={"socket_path": sock_path},
