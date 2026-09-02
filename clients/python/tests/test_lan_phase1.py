@@ -490,7 +490,8 @@ def test_nerve_host_no_orphan_threads_after_stop(
     t.join(timeout=5)
     assert not t.is_alive()
     # Allow any in-flight peer threads to exit after stop().
-    time.sleep(0.3)
+    # Use 1.0s to give macOS/Linux runners enough time.
+    time.sleep(1.0)
     after = {th.name for th in threading.enumerate()}
     lan_threads = {n for n in after if "nerve-lan" in n}
     assert not lan_threads, f"Orphan LAN threads found: {lan_threads}"

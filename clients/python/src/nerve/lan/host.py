@@ -290,7 +290,10 @@ class NerveHost:
             except OSError:
                 pass
 
-        # Join all threads with a shared bounded deadline (Decision #9)
+        # Join all threads with a shared bounded deadline (Decision #9).
+        # Two passes: first covers threads that existed at snapshot time;
+        # second covers threads spawned in the race window between snapshot
+        # and socket shutdown (avoids orphan threads on macOS/Linux).
         deadline = time.time() + 3.0
         for th in threads:
             remaining = deadline - time.time()
@@ -298,6 +301,20 @@ class NerveHost:
                 break
             try:
                 th.join(timeout=remaining)
+            except RuntimeError:
+                pass
+
+        # Second pass — pick up any threads added after the first snapshot
+        with self._lock:
+            late_threads = list(self._active_peer_threads)
+        for th in late_threads:
+            if th in threads:
+                continue
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                break
+            try:
+                th.join(timeout=max(0.0, remaining))
             except RuntimeError:
                 pass
 

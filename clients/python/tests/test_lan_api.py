@@ -116,10 +116,16 @@ def test_lan_api_get_transfers() -> None:
 
 
 def test_scan_nonce_unique() -> None:
-    """Each scan must send a different nonce (Bug #10 fix)."""
+    """Each scan must send a different nonce (Bug #10 fix).
+
+    scan() broadcasts the same nonce to multiple addresses per call, so we
+    collect the *set* of nonces seen per call and verify the two sets differ.
+    """
     from unittest.mock import MagicMock, patch
 
-    nonces_sent: list[str] = []
+    # nonces_per_scan[i] = set of nonces captured during scan call i
+    nonces_per_scan: list[set[str]] = [set(), set()]
+    call_count = [0]
 
     lan = NerveLAN(verbose=False)
 
@@ -127,27 +133,37 @@ def test_scan_nonce_unique() -> None:
         text = data.decode("utf-8", errors="ignore")
         for line in text.splitlines():
             if line.startswith("nonce="):
-                nonces_sent.append(line.split("=", 1)[1])
+                idx = min(call_count[0], 1)
+                nonces_per_scan[idx].add(line.split("=", 1)[1])
 
-    # Patch the socket module as seen from inside nerve.lan.api (where it is
-    # imported as `import socket as _socket`). Patching the global `socket.socket`
-    # has no effect on that local alias, so we target the correct namespace.
     mock_sock = MagicMock()
     mock_sock.sendto.side_effect = capture_sendto
     mock_sock.recvfrom.side_effect = TimeoutError()
 
+    # Patch socket as seen from within nerve.lan.api (module-level import).
     with patch("nerve.lan.api.socket") as mock_socket_module:
         mock_socket_module.socket.return_value = mock_sock
         mock_socket_module.AF_INET = 2
         mock_socket_module.SOCK_DGRAM = 2
         mock_socket_module.SOL_SOCKET = 1
         mock_socket_module.SO_BROADCAST = 6
+        mock_socket_module.gethostname.return_value = "testhost"
+        mock_socket_module.gethostbyname_ex.return_value = (
+            "testhost",
+            [],
+            ["10.0.0.5"],
+        )
 
+        call_count[0] = 0
         lan.scan(timeout=0.01)
+        call_count[0] = 1
         lan.scan(timeout=0.01)
 
-    assert len(nonces_sent) >= 2, "sendto must have been called for each scan"
-    assert nonces_sent[0] != nonces_sent[1], "Nonce must differ between scans"
+    assert nonces_per_scan[0], "scan() must call sendto at least once per call"
+    assert nonces_per_scan[1], "scan() must call sendto at least once per call"
+    nonce_first = next(iter(nonces_per_scan[0]))
+    nonce_second = next(iter(nonces_per_scan[1]))
+    assert nonce_first != nonce_second, "Nonce must differ between scans"
 
 
 # ---------------------------------------------------------------------------
