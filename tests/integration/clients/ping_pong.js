@@ -1,6 +1,7 @@
 const { NexusClient } = require('../../../clients/javascript/index.js');
 
-const client = new NexusClient();
+const configPath = process.env.NERVE_CONFIG || 'nerve.config';
+const client = new NexusClient({ configPath });
 
 client.on('reconnect', (attempt) => {
     console.log(`[JS] Reconnecting... (Attempt ${attempt})`);

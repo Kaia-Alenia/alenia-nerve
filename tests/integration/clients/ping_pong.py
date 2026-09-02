@@ -5,7 +5,8 @@ import time
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../clients/python/src')))
 from nerve.core import NexusClient
 
-client = NexusClient()
+config_path = os.environ.get("NERVE_CONFIG", "nerve.config")
+client = NexusClient(config_path=config_path)
 client.connect("py_client")
 
 def handle(msg):

@@ -393,7 +393,9 @@ def main() -> None:
             if len(args) > idx + 1:
                 receive_dir = args[idx + 1]
             else:
-                print(f"{RED}[NERVE CLI] --receive-dir requires a path argument.{RESET}")
+                print(
+                    f"{RED}[NERVE CLI] --receive-dir requires a path argument.{RESET}"
+                )
                 sys.exit(1)
         if "--port" in args:
             idx = args.index("--port")
@@ -414,7 +416,9 @@ def main() -> None:
                     if max_transfers < 1:
                         raise ValueError
                 except ValueError:
-                    print(f"{RED}[NERVE CLI] --max-transfers requires a positive integer.{RESET}")
+                    print(
+                        f"{RED}[NERVE CLI] --max-transfers requires a positive integer.{RESET}"
+                    )
                     sys.exit(1)
             else:
                 print(f"{RED}[NERVE CLI] --max-transfers requires a value.{RESET}")
@@ -447,7 +451,9 @@ def main() -> None:
         )
 
         if len(args) < 2:
-            print(f"{RED}[NERVE CLI] Usage: nerve connect <IP[:PORT]> [--name NAME] [--token TOKEN]{RESET}")
+            print(
+                f"{RED}[NERVE CLI] Usage: nerve connect <IP[:PORT]> [--name NAME] [--token TOKEN]{RESET}"
+            )
             sys.exit(1)
         address = args[1]
         name = None
@@ -494,12 +500,14 @@ def main() -> None:
             if len(args) < 3:
                 print(f"{RED}[NERVE CLI] Usage: nerve peers remove <NAME|ID>{RESET}")
                 sys.exit(1)
-            
+
             target = args[2]
             # Check for ambiguous name
             matches = reg.find_by_name(target)
             if len(matches) > 1 and target not in [p.peer_id for p in matches]:
-                print(f"{RED}[NERVE CLI] Error: Ambiguous peer name '{target}'. Matches {len(matches)} peers.{RESET}")
+                print(
+                    f"{RED}[NERVE CLI] Error: Ambiguous peer name '{target}'. Matches {len(matches)} peers.{RESET}"
+                )
                 sys.exit(1)
 
             removed = reg.remove(target)
@@ -517,23 +525,29 @@ def main() -> None:
             else:
                 print(f"{PURPLE}Known Nerve peers:{RESET}\n")
                 print(f"  {'NAME':<20} {'ADDRESS':<22} {'PLATFORM':<10} LAST SEEN")
-                print(f"  {'-'*68}")
+                print(f"  {'-' * 68}")
                 import time as _time
+
                 for p in peers:
                     age = _time.time() - p.last_seen
                     if age < 60:
                         seen = f"{int(age)}s ago"
                     elif age < 3600:
-                        seen = f"{int(age/60)}m ago"
+                        seen = f"{int(age / 60)}m ago"
                     else:
-                        seen = f"{int(age/3600)}h ago"
-                    print(f"  {p.name:<20} {p.last_address:<22} {p.platform:<10} {seen}")
+                        seen = f"{int(age / 3600)}h ago"
+                    print(
+                        f"  {p.name:<20} {p.last_address:<22} {p.platform:<10} {seen}"
+                    )
         sys.exit(0)
 
     elif args[0] == "send":
         from nerve.lan.api import NerveLAN
+
         if len(args) < 2:
-            print(f"{RED}[NERVE CLI] Usage: nerve send <PATH> [PATH2 PATH3] --to <IP|NAME>{RESET}")
+            print(
+                f"{RED}[NERVE CLI] Usage: nerve send <PATH> [PATH2 PATH3] --to <IP|NAME>{RESET}"
+            )
             sys.exit(1)
 
         # Collect all paths before --to
@@ -556,21 +570,28 @@ def main() -> None:
             print(f"{RED}[NERVE CLI] --to <IP|NAME> is required.{RESET}")
             sys.exit(1)
         if len(paths) > 3:
-            print(f"{YELLOW}[NERVE CLI] Maximum 3 files per command. Sending first 3.{RESET}")
+            print(
+                f"{YELLOW}[NERVE CLI] Maximum 3 files per command. Sending first 3.{RESET}"
+            )
             paths = paths[:3]
 
         def _progress(label: str):
             import time
+
             start_time = time.time()
+
             def _cb(bytes_sent: int, total: int) -> None:
                 pct = (bytes_sent / total) * 100 if total > 0 else 0
                 elapsed = time.time() - start_time
-                speed_mb = (bytes_sent / (1024 * 1024)) / elapsed if elapsed > 0 else 0.0
+                speed_mb = (
+                    (bytes_sent / (1024 * 1024)) / elapsed if elapsed > 0 else 0.0
+                )
                 print(
                     f"\r{GREEN}  {label}: {pct:.1f}% ({bytes_sent}/{total} bytes) | {speed_mb:.1f} MB/s{RESET}",
                     end="",
                     flush=True,
                 )
+
             return _cb
 
         lan = NerveLAN(verbose=True)
@@ -590,14 +611,19 @@ def main() -> None:
 
         print()
         if ok == total:
-            print(f"{GREEN}[NERVE CLI] All {ok}/{total} file(s) sent successfully.{RESET}")
+            print(
+                f"{GREEN}[NERVE CLI] All {ok}/{total} file(s) sent successfully.{RESET}"
+            )
             sys.exit(0)
         else:
-            print(f"{YELLOW}[NERVE CLI] {ok}/{total} file(s) sent. Check errors above.{RESET}")
+            print(
+                f"{YELLOW}[NERVE CLI] {ok}/{total} file(s) sent. Check errors above.{RESET}"
+            )
             sys.exit(1 if ok == 0 else 0)
 
     elif args[0] == "receive":
         from nerve.lan.api import NerveLAN
+
         receive_dir = None
         if "--dir" in args:
             idx = args.index("--dir")
@@ -606,7 +632,7 @@ def main() -> None:
             else:
                 print(f"{RED}[NERVE CLI] --dir requires a path argument.{RESET}")
                 sys.exit(1)
-                
+
         print(f"{PURPLE}[NERVE CLI] Starting temporary receive session...{RESET}")
         lan = NerveLAN(verbose=True)
         lan.receive(receive_dir=receive_dir)
@@ -614,6 +640,7 @@ def main() -> None:
 
     elif args[0] == "scan":
         from nerve.lan.api import NerveLAN
+
         print(f"{PURPLE}[NERVE CLI] Scanning local network...{RESET}")
         lan = NerveLAN()
         peers = lan.scan()
@@ -624,36 +651,37 @@ def main() -> None:
             for p in peers:
                 print(f"{p.peer_name:<20} {p.address:<15} {p.platform}")
         sys.exit(0)
-        
+
     elif args[0] == "diagnose":
         from nerve.lan.api import NerveLAN
+
         target = args[1] if len(args) > 1 else None
-        
+
         print(f"\n{PURPLE}Nerve Diagnostics{RESET}")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        
+
         lan = NerveLAN()
         rep = lan.diagnose(target_ip=target)
-        
+
         print(f"\n{PURPLE}Local Device{RESET}")
         print(rep["local"].get("interface", ""))
         print(rep["local"].get("address", ""))
-        
+
         if target:
             print(f"\n{PURPLE}Target{RESET}")
             print(rep["target"].get("format", ""))
-            
+
             print(f"\n{PURPLE}Direct Connection{RESET}")
             print(rep["direct"].get("tcp", ""))
-            
+
             print(f"\n{PURPLE}Nerve Service{RESET}")
             print(rep["service"].get("auth", ""))
-            
+
             if rep["causes"]:
                 print(f"\n{YELLOW}Possible causes{RESET}")
                 for c in rep["causes"]:
                     print(c)
-                
+
                 print(f"\n{GREEN}Recommendation{RESET}")
                 print("→ Verify that nerve host is running on the target.")
                 print("→ Verify both devices are on the same non-guest network.")
@@ -662,6 +690,7 @@ def main() -> None:
 
     elif args[0] == "peer-status":
         from nerve.lan.api import NerveLAN
+
         if len(args) < 2:
             print(f"{RED}[NERVE CLI] Usage: nerve peer-status <IP|NAME>{RESET}")
             sys.exit(1)

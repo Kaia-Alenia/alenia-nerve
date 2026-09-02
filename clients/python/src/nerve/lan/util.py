@@ -84,7 +84,9 @@ def recv_message(sock: socket.socket, buffer: bytearray) -> tuple[dict, bytearra
             raise LanProtocolError("Connection closed before message was complete.")
         buffer.extend(chunk)
         if len(buffer) > MAX_CONTROL_MESSAGE_SIZE:
-            raise LanProtocolError("Incoming control message exceeded maximum size limit.")
+            raise LanProtocolError(
+                "Incoming control message exceeded maximum size limit."
+            )
 
     line, _, remainder = buffer.partition(b"\n")
     try:
@@ -149,7 +151,7 @@ def get_or_create_host_identity(registry_dir: Path) -> str:
             if not isinstance(host_id, str) or not host_id:
                 raise ValueError("Invalid host_id format")
             return host_id
-        except (OSError, json.JSONDecodeError, KeyError, ValueError) as exc:
+        except (OSError, json.JSONDecodeError, KeyError, ValueError):
             import time
 
             # Corruption handling: preserve evidence, do not overwrite silently.
@@ -157,7 +159,9 @@ def get_or_create_host_identity(registry_dir: Path) -> str:
             backup_path = identity_path.with_name(backup_name)
             try:
                 os.replace(identity_path, backup_path)
-                print(f"[WARNING] Local host identity was corrupt. Preserved as {backup_name}")
+                print(
+                    f"[WARNING] Local host identity was corrupt. Preserved as {backup_name}"
+                )
             except OSError:
                 pass
 
@@ -172,7 +176,9 @@ def get_or_create_host_identity(registry_dir: Path) -> str:
 # ---------------------------------------------------------------------------
 
 
-def resolve_auth_token(explicit_token: str | None, config: dict, allow_interactive: bool = False) -> str:
+def resolve_auth_token(
+    explicit_token: str | None, config: dict, allow_interactive: bool = False
+) -> str:
     """
     Resolve the LAN authentication token.
     Order of precedence:
@@ -183,8 +189,10 @@ def resolve_auth_token(explicit_token: str | None, config: dict, allow_interacti
     If missing and non-interactive, raises LanAuthenticationError.
     If missing and interactive, reuses existing Nerve credential generation flow.
     """
-    token = explicit_token or config.get("auth_token") or os.environ.get("NERVE_AUTH_TOKEN")
-    
+    token = (
+        explicit_token or config.get("auth_token") or os.environ.get("NERVE_AUTH_TOKEN")
+    )
+
     if token:
         return token
 

@@ -14,26 +14,20 @@
 # along with Nerve. If not, see <https://www.gnu.org/licenses/>.
 # -----------------------------------------------------------------------------
 
-import hashlib
 import json
-import os
 import socket
 import struct
 import threading
 from pathlib import Path
-from unittest.mock import MagicMock
-
-import pytest
 
 from nerve.lan.transfer import (
+    _TMP_SUFFIX,
     CHUNK_HEADER_FORMAT,
-    DEFAULT_CHUNK_SIZE,
     HEADER_FORMAT,
     MAGIC,
-    VERSION,
     TYPE_FILE,
+    VERSION,
     TransferProtocolError,
-    _TMP_SUFFIX,
     receive_file,
     send_file,
 )
@@ -47,22 +41,22 @@ def _find_free_port() -> int:
 
 def test_transfer_file_success(tmp_path: Path):
     port = _find_free_port()
-    
+
     # Create a test file
     test_file = tmp_path / "source.txt"
     test_data = b"Hello Nerve LAN Transfer!" * 1024  # some bulk data
     test_file.write_bytes(test_data)
-    
+
     out_dir = tmp_path / "received"
     out_dir.mkdir()
-    
+
     # Socket pair or real sockets
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(("127.0.0.1", port))
     server.listen(1)
-    
+
     results = {}
-    
+
     def receiver_thread():
         conn, _ = server.accept()
         try:
@@ -78,18 +72,18 @@ def test_transfer_file_success(tmp_path: Path):
 
     t = threading.Thread(target=receiver_thread)
     t.start()
-    
+
     # Sender side
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(("127.0.0.1", port))
-    
+
     try:
         s_hash = send_file(client, test_file)
     finally:
         client.close()
-        
+
     t.join(timeout=5)
-    
+
     assert "error" not in results, f"Receiver failed with {results.get('error')}"
     assert results["hash"] == s_hash, "Hashes do not match!"
     assert results["meta"]["filename"] == "source.txt"
@@ -178,7 +172,7 @@ def test_transfer_hash_mismatch_raises(tmp_path: Path) -> None:
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(("127.0.0.1", port))
     file_size = test_file.stat().st_size
-    wrong_hash = "a" * 64   # wrong, but valid hex length
+    wrong_hash = "a" * 64  # wrong, but valid hex length
     meta = {"filename": "tampered.bin", "size": file_size, "sha256": wrong_hash}
     meta_bytes = json.dumps(meta).encode("utf-8")
     header = struct.pack(HEADER_FORMAT, MAGIC, VERSION, TYPE_FILE, 0, len(meta_bytes))
@@ -187,14 +181,16 @@ def test_transfer_hash_mismatch_raises(tmp_path: Path) -> None:
     # Send actual content
     client.sendall(struct.pack(CHUNK_HEADER_FORMAT, len(test_data)))
     client.sendall(test_data)
-    client.sendall(struct.pack(CHUNK_HEADER_FORMAT, 0))   # EOF
+    client.sendall(struct.pack(CHUNK_HEADER_FORMAT, 0))  # EOF
     client.close()
     t.join(timeout=5)
 
     assert "error" in results, "HASH_MISMATCH should have raised"
     assert "HASH_MISMATCH" in results["error"]
     # Final file must NOT exist
-    assert not (out_dir / "tampered.bin").exists(), "Final file must not exist on mismatch"
+    assert not (out_dir / "tampered.bin").exists(), (
+        "Final file must not exist on mismatch"
+    )
 
 
 def test_transfer_temp_file_cleanup_on_mismatch(tmp_path: Path) -> None:
@@ -273,24 +269,26 @@ def test_transfer_no_partial_file_on_premature_close(tmp_path: Path) -> None:
     meta_bytes = json.dumps(meta).encode("utf-8")
     header = struct.pack(HEADER_FORMAT, MAGIC, VERSION, TYPE_FILE, 0, len(meta_bytes))
     client.sendall(header + meta_bytes)
-    client.close()   # premature disconnect
+    client.close()  # premature disconnect
     t.join(timeout=5)
 
     # Final file must not exist; temp must not exist either
-    assert not (out_dir / "partial.bin").exists(), "Final file must not exist after premature close"
+    assert not (out_dir / "partial.bin").exists(), (
+        "Final file must not exist after premature close"
+    )
     tmp = out_dir / ("partial.bin" + _TMP_SUFFIX)
     assert not tmp.exists(), "Temp file must be cleaned up after premature close"
 
 
 def test_transfer_invalid_magic(tmp_path: Path):
     port = _find_free_port()
-    
+
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(("127.0.0.1", port))
     server.listen(1)
-    
+
     results = {}
-    
+
     def receiver_thread():
         conn, _ = server.accept()
         try:
@@ -303,15 +301,16 @@ def test_transfer_invalid_magic(tmp_path: Path):
 
     t = threading.Thread(target=receiver_thread)
     t.start()
-    
+
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(("127.0.0.1", port))
-    
+
     # Send bad magic but full 16 byte header size
     import struct
+
     client.sendall(struct.pack("!4sBBHQ", b"BAD!", 1, 1, 0, 100))
     client.close()
-    
+
     t.join(timeout=5)
     assert "error" in results
     assert "Invalid magic bytes" in str(results["error"])
@@ -319,13 +318,13 @@ def test_transfer_invalid_magic(tmp_path: Path):
 
 def test_transfer_premature_close(tmp_path: Path):
     port = _find_free_port()
-    
+
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(("127.0.0.1", port))
     server.listen(1)
-    
+
     results = {}
-    
+
     def receiver_thread():
         conn, _ = server.accept()
         try:
@@ -338,15 +337,16 @@ def test_transfer_premature_close(tmp_path: Path):
 
     t = threading.Thread(target=receiver_thread)
     t.start()
-    
+
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(("127.0.0.1", port))
-    
+
     import struct
+
     # Send valid header but close
     client.sendall(struct.pack("!4sBBHQ", b"NLAN", 1, 1, 0, 100))
     client.close()
-    
+
     t.join(timeout=5)
     assert "error" in results
     assert "Connection closed prematurely" in str(results["error"])

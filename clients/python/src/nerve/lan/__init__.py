@@ -55,13 +55,6 @@ from nerve.lan.models import (
 )
 
 __all__ = [
-    "NerveLAN",
-    # Models
-    "ConnectionResult",
-    "DiscoveryResult",
-    "HostStatus",
-    "ProgressEvent",
-    "TransferResult",
     # Events
     "HOST_STARTED",
     "HOST_STARTING",
@@ -80,4 +73,11 @@ __all__ = [
     "TRANSFER_REQUESTED",
     "TRANSFER_STARTED",
     "TRANSFER_VERIFYING",
+    # Models
+    "ConnectionResult",
+    "DiscoveryResult",
+    "HostStatus",
+    "NerveLAN",
+    "ProgressEvent",
+    "TransferResult",
 ]
