@@ -515,12 +515,12 @@ class NerveHost:
         def _on_progress(filename: str, bytes_rcv: int, total: int) -> None:
             if total > 0:
                 pct = int((bytes_rcv / total) * 100)
-                # Imprimir el progreso cada 10% (o al llegar al 100%)
+                # Print progress every 10% (or when reaching 100%)
                 if pct >= last_pct[0] + 10 or pct == 100:
-                    last_pct[0] = pct if pct < 100 else 101 # evitar imprimir 100% múltiples veces
+                    last_pct[0] = pct if pct < 100 else 101 # prevent printing 100% multiple times
                     elapsed = time.time() - start_time
                     speed = (bytes_rcv / (1024 * 1024)) / elapsed if elapsed > 0 else 0
-                    print(f"{GREEN}[NERVE HOST] Recibiendo '{filename}' desde {addr[0]}: {pct}% ({speed:.1f} MB/s){RESET}")
+                    print(f"{GREEN}[NERVE HOST] Receiving '{filename}' from {addr[0]}: {pct}% ({speed:.1f} MB/s){RESET}")
 
         try:
             receive_file(

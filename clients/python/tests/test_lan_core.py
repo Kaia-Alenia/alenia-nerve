@@ -32,12 +32,14 @@ def _find_free_port() -> int:
         return s.getsockname()[1]
 
 
-def test_hub_remote_requires_auth_token():
+@patch("nerve.core.load_external_config", return_value={})
+def test_hub_remote_requires_auth_token(mock_load):
     with pytest.raises(ValueError, match="auth_token is required when remote=True"):
         NexusHub(remote=True, auth_token=None)
 
 
-def test_client_remote_requires_auth_token():
+@patch("nerve.core.load_external_config", return_value={})
+def test_client_remote_requires_auth_token(mock_load):
     with pytest.raises(ValueError, match="auth_token is required when remote=True"):
         NexusClient(remote=True, auth_token=None)
 
