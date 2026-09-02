@@ -673,10 +673,12 @@ IS_WINDOWS = platform.system() == "Windows"
 @pytest.mark.skipif(IS_WINDOWS, reason="NexusHub on Linux/macOS uses Unix sockets")
 def test_existing_nexushub_start_stop_unix(tmp_path: Path) -> None:
     """NexusHub (nerve start) must still start and stop cleanly on Unix."""
+    import tempfile
     import os
     from unittest.mock import patch
 
-    sock_path = str(tmp_path / "test_hub.sock")
+    # Use a short path in tempdir to avoid AF_UNIX 104 char limit on macOS runners
+    sock_path = os.path.join(tempfile.gettempdir(), "test_hub.sock")
     with patch(
         "nerve.core.load_external_config",
         return_value={"socket_path": sock_path},

@@ -583,8 +583,8 @@ class NexusHub:
         self._server.listen(50)
         self._running = True
 
-        if not self.is_windows:
-            os.chmod(str(self.address), 0o600)
+        if not self.is_windows and isinstance(self.address, str):
+            os.chmod(self.address, 0o600)
             self._log("95", f"Hub active via Unix Socket at {self.address}")
         else:
             if isinstance(self.address, tuple):
