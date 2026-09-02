@@ -2,6 +2,27 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [1.6.10] — 2026-09-02
+### Agregado
+- **LAN** (`api.py`): Añadido el parámetro `target_ip` a `scan()` (y al CLI `nerve scan <IP>`) para descubrimiento unicast. Esto evita el aislamiento de AP (AP Isolation) en routers Wi-Fi restrictivos donde se bloquea el broadcast UDP.
+- **Nerve LAN Fase 1**: Introducida la Comunicación Directa entre Dispositivos sin necesidad de un hub central (a partir de la versión 1.6.0).
+- **CLI**: Añadido `nerve host` para iniciar un host persistente de igual a igual (peer-to-peer).
+- **CLI**: Añadido `nerve scan` para descubrir dispositivos Nerve en la red local mediante broadcast UDP (puerto 50511).
+- **Seguridad**: Autenticación robusta usando `auth_token` para conexiones LAN.
+
+### Solucionado
+- **LAN** (`host.py`): El enlace (bind) de descubrimiento UDP en el puerto 50511 ahora es no fatal. Resuelve `WinError 10013` en entornos CI de Windows y firewalls estrictos, permitiendo que el plano de datos TCP siga funcionando.
+- **LAN** (`api.py`): Solucionados problemas de enrutamiento multi-homed en Windows haciendo broadcast explícito a las direcciones de subred en lugar de depender solo del `<broadcast>` global.
+- **Cliente Python**: `__version__` ahora usa correctamente `importlib.metadata` para resolución dinámica de versiones, evitando discrepancias de versión.
+- **LAN** (`host.py`): Solucionada una condición de carrera de hilos huérfanos en macOS durante `stop()`.
+
+## [1.5.9] — 2026-08-31
+### Solucionado
+- **CI** (`ci.yml`): Fijado `ruff` a la versión `0.15.20` para evitar fallos en cascada del linter en entornos CI que usan `pip install ruff` (última versión).
+- **CI** (Python): Resueltos errores de `ruff check` — ordenación de imports (`I001`), directivas `noqa` sin uso (`RUF100`), concatenación de listas (`RUF005`), `asyncio.ensure_future` sin captura (`RUF006`) y anidamiento de sentencias `with` (`SIM117`) en los archivos de prueba.
+- **CI** (Go): Eliminadas dos declaraciones de función `TestListClientsError` duplicadas en `client_test.go` que causaban que `go vet` fallara.
+- **CI** (Rust / `crates.io`): Se vuelve a publicar la corrección `1.5.8` de `client_tests.rs` — la corrección de `cargo fmt --check` estaba en `main` pero la etiqueta `v1.5.8` era anterior a ella. Esta versión asegura que `crates.io` reciba la versión formateada correctamente.
+
 ## [1.5.8] — 2026-08-31
 ### Agregado
 - **Core** (`core.py`): Extraído `_process_message()` de `_handle_client()` — la lógica de despacho de mensajes ahora vive en su propio método, reduciendo la complejidad de la función y facilitando las pruebas.

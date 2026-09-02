@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.10] — 2026-09-02
+### Added
+- **LAN** (`api.py`): Added `target_ip` parameter to `scan()` (and CLI `nerve scan <IP>`) for unicast discovery. This bypasses AP Isolation and Client Isolation on restricted Wi-Fi routers where UDP broadcast is blocked.
+- **Nerve LAN Phase 1**: Introduced Direct Device Communication without a hub (starting from 1.6.0).
+- **CLI**: Added `nerve host` to spawn a persistent peer-to-peer host.
+- **CLI**: Added `nerve scan` to discover Nerve devices across the local network using UDP broadcast (port 50511).
+- **Security**: Added robust authentication using `auth_token` for LAN connections.
+
+### Fixed
+- **LAN** (`host.py`): Made the UDP discovery bind non-fatal on port 50511. Resolves `WinError 10013` (Permission Denied) on Windows CI environments and strict firewalls, allowing the TCP data plane to still function.
+- **LAN** (`api.py`): Fixed Windows multi-homed routing issues by explicitly broadcasting to calculated subnet addresses rather than relying solely on global `<broadcast>`.
+- **Python Client**: `__version__` now correctly uses `importlib.metadata` for dynamic version resolution, preventing version drift.
+- **LAN** (`host.py`): Fixed an orphan thread race condition in macOS during `stop()`.
+
 ## [1.5.9] — 2026-08-31
 ### Fixed
 - **CI** (`ci.yml`): Pinned `ruff` to `0.15.20` to prevent version drift causing cascading lint failures on CI environments using `pip install ruff` (latest).

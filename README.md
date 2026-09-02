@@ -203,6 +203,8 @@ Once installed, the `nerve` command provides a suite of tools for managing your 
 * **`nerve monitor`**: Launches a terminal-based live dashboard showing all connected clients, uptime, message counts, and traffic stats at a glance.
 * **`nerve dashboard`**: Starts a lightweight local web interface on `http://localhost:8080` that renders a live **Network Topology View** of all connected nodes.
 * **`nerve bridge`**: Starts an HTTP/WebSocket proxy on port 50506. This allows web browsers and WebSocket clients to connect and talk directly to the Nerve IPC network. (Requires `websockets` package).
+* **`nerve host`**: Spawns a persistent peer-to-peer host for Direct Device Communication. This allows other devices to discover this machine on the local network.
+* **`nerve scan [IP]`**: Scans the local network for other Nerve devices running `nerve host`. Uses UDP broadcast, or unicast if a specific IP is provided (useful for bypassing AP Isolation on strict routers).
 * **`nerve pack <src> <out.nrv>`**: Securely encrypts and packs a file or directory into a `.nrv` container using AES-256-GCM.
 * **`nerve unpack <nrv> <out>`**: Decrypts and extracts a `.nrv` container to the specified output directory.
 * **`nerve open <file.nrv>`**: Interactively opens a `.nrv` container, handling password prompts via TTY or native GUI dialogs (Zenity/Tkinter/macOS osascript) with up to 3 retry attempts.
@@ -282,14 +284,17 @@ A lightweight local web interface that renders a live **Network Topology View** 
 
 ##  Configuration File (`nerve.config`)
 
-Place a `nerve.config` file in your project root to customize socket paths or TCP ports without changing code:
+Place a `nerve.config` file in your project root or user home directory to customize socket paths, TCP ports, and authentication without changing code.
 
 **JSON format:**
 ```json
 {
   "socket_path": "/tmp/nerve.sock",
   "port": 50505,
-  "host": "127.0.0.1"
+  "host": "127.0.0.1",
+  "auth_token": "my_secure_token",
+  "lan_port": 4432,
+  "data_port": 50510
 }
 ```
 
@@ -297,6 +302,35 @@ Place a `nerve.config` file in your project root to customize socket paths or TC
 ```text
 socket_path=/tmp/nerve.sock
 port=50505
+auth_token=my_secure_token
+lan_port=4432
+data_port=50510
+```
+
+---
+
+## 🛡️ LAN Discovery & Firewall (Windows / Linux)
+
+When using `nerve host` and `nerve scan` for Direct Device Communication across multiple computers, ensure your firewall permits traffic on the following ports:
+
+| Port | Protocol | Purpose |
+|------|----------|---------|
+| `50511` | UDP | Discovery (`nerve scan` broadcasts) |
+| `4432` | TCP | Control Plane (authentication & handshake) |
+| `50510` | TCP | Data Plane (file transfer & large payloads) |
+
+**Windows Firewall Fix:**
+If `nerve scan` cannot find a Windows machine running `nerve host`, it is usually because Windows Firewall blocks inbound UDP 50511 by default. Open an **Administrator PowerShell** and run:
+```powershell
+New-NetFirewallRule -DisplayName "Nerve LAN Discovery" -Direction Inbound -Protocol UDP -LocalPort 50511 -Action Allow -Profile Any
+New-NetFirewallRule -DisplayName "Nerve LAN Control" -Direction Inbound -Protocol TCP -LocalPort 4432 -Action Allow -Profile Any
+New-NetFirewallRule -DisplayName "Nerve LAN Data" -Direction Inbound -Protocol TCP -LocalPort 50510 -Action Allow -Profile Any
+```
+
+**AP Isolation (Wi-Fi Routers):**
+If your router isolates Wi-Fi clients (blocking broadcast packets), `nerve scan` will fail. You can bypass this by scanning the exact IP directly (unicast):
+```bash
+nerve scan 192.168.1.50
 ```
 
 ---

@@ -202,6 +202,8 @@ Una vez instalado, el comando `nerve` proporciona un conjunto de herramientas pa
 * **`nerve monitor`**: Lanza un panel interactivo en terminal que muestra todos los clientes conectados, tiempo de actividad, conteo de mensajes y estadísticas de tráfico en un solo vistazo.
 * **`nerve dashboard`**: Inicia una interfaz web local ligera en `http://localhost:8080` que renderiza una **Vista de Topología de Red** en vivo con todos los nodos conectados.
 * **`nerve bridge`**: Inicia un proxy HTTP/WebSocket en el puerto 50506. Esto permite que navegadores web y clientes WebSocket se conecten y hablen directamente con la red IPC de Nerve. (Requiere el paquete `websockets`).
+* **`nerve host`**: Inicia un host persistente de igual a igual (peer-to-peer) para la Comunicación Directa entre Dispositivos. Esto permite que otros dispositivos descubran esta máquina en la red local.
+* **`nerve scan [IP]`**: Escanea la red local en busca de otros dispositivos Nerve ejecutando `nerve host`. Usa broadcast UDP, o unicast si se proporciona una IP específica (útil para eludir el aislamiento AP en routers estrictos).
 * **`nerve pack <origen> <salida.nrv>`**: Encripta de forma segura y empaqueta un archivo o directorio en un contenedor `.nrv` usando AES-256-GCM.
 * **`nerve unpack <nrv> <salida>`**: Desencripta y extrae un contenedor `.nrv` en el directorio de salida especificado.
 * **`nerve open <archivo.nrv>`**: Abre de forma interactiva un contenedor `.nrv`, manejando las solicitudes de contraseña mediante TTY o diálogos de interfaz gráfica nativos (Zenity/Tkinter/macOS osascript) con hasta 3 intentos de reintento.
@@ -290,14 +292,17 @@ Nerve fue construido para operar en entornos exigentes. Actualmente, orquesta el
 
 ##  Archivo de Configuración (`nerve.config`)
 
-Coloca un archivo `nerve.config` en la raíz de tu proyecto para personalizar las rutas de socket o los puertos TCP sin cambiar el código:
+Coloca un archivo `nerve.config` en la raíz de tu proyecto o en el directorio de usuario (home) para personalizar las rutas de socket, los puertos TCP y la autenticación sin cambiar el código:
 
 **Formato JSON:**
 ```json
 {
   "socket_path": "/tmp/nerve.sock",
   "port": 50505,
-  "host": "127.0.0.1"
+  "host": "127.0.0.1",
+  "auth_token": "mi_token_seguro",
+  "lan_port": 4432,
+  "data_port": 50510
 }
 ```
 
@@ -305,6 +310,35 @@ Coloca un archivo `nerve.config` en la raíz de tu proyecto para personalizar la
 ```text
 socket_path=/tmp/nerve.sock
 port=50505
+auth_token=mi_token_seguro
+lan_port=4432
+data_port=50510
+```
+
+---
+
+## 🛡️ Descubrimiento LAN y Firewall (Windows / Linux)
+
+Cuando uses `nerve host` y `nerve scan` para Comunicación Directa entre Dispositivos a través de múltiples computadoras, asegúrate de que tu firewall permita el tráfico en los siguientes puertos:
+
+| Puerto | Protocolo | Propósito |
+|--------|-----------|-----------|
+| `50511` | UDP | Descubrimiento (broadcasts de `nerve scan`) |
+| `4432` | TCP | Plano de Control (autenticación y handshake) |
+| `50510` | TCP | Plano de Datos (transferencia de archivos y cargas grandes) |
+
+**Solución para el Firewall de Windows:**
+Si `nerve scan` no puede encontrar una máquina Windows ejecutando `nerve host`, generalmente es porque el Firewall de Windows bloquea el puerto UDP 50511 de entrada por defecto. Abre un **PowerShell como Administrador** y ejecuta:
+```powershell
+New-NetFirewallRule -DisplayName "Nerve LAN Discovery" -Direction Inbound -Protocol UDP -LocalPort 50511 -Action Allow -Profile Any
+New-NetFirewallRule -DisplayName "Nerve LAN Control" -Direction Inbound -Protocol TCP -LocalPort 4432 -Action Allow -Profile Any
+New-NetFirewallRule -DisplayName "Nerve LAN Data" -Direction Inbound -Protocol TCP -LocalPort 50510 -Action Allow -Profile Any
+```
+
+**Aislamiento AP (Routers Wi-Fi):**
+Si tu router aísla a los clientes Wi-Fi (bloqueando paquetes broadcast), `nerve scan` fallará. Puedes evitar esto escaneando la IP exacta directamente (unicast):
+```bash
+nerve scan 192.168.1.50
 ```
 
 ---
