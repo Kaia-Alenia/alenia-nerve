@@ -37,7 +37,7 @@ import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from nerve.lan.connect import (
     LAN_CONTROL_PORT_DEFAULT,
@@ -77,11 +77,11 @@ class NerveLAN:
 
     def __init__(
         self,
-        receive_dir: Optional[str] = None,
-        port: Optional[int] = None,
-        auth_token: Optional[str] = None,
+        receive_dir: str | None = None,
+        port: int | None = None,
+        auth_token: str | None = None,
         verbose: bool = False,
-        max_concurrent_transfers: Optional[int] = None,
+        max_concurrent_transfers: int | None = None,
     ) -> None:
         self.receive_dir = receive_dir
         self.port = port
@@ -89,8 +89,8 @@ class NerveLAN:
         self.verbose = verbose
         self.max_concurrent_transfers = max_concurrent_transfers
         self.events = EventDispatcher()
-        self._host: Optional[NerveHost] = None
-        self._host_thread: Optional[threading.Thread] = None
+        self._host: NerveHost | None = None
+        self._host_thread: threading.Thread | None = None
 
     def on(self, event_name: str, callback: Callable[..., None]) -> None:
         """Subscribe to a LAN event."""
@@ -206,7 +206,7 @@ class NerveLAN:
             sock.setsockopt(_socket.SOL_SOCKET, _socket.SO_BROADCAST, 1)
             sock.settimeout(timeout)
 
-            msg = f"NERVE_DISCOVERY\nversion=1\nnonce={nonce}".encode("utf-8")
+            msg = f"NERVE_DISCOVERY\nversion=1\nnonce={nonce}".encode()
             sock.sendto(msg, ("255.255.255.255", 50511))
 
             end_time = time.monotonic() + timeout
@@ -254,7 +254,7 @@ class NerveLAN:
     # Diagnostics
     # ------------------------------------------------------------------
 
-    def diagnose(self, target_ip: Optional[str] = None) -> dict:
+    def diagnose(self, target_ip: str | None = None) -> dict:
         """
         Run local or targeted diagnostics.
 
@@ -320,7 +320,7 @@ class NerveLAN:
     # ------------------------------------------------------------------
 
     def connect(
-        self, ip: str, name: Optional[str] = None, token: Optional[str] = None
+        self, ip: str, name: str | None = None, token: str | None = None
     ) -> ConnectionResult:
         """Connect to a remote LAN peer, authenticate, and save to registry."""
         try:
@@ -344,7 +344,7 @@ class NerveLAN:
         self,
         path: str,
         to: str,
-        progress_callback: Optional[Callable[[int, int], None]] = None,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> TransferResult:
         """
         Send a file to a remote peer.
@@ -355,6 +355,7 @@ class NerveLAN:
         """
         import platform as _platform
         import socket as _socket
+
         from nerve.lan.connect import LAN_PROTOCOL_VERSION
         from nerve.lan.transfer import send_file
         from nerve.lan.util import (
@@ -475,7 +476,7 @@ class NerveLAN:
     # Receive
     # ------------------------------------------------------------------
 
-    def receive(self, receive_dir: Optional[str] = None) -> None:
+    def receive(self, receive_dir: str | None = None) -> None:
         """
         Temporary receive session (Decision #11).
 
@@ -551,6 +552,7 @@ class NerveLAN:
         """
         import platform as _platform
         import socket as _socket
+
         from nerve.lan.connect import LAN_PROTOCOL_VERSION
         from nerve.lan.util import (
             get_or_create_host_identity,

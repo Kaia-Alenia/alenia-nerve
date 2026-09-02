@@ -14,10 +14,7 @@
 # along with Nerve. If not, see <https://www.gnu.org/licenses/>.
 # -----------------------------------------------------------------------------
 
-import sys
-from typing import Any
 from unittest.mock import MagicMock, patch
-import pytest
 
 from nerve.cli import main
 

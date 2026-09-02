@@ -14,12 +14,9 @@
 # along with Nerve. If not, see <https://www.gnu.org/licenses/>.
 # -----------------------------------------------------------------------------
 
-import os
-from pathlib import Path
 import socket
 import threading
-
-import pytest
+from pathlib import Path
 
 from nerve.lan.transfer import receive_file, send_file
 

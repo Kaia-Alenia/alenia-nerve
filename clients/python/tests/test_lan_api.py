@@ -65,7 +65,7 @@ def test_lan_event_dispatcher() -> None:
     assert events_fired.count("starting") == 1
 
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 
 def test_lan_api_scan() -> None:
@@ -119,7 +119,7 @@ def test_lan_api_get_transfers() -> None:
 
 def test_scan_nonce_unique() -> None:
     """Each scan must send a different nonce (Bug #10 fix)."""
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
 
     nonces_sent: list[str] = []
 
@@ -152,7 +152,7 @@ def test_scan_nonce_unique() -> None:
 def test_scan_uses_peer_id_from_response() -> None:
     """DiscoveryResult.peer_id must come from the 'peer_id' field in the response."""
     import json
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
 
     stable_peer_id = "stable-uuid-1234"
     response = json.dumps(
@@ -192,9 +192,9 @@ def test_send_known_peer_no_auth_token_attr(tmp_path: Any) -> None:
     NerveLAN.send() must not raise AttributeError when the target is a
     known peer (Peer object has no auth_token attribute).
     """
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
+
     from nerve.lan.peer_registry import Peer, PeerRegistry
-    import time
 
     # A peer with no auth_token field (correct design)
     fake_peer = Peer(

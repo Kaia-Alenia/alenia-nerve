@@ -151,7 +151,7 @@ def get_or_create_host_identity(registry_dir: Path) -> str:
             if not isinstance(host_id, str) or not host_id:
                 raise ValueError("Invalid host_id format")
             return host_id
-        except (OSError, json.JSONDecodeError, KeyError, ValueError) as exc:
+        except (OSError, json.JSONDecodeError, KeyError, ValueError):
             import time
 
             # Corruption handling: preserve evidence, do not overwrite silently.

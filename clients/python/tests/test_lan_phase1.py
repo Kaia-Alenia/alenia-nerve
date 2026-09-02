@@ -36,7 +36,7 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -48,15 +48,15 @@ import pytest
 def test_nerve_lan_package_imports() -> None:
     """nerve.lan must be importable without errors."""
     import nerve.lan  # noqa: F401
-    from nerve.lan.peer_registry import Peer, PeerRegistry  # noqa: F401
     from nerve.lan.connect import (  # noqa: F401
+        LAN_CONTROL_PORT_DEFAULT,
         LanAuthenticationError,
         LanConnectionError,
         LanProtocolError,
         connect_and_register,
-        LAN_CONTROL_PORT_DEFAULT,
     )
     from nerve.lan.host import NerveHost  # noqa: F401
+    from nerve.lan.peer_registry import Peer, PeerRegistry  # noqa: F401
 
 
 def test_lan_port_default_does_not_collide() -> None:
@@ -80,7 +80,7 @@ def tmp_registry(tmp_path: Path):
     return PeerRegistry(registry_path=tmp_path / "peers.json")
 
 
-def _make_peer(peer_id: str = "peer-1", name: str = "test-peer") -> "Peer":
+def _make_peer(peer_id: str = "peer-1", name: str = "test-peer") -> Peer:
     from nerve.lan.peer_registry import Peer
 
     return Peer(
@@ -155,7 +155,7 @@ def test_peer_registry_remove_unknown_returns_false(tmp_registry) -> None:
 
 
 def test_peer_registry_persistence_across_instances(tmp_path: Path) -> None:
-    from nerve.lan.peer_registry import Peer, PeerRegistry
+    from nerve.lan.peer_registry import PeerRegistry
 
     path = tmp_path / "peers.json"
     reg1 = PeerRegistry(registry_path=path)
@@ -197,7 +197,7 @@ def test_peer_registry_list_sorted_by_last_seen(tmp_path: Path) -> None:
 
 
 def test_parse_address_ip_only() -> None:
-    from nerve.lan.connect import _parse_address, LAN_CONTROL_PORT_DEFAULT
+    from nerve.lan.connect import LAN_CONTROL_PORT_DEFAULT, _parse_address
 
     host, port = _parse_address("192.168.1.10", {})
     assert host == "192.168.1.10"
@@ -503,7 +503,7 @@ def test_nerve_host_no_orphan_threads_after_stop(
 
 def _start_test_host(
     free_port: int, auth_token: str, tmp_path: Path
-) -> tuple["NerveHost", threading.Thread, threading.Event]:
+) -> tuple[NerveHost, threading.Thread, threading.Event]:
     from nerve.lan.host import NerveHost
 
     host = NerveHost(
@@ -622,7 +622,7 @@ def test_receive_dir_from_config(tmp_path: Path) -> None:
 
 
 def test_receive_dir_fallback_to_downloads() -> None:
-    from nerve.lan.host import _resolve_display_receive_dir, _get_os_downloads_dir
+    from nerve.lan.host import _get_os_downloads_dir, _resolve_display_receive_dir
 
     result = _resolve_display_receive_dir(None, {})
     expected = _get_os_downloads_dir()
@@ -662,7 +662,7 @@ def test_existing_nerve_nrv_imports_unaffected() -> None:
 
 
 def test_existing_nerve_genpass_unaffected() -> None:
-    from nerve.genpass import generate_passphrase, generate_random_password
+    from nerve.genpass import generate_passphrase
 
     pwd, entropy = generate_passphrase(words=3)
     assert len(pwd) > 0
@@ -675,8 +675,6 @@ IS_WINDOWS = platform.system() == "Windows"
 @pytest.mark.skipif(IS_WINDOWS, reason="NexusHub on Linux/macOS uses Unix sockets")
 def test_existing_nexushub_start_stop_unix(tmp_path: Path) -> None:
     """NexusHub (nerve start) must still start and stop cleanly on Unix."""
-    import tempfile
-    import os
     from unittest.mock import patch
 
     # Use a short path in tempdir to avoid AF_UNIX 104 char limit on macOS runners

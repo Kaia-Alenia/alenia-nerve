@@ -34,7 +34,6 @@ payload encryption (Layer 3) are Phase 3 concerns.
 
 from __future__ import annotations
 
-import json
 import platform
 import socket
 

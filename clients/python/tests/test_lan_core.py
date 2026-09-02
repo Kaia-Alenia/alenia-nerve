@@ -21,6 +21,7 @@ import time
 from unittest.mock import patch
 
 import pytest
+
 from nerve.core import NexusClient, NexusHub
 
 IS_WINDOWS = platform.system() == "Windows"
@@ -61,7 +62,6 @@ def test_remote_hub_binds_to_tcp_any_platform():
             s.settimeout(2.0)
             s.connect(("127.0.0.1", port))
             # Test it closes connection if we don't auth properly
-            pass
 
         hub.stop()
         t.join(timeout=5)

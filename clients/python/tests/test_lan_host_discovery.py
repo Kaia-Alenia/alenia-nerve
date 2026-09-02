@@ -15,11 +15,7 @@
 # -----------------------------------------------------------------------------
 
 import json
-import socket
-import threading
-import time
-from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from nerve.lan.host import NerveHost
 

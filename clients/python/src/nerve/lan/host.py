@@ -52,7 +52,7 @@ import socket
 import threading
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from nerve.core import load_external_config
 from nerve.lan.connect import LAN_CONTROL_PORT_DEFAULT, LAN_PROTOCOL_VERSION
@@ -144,7 +144,7 @@ def _get_os_downloads_dir() -> Path:
     return Path.home() / "Downloads"
 
 
-def _resolve_display_receive_dir(cli_receive_dir: Optional[str], config: dict) -> Path:
+def _resolve_display_receive_dir(cli_receive_dir: str | None, config: dict) -> Path:
     """
     Resolve the receive destination displayed at startup.
 
@@ -180,20 +180,20 @@ class NerveHost:
 
     def __init__(
         self,
-        receive_dir: Optional[str] = None,
-        lan_port: Optional[int] = None,
-        auth_token: Optional[str] = None,
+        receive_dir: str | None = None,
+        lan_port: int | None = None,
+        auth_token: str | None = None,
         config_path: str = "nerve.config",
         verbose: bool = False,
-        max_concurrent_transfers: Optional[int] = None,
+        max_concurrent_transfers: int | None = None,
     ) -> None:
         self._config_path = config_path
         self._verbose = verbose
         self._config: dict[str, Any] = load_external_config(config_path)
 
         # Token resolved at start() time
-        self._auth_token_arg: Optional[str] = auth_token
-        self._auth_token: Optional[str] = None
+        self._auth_token_arg: str | None = auth_token
+        self._auth_token: str | None = None
 
         # Port resolution: param > config > default
         resolved_port = (
@@ -222,9 +222,9 @@ class NerveHost:
 
         # Runtime state
         self._running: bool = False
-        self._server: Optional[socket.socket] = None
-        self._data_server: Optional[socket.socket] = None
-        self._udp_server: Optional[socket.socket] = None
+        self._server: socket.socket | None = None
+        self._data_server: socket.socket | None = None
+        self._udp_server: socket.socket | None = None
         self._lock: threading.Lock = threading.Lock()
         self._active_peer_sockets: set[socket.socket] = set()
         self._active_peer_threads: list[threading.Thread] = []

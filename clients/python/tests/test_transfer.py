@@ -14,26 +14,20 @@
 # along with Nerve. If not, see <https://www.gnu.org/licenses/>.
 # -----------------------------------------------------------------------------
 
-import hashlib
 import json
-import os
 import socket
 import struct
 import threading
 from pathlib import Path
-from unittest.mock import MagicMock
-
-import pytest
 
 from nerve.lan.transfer import (
+    _TMP_SUFFIX,
     CHUNK_HEADER_FORMAT,
-    DEFAULT_CHUNK_SIZE,
     HEADER_FORMAT,
     MAGIC,
-    VERSION,
     TYPE_FILE,
+    VERSION,
     TransferProtocolError,
-    _TMP_SUFFIX,
     receive_file,
     send_file,
 )

@@ -38,8 +38,8 @@ import json
 import os
 import socket
 import struct
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional
 
 MAGIC = b"NLAN"
 VERSION = 1
@@ -67,7 +67,6 @@ _TMP_SUFFIX = ".nrv_tmp"
 class TransferProtocolError(Exception):
     """Raised when binary protocol framing or integrity verification fails."""
 
-    pass
 
 
 # ---------------------------------------------------------------------------
@@ -78,9 +77,9 @@ class TransferProtocolError(Exception):
 def send_file(
     conn: socket.socket,
     filepath: str | Path,
-    metadata: Optional[dict] = None,
+    metadata: dict | None = None,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
-    progress_callback: Optional[Callable[[int, int], None]] = None,
+    progress_callback: Callable[[int, int], None] | None = None,
 ) -> str:
     """
     Send a file over *conn* using the Nerve LAN STANDARD binary protocol.
@@ -146,9 +145,9 @@ def send_file(
 def receive_file(
     conn: socket.socket,
     out_dir: str | Path,
-    progress_callback: Optional[Callable[[str, int, int], None]] = None,
+    progress_callback: Callable[[str, int, int], None] | None = None,
     conflict_policy: str = "error",
-) -> tuple[Optional[Path], dict, str]:
+) -> tuple[Path | None, dict, str]:
     """
     Receive a file over *conn* using the Nerve LAN STANDARD binary protocol.
 
@@ -182,7 +181,7 @@ def receive_file(
 
     filename = meta.get("filename", "received_file")
     expected_size = meta.get("size", 0)
-    expected_sha256: Optional[str] = meta.get("sha256")  # may be absent in old protocol
+    expected_sha256: str | None = meta.get("sha256")  # may be absent in old protocol
 
     out_dir_path = Path(out_dir)
     out_dir_path.mkdir(parents=True, exist_ok=True)

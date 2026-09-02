@@ -16,7 +16,6 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 
 class TransferState(str, Enum):
@@ -34,10 +33,10 @@ class TransferState(str, Enum):
 @dataclass
 class ConnectionResult:
     success: bool
-    error: Optional[str] = None
-    peer_id: Optional[str] = None
-    peer_name: Optional[str] = None
-    address: Optional[str] = None
+    error: str | None = None
+    peer_id: str | None = None
+    peer_name: str | None = None
+    address: str | None = None
 
 
 @dataclass
@@ -51,16 +50,16 @@ class DiscoveryResult:
 @dataclass
 class TransferResult:
     success: bool
-    transfer_id: Optional[str] = None
-    error: Optional[str] = None
+    transfer_id: str | None = None
+    error: str | None = None
 
 
 @dataclass
 class HostStatus:
     running: bool
-    address: Optional[str] = None
-    port: Optional[int] = None
-    error: Optional[str] = None
+    address: str | None = None
+    port: int | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -69,4 +68,4 @@ class ProgressEvent:
     percent: float
     transferred_bytes: int
     total_bytes: int
-    current_file: Optional[str] = None
+    current_file: str | None = None

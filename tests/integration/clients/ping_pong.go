@@ -9,7 +9,11 @@ import (
 )
 
 func main() {
-	client := nerve.NewNexusClient()
+	configPath := os.Getenv("NERVE_CONFIG")
+	if configPath == "" {
+		configPath = "nerve.config"
+	}
+	client := nerve.NewNexusClientFromFile(configPath)
 
 	// Register listener BEFORE connecting so no messages are missed.
 	client.Listen(func(payload map[string]interface{}) {

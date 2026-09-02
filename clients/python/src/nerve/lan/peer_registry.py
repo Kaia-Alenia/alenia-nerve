@@ -52,7 +52,6 @@ from pathlib import Path
 
 from nerve.lan.util import atomic_json_write
 
-
 # ---------------------------------------------------------------------------
 # Peer data model
 # ---------------------------------------------------------------------------
@@ -82,7 +81,7 @@ class Peer:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Peer":
+    def from_dict(cls, data: dict) -> Peer:
         return cls(
             peer_id=data["peer_id"],
             name=data["name"],
