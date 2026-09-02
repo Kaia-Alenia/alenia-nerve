@@ -53,7 +53,6 @@ from pathlib import Path
 from nerve.lan.util import atomic_json_write
 
 
-
 # ---------------------------------------------------------------------------
 # Peer data model
 # ---------------------------------------------------------------------------
@@ -127,7 +126,9 @@ class PeerRegistry:
     """
 
     def __init__(self, registry_path: Path | None = None) -> None:
-        self._path: Path = registry_path if registry_path is not None else _registry_path()
+        self._path: Path = (
+            registry_path if registry_path is not None else _registry_path()
+        )
         self._peers: dict[str, Peer] = {}
         self.load()
 
@@ -152,7 +153,9 @@ class PeerRegistry:
             backup_path = self._path.with_name(backup_name)
             try:
                 os.replace(self._path, backup_path)
-                print(f"[WARNING] Local peer registry was corrupt. Preserved as {backup_name}")
+                print(
+                    f"[WARNING] Local peer registry was corrupt. Preserved as {backup_name}"
+                )
             except OSError:
                 pass
             self._peers = {}
@@ -183,7 +186,7 @@ class PeerRegistry:
         # Exact peer_id match first
         if peer_id_or_name in self._peers:
             return self._peers[peer_id_or_name]
-        
+
         # Fallback: case-insensitive name match
         matches = self.find_by_name(peer_id_or_name)
         if len(matches) == 1:

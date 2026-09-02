@@ -71,7 +71,7 @@ def test_remote_client_connects_to_tcp():
     port = _find_free_port()
     with patch("nerve.core.load_external_config", return_value={"port": port}):
         hub = NexusHub(remote=True, auth_token="test-token")
-        
+
         t = threading.Thread(target=hub.start, daemon=True)
         t.start()
         time.sleep(0.3)
@@ -85,15 +85,15 @@ def test_remote_client_connects_to_tcp():
         # Verify it configured AF_INET
         assert client.socket_family == socket.AF_INET
         assert client.address == ("127.0.0.1", port)
-        
+
         # Actually connect
         client.connect(client_id="remote-test-client")
         assert client._socket is not None
-        
+
         # Test basic list
         clients = client.list_clients()
         assert "remote-test-client" in clients
-        
+
         client.disconnect()
         hub.stop()
         t.join(timeout=5)
@@ -103,7 +103,7 @@ def test_remote_hub_rejects_wrong_auth_token():
     port = _find_free_port()
     with patch("nerve.core.load_external_config", return_value={"port": port}):
         hub = NexusHub(remote=True, auth_token="test-token")
-        
+
         t = threading.Thread(target=hub.start, daemon=True)
         t.start()
         time.sleep(0.3)
@@ -114,12 +114,12 @@ def test_remote_hub_rejects_wrong_auth_token():
             remote_host="127.0.0.1",
             auth_token="wrong-token",
         )
-        
+
         client.connect(client_id="remote-test-bad-client")
-        
+
         # the connect method currently returns, but closes the socket if auth fails
         # so _socket will be None
         assert client._socket is None
-        
+
         hub.stop()
         t.join(timeout=5)

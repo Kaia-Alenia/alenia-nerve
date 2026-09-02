@@ -64,6 +64,7 @@ class EventDispatcher:
     def dispatch(self, event_name: str, *args: Any, **kwargs: Any) -> None:
         """Dispatch an event with structured data to all subscribers."""
         import logging as _logging
+
         _log = _logging.getLogger("nerve.lan.events")
         for callback in self._subscribers[event_name]:
             try:

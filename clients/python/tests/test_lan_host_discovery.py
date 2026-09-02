@@ -27,28 +27,28 @@ from nerve.lan.host import NerveHost
 def test_discovery_loop() -> None:
     host = NerveHost(lan_port=50507, verbose=False)
     host._running = True
-    
+
     mock_udp = MagicMock()
     host._udp_server = mock_udp
-    
+
     # We will simulate a recvfrom that returns a valid discovery, then an invalid one, then raises OSError to exit the loop
     mock_udp.recvfrom.side_effect = [
         (b"NERVE_DISCOVERY\nversion=1\nnonce=123", ("192.168.1.50", 12345)),
         (b"RANDOM_JUNK", ("192.168.1.60", 54321)),
-        OSError("Socket closed")
+        OSError("Socket closed"),
     ]
-    
+
     # Run the loop directly (it will exit on OSError)
     host._discovery_loop()
-    
+
     # Assert sendto was called exactly once for the valid discovery
     assert mock_udp.sendto.call_count == 1
     call_args = mock_udp.sendto.call_args[0]
     data_sent = call_args[0]
     addr_sent = call_args[1]
-    
+
     assert addr_sent == ("192.168.1.50", 12345)
-    
+
     parsed = json.loads(data_sent.decode("utf-8"))
     assert parsed["type"] == "nerve_discovery_response"
     assert parsed["control_port"] == 50507

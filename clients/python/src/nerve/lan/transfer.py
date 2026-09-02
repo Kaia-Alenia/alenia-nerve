@@ -66,6 +66,7 @@ _TMP_SUFFIX = ".nrv_tmp"
 
 class TransferProtocolError(Exception):
     """Raised when binary protocol framing or integrity verification fails."""
+
     pass
 
 
@@ -107,7 +108,7 @@ def send_file(
     meta = dict(metadata) if metadata else {}
     meta["filename"] = path.name
     meta["size"] = file_size
-    meta["sha256"] = file_sha256          # receiver uses this for verification
+    meta["sha256"] = file_sha256  # receiver uses this for verification
 
     meta_bytes = json.dumps(meta, ensure_ascii=False).encode("utf-8")
 
@@ -164,7 +165,9 @@ def receive_file(
     """
     # 1. Header
     header_data = _recv_exactly(conn, HEADER_SIZE)
-    magic, version, msg_type, _flags, meta_length = struct.unpack(HEADER_FORMAT, header_data)
+    magic, version, msg_type, _flags, meta_length = struct.unpack(
+        HEADER_FORMAT, header_data
+    )
 
     if magic != MAGIC:
         raise TransferProtocolError(f"Invalid magic bytes: {magic!r}")
@@ -179,7 +182,7 @@ def receive_file(
 
     filename = meta.get("filename", "received_file")
     expected_size = meta.get("size", 0)
-    expected_sha256: Optional[str] = meta.get("sha256")   # may be absent in old protocol
+    expected_sha256: Optional[str] = meta.get("sha256")  # may be absent in old protocol
 
     out_dir_path = Path(out_dir)
     out_dir_path.mkdir(parents=True, exist_ok=True)

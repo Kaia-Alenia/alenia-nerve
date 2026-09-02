@@ -133,7 +133,7 @@ def connect_and_register(
 
     # Use provided registry or default
     reg = registry if registry is not None else PeerRegistry()
-    
+
     # Use our persistent host identity as the client_peer_id
     client_peer_id = get_or_create_host_identity(reg._path.parent)
 

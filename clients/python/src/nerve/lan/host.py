@@ -102,11 +102,12 @@ def _auto_detect_capacity() -> int:
         return 2
     return 1
 
+
 PURPLE = "\033[95m"
-GREEN  = "\033[92m"
+GREEN = "\033[92m"
 YELLOW = "\033[93m"
-RED    = "\033[91m"
-RESET  = "\033[0m"
+RED = "\033[91m"
+RESET = "\033[0m"
 
 # Timeout for accept() — allows clean shutdown polling
 _ACCEPT_TIMEOUT: float = 0.5
@@ -130,6 +131,7 @@ def _get_os_downloads_dir() -> Path:
     if platform.system() == "Windows":
         try:
             import winreg
+
             key = winreg.OpenKey(
                 winreg.HKEY_CURRENT_USER,
                 r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders",
@@ -200,13 +202,15 @@ class NerveHost:
             else int(self._config.get("lan_port", LAN_CONTROL_PORT_DEFAULT))
         )
         self._lan_port: int = resolved_port
-        self._data_port: int = LAN_DATA_PORT_DEFAULT   # fixed, not derived from +3
+        self._data_port: int = LAN_DATA_PORT_DEFAULT  # fixed, not derived from +3
 
         # Stable peer identity for this host
         self._peer_id: str = get_or_create_host_identity(_registry_path().parent)
 
         # Receive destination (Decision #2)
-        self._receive_dir: Path = _resolve_display_receive_dir(receive_dir, self._config)
+        self._receive_dir: Path = _resolve_display_receive_dir(
+            receive_dir, self._config
+        )
 
         # Concurrent transfer capacity (auto-detected from RAM if not provided)
         if max_concurrent_transfers is not None:
@@ -299,6 +303,7 @@ class NerveHost:
 
     def _ensure_auth_configured(self) -> None:
         from nerve.lan.util import LanAuthenticationError
+
         try:
             self._auth_token = resolve_auth_token(
                 self._auth_token_arg, self._config, allow_interactive=True
@@ -425,6 +430,7 @@ class NerveHost:
         if not self._verbose:
             return
         import time as _time
+
         ts = _time.strftime("%H:%M:%S")
         print(f"{color}[{ts}] {msg}{RESET}", flush=True)
 
@@ -435,6 +441,7 @@ class NerveHost:
     def _discovery_loop(self) -> None:
         """Listen for UDP discovery broadcasts and respond with stable peer_id."""
         from nerve import __version__
+
         while self._running and self._udp_server:
             try:
                 data, addr = self._udp_server.recvfrom(1024)
@@ -449,7 +456,7 @@ class NerveHost:
 
             resp = {
                 "type": "nerve_discovery_response",
-                "peer_id": self._peer_id,          # stable identity (Bug #9 fix)
+                "peer_id": self._peer_id,  # stable identity (Bug #9 fix)
                 "hostname": socket.gethostname(),
                 "platform": platform.system(),
                 "version": __version__,
@@ -507,27 +514,32 @@ class NerveHost:
             f"Data plane connection opened from {addr[0]}:{addr[1]}",
             YELLOW,
         )
-        
+
         import time
+
         start_time = time.time()
         last_pct = [0]
-        
+
         def _on_progress(filename: str, bytes_rcv: int, total: int) -> None:
             if total > 0:
                 pct = int((bytes_rcv / total) * 100)
                 # Print progress every 10% (or when reaching 100%)
                 if pct >= last_pct[0] + 10 or pct == 100:
-                    last_pct[0] = pct if pct < 100 else 101 # prevent printing 100% multiple times
+                    last_pct[0] = (
+                        pct if pct < 100 else 101
+                    )  # prevent printing 100% multiple times
                     elapsed = time.time() - start_time
                     speed = (bytes_rcv / (1024 * 1024)) / elapsed if elapsed > 0 else 0
-                    print(f"{GREEN}[NERVE HOST] Receiving '{filename}' from {addr[0]}: {pct}% ({speed:.1f} MB/s){RESET}")
+                    print(
+                        f"{GREEN}[NERVE HOST] Receiving '{filename}' from {addr[0]}: {pct}% ({speed:.1f} MB/s){RESET}"
+                    )
 
         try:
             receive_file(
-                conn, 
-                self._receive_dir, 
+                conn,
+                self._receive_dir,
                 progress_callback=_on_progress,
-                conflict_policy="rename"
+                conflict_policy="rename",
             )
             self._vprint(
                 f"File received from {addr[0]}:{addr[1]} → {self._receive_dir}",
@@ -622,13 +634,16 @@ class NerveHost:
         buf: bytearray = bytearray()
         try:
             # HELLO
-            send_message(conn, {
-                "type": "lan_hello",
-                "peer_id": self._peer_id,
-                "hostname": socket.gethostname(),
-                "platform": platform.system(),
-                "protocol_version": LAN_PROTOCOL_VERSION,
-            })
+            send_message(
+                conn,
+                {
+                    "type": "lan_hello",
+                    "peer_id": self._peer_id,
+                    "hostname": socket.gethostname(),
+                    "platform": platform.system(),
+                    "protocol_version": LAN_PROTOCOL_VERSION,
+                },
+            )
 
             # AUTH
             auth_msg, buf = recv_message(conn, buf)
@@ -642,14 +657,17 @@ class NerveHost:
                 return
 
             # AUTH_RESULT ok
-            send_message(conn, {
-                "type": "lan_auth_result",
-                "status": "ok",
-                "peer_id": self._peer_id,
-                "hostname": socket.gethostname(),
-                "platform": platform.system(),
-                "protocol_version": LAN_PROTOCOL_VERSION,
-            })
+            send_message(
+                conn,
+                {
+                    "type": "lan_auth_result",
+                    "status": "ok",
+                    "peer_id": self._peer_id,
+                    "hostname": socket.gethostname(),
+                    "platform": platform.system(),
+                    "protocol_version": LAN_PROTOCOL_VERSION,
+                },
+            )
 
             client_host = auth_msg.get("client_hostname", peer_addr)
             client_platform = auth_msg.get("client_platform", "?")
@@ -659,7 +677,9 @@ class NerveHost:
                     GREEN,
                 )
             else:
-                print(f"{GREEN}[NERVE HOST] Peer connected: {client_host} ({peer_addr}){RESET}")
+                print(
+                    f"{GREEN}[NERVE HOST] Peer connected: {client_host} ({peer_addr}){RESET}"
+                )
 
             # Transfer request or status query
             req, buf = recv_message(conn, buf)
@@ -675,11 +695,14 @@ class NerveHost:
                     f"capacity: {current}/{self._max_concurrent_transfers}",
                     GREEN,
                 )
-                send_message(conn, {
-                    "type": "lan_status_result",
-                    "current": current,
-                    "max": self._max_concurrent_transfers,
-                })
+                send_message(
+                    conn,
+                    {
+                        "type": "lan_status_result",
+                        "current": current,
+                        "max": self._max_concurrent_transfers,
+                    },
+                )
 
             elif req.get("type") == "lan_transfer_request":
                 filename = req.get("filename", "?")
@@ -689,12 +712,15 @@ class NerveHost:
                     current = self._active_transfers
                     if current >= self._max_concurrent_transfers:
                         # Peer is at capacity — reject gracefully
-                        send_message(conn, {
-                            "type": "lan_transfer_result",
-                            "status": "busy",
-                            "current": current,
-                            "max": self._max_concurrent_transfers,
-                        })
+                        send_message(
+                            conn,
+                            {
+                                "type": "lan_transfer_result",
+                                "status": "busy",
+                                "current": current,
+                                "max": self._max_concurrent_transfers,
+                            },
+                        )
                         self._vprint(
                             f"Transfer REJECTED (busy {current}/{self._max_concurrent_transfers}): "
                             f"{filename} from {client_host}",
@@ -710,11 +736,14 @@ class NerveHost:
                     GREEN,
                 )
                 # Inform sender of the fixed Data Plane port (Bug #5 fix)
-                send_message(conn, {
-                    "type": "lan_transfer_result",
-                    "status": "accepted",
-                    "port": self._data_port,
-                })
+                send_message(
+                    conn,
+                    {
+                        "type": "lan_transfer_result",
+                        "status": "accepted",
+                        "port": self._data_port,
+                    },
+                )
 
         except (OSError, TimeoutError, Exception) as exc:
             self._vprint(f"Handshake error with {peer_addr}: {exc}", RED)
@@ -728,11 +757,14 @@ class NerveHost:
 
     def _reject(self, conn: socket.socket, reason: str, peer_addr: str) -> None:
         try:
-            send_message(conn, {
-                "type": "lan_auth_result",
-                "status": "failed",
-                "reason": reason,
-            })
+            send_message(
+                conn,
+                {
+                    "type": "lan_auth_result",
+                    "status": "failed",
+                    "reason": reason,
+                },
+            )
         except OSError:
             pass
         print(f"{RED}[NERVE HOST] Peer rejected ({reason}): {peer_addr}{RESET}")

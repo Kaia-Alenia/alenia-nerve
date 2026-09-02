@@ -22,14 +22,13 @@ from typing import Optional
 class TransferState(str, Enum):
     """Structured transfer lifecycle states (arch §77.7, §79.4)."""
 
-    PREPARING  = "PREPARING"
-    STARTED    = "STARTED"
-    PROGRESS   = "PROGRESS"
-    VERIFYING  = "VERIFYING"
-    COMPLETED  = "COMPLETED"
-    FAILED     = "FAILED"
-    CANCELLED  = "CANCELLED"
-
+    PREPARING = "PREPARING"
+    STARTED = "STARTED"
+    PROGRESS = "PROGRESS"
+    VERIFYING = "VERIFYING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
 
 
 @dataclass

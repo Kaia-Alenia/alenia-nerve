@@ -132,7 +132,7 @@ class NerveLAN:
 
         def _run_host() -> None:
             try:
-                host.start()           # blocks; _start_server() sets _ready_event
+                host.start()  # blocks; _start_server() sets _ready_event
                 startup_ok[0] = True
             except SystemExit:
                 startup_error[0] = "Authentication not configured."
@@ -178,7 +178,7 @@ class NerveLAN:
             return HostStatus(running=False, error=str(exc))
         finally:
             if thread is not None:
-                thread.join(timeout=3.0)   # Bug #8 fix
+                thread.join(timeout=3.0)  # Bug #8 fix
             self._host = None
             self._host_thread = None
 
@@ -199,7 +199,7 @@ class NerveLAN:
         import socket as _socket
 
         results: list[DiscoveryResult] = []
-        nonce = secrets.token_hex(8)   # unique per scan
+        nonce = secrets.token_hex(8)  # unique per scan
 
         try:
             sock = _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM)
@@ -228,12 +228,14 @@ class NerveLAN:
                         if key in seen:
                             continue
                         seen.add(key)
-                        results.append(DiscoveryResult(
-                            peer_id=peer_id,
-                            peer_name=resp.get("hostname", "unknown"),
-                            address=addr[0],
-                            platform=resp.get("platform", "unknown"),
-                        ))
+                        results.append(
+                            DiscoveryResult(
+                                peer_id=peer_id,
+                                peer_name=resp.get("hostname", "unknown"),
+                                address=addr[0],
+                                platform=resp.get("platform", "unknown"),
+                            )
+                        )
                     except (ValueError, KeyError):
                         pass
                 except TimeoutError:
@@ -289,19 +291,25 @@ class NerveLAN:
             s.settimeout(3.0)
             s.connect((target_ip, port))
             report["direct"]["tcp"] = "[CONFIRMED] Direct TCP connection succeeded"
-            report["service"]["auth"] = "[UNKNOWN] Not authenticated — full service not verified"
+            report["service"]["auth"] = (
+                "[UNKNOWN] Not authenticated — full service not verified"
+            )
             s.close()
         except ConnectionRefusedError:
-            report["direct"]["tcp"] = "[CONFIRMED] Connection refused (target reached, port closed)"
+            report["direct"]["tcp"] = (
+                "[CONFIRMED] Connection refused (target reached, port closed)"
+            )
             report["causes"].append("[POSSIBLE] Nerve host not running on target")
         except TimeoutError:
             report["direct"]["tcp"] = "[CONFIRMED] Connection timed out"
-            report["causes"].extend([
-                "[POSSIBLE] Firewall blocking the connection",
-                "[POSSIBLE] AP / Client Isolation",
-                "[POSSIBLE] Guest Wi-Fi isolation",
-                "[POSSIBLE] Target device unavailable",
-            ])
+            report["causes"].extend(
+                [
+                    "[POSSIBLE] Firewall blocking the connection",
+                    "[POSSIBLE] AP / Client Isolation",
+                    "[POSSIBLE] Guest Wi-Fi isolation",
+                    "[POSSIBLE] Target device unavailable",
+                ]
+            )
         except OSError as exc:
             report["direct"]["tcp"] = f"[UNKNOWN] {exc}"
 
@@ -349,7 +357,11 @@ class NerveLAN:
         import socket as _socket
         from nerve.lan.connect import LAN_PROTOCOL_VERSION
         from nerve.lan.transfer import send_file
-        from nerve.lan.util import get_or_create_host_identity, recv_message, send_message
+        from nerve.lan.util import (
+            get_or_create_host_identity,
+            recv_message,
+            send_message,
+        )
 
         src = Path(path)
         if not src.exists():
@@ -374,6 +386,7 @@ class NerveLAN:
         token = self._auth_token
         if not token:
             from nerve.core import load_external_config
+
             cfg = load_external_config("nerve.config")
             try:
                 token = resolve_auth_token(None, cfg, allow_interactive=False)
@@ -381,7 +394,9 @@ class NerveLAN:
                 token = None
 
         host_str, _, port_str = address.partition(":")
-        ctrl_port = int(port_str) if port_str else (self.port or LAN_CONTROL_PORT_DEFAULT)
+        ctrl_port = (
+            int(port_str) if port_str else (self.port or LAN_CONTROL_PORT_DEFAULT)
+        )
 
         try:
             # Control Plane handshake
@@ -393,25 +408,31 @@ class NerveLAN:
             _hello, buf = recv_message(sock, buf)
 
             my_id = get_or_create_host_identity(reg._path.parent)
-            send_message(sock, {
-                "type": "lan_auth",
-                "token": token or "",
-                "client_peer_id": my_id,
-                "client_hostname": _socket.gethostname(),
-                "client_platform": _platform.system(),
-                "protocol_version": LAN_PROTOCOL_VERSION,
-            })
+            send_message(
+                sock,
+                {
+                    "type": "lan_auth",
+                    "token": token or "",
+                    "client_peer_id": my_id,
+                    "client_hostname": _socket.gethostname(),
+                    "client_platform": _platform.system(),
+                    "protocol_version": LAN_PROTOCOL_VERSION,
+                },
+            )
 
             auth_res, buf = recv_message(sock, buf)
             if auth_res.get("status") != "ok":
                 sock.close()
                 return TransferResult(success=False, error="Authentication failed.")
 
-            send_message(sock, {
-                "type": "lan_transfer_request",
-                "filename": src.name,
-                "size": src.stat().st_size,
-            })
+            send_message(
+                sock,
+                {
+                    "type": "lan_transfer_request",
+                    "filename": src.name,
+                    "size": src.stat().st_size,
+                },
+            )
 
             req_res, buf = recv_message(sock, buf)
             sock.close()
@@ -433,7 +454,9 @@ class NerveLAN:
 
             data_port = req_res.get("port")
             if not data_port:
-                return TransferResult(success=False, error="No data port provided by peer.")
+                return TransferResult(
+                    success=False, error="No data port provided by peer."
+                )
 
             # Data Plane
             dsock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
@@ -489,6 +512,7 @@ class NerveLAN:
                 # Restore host receive_dir if we changed it
                 if receive_dir and self._host is not None:
                     from nerve.lan.host import _resolve_display_receive_dir
+
                     self._host._receive_dir = _resolve_display_receive_dir(
                         self.receive_dir, {}
                     )
@@ -528,7 +552,11 @@ class NerveLAN:
         import platform as _platform
         import socket as _socket
         from nerve.lan.connect import LAN_PROTOCOL_VERSION
-        from nerve.lan.util import get_or_create_host_identity, recv_message, send_message
+        from nerve.lan.util import (
+            get_or_create_host_identity,
+            recv_message,
+            send_message,
+        )
 
         reg = PeerRegistry()
         target_peer = reg.get(to)
@@ -537,6 +565,7 @@ class NerveLAN:
         token = self._auth_token
         if not token:
             from nerve.core import load_external_config
+
             cfg = load_external_config("nerve.config")
             try:
                 token = resolve_auth_token(None, cfg, allow_interactive=False)
@@ -544,7 +573,9 @@ class NerveLAN:
                 token = None
 
         host_str, _, port_str = address.partition(":")
-        ctrl_port = int(port_str) if port_str else (self.port or LAN_CONTROL_PORT_DEFAULT)
+        ctrl_port = (
+            int(port_str) if port_str else (self.port or LAN_CONTROL_PORT_DEFAULT)
+        )
 
         try:
             sock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
@@ -555,14 +586,17 @@ class NerveLAN:
             _hello, buf = recv_message(sock, buf)
 
             my_id = get_or_create_host_identity(reg._path.parent)
-            send_message(sock, {
-                "type": "lan_auth",
-                "token": token or "",
-                "client_peer_id": my_id,
-                "client_hostname": _socket.gethostname(),
-                "client_platform": _platform.system(),
-                "protocol_version": LAN_PROTOCOL_VERSION,
-            })
+            send_message(
+                sock,
+                {
+                    "type": "lan_auth",
+                    "token": token or "",
+                    "client_peer_id": my_id,
+                    "client_hostname": _socket.gethostname(),
+                    "client_platform": _platform.system(),
+                    "protocol_version": LAN_PROTOCOL_VERSION,
+                },
+            )
 
             auth_res, buf = recv_message(sock, buf)
             if auth_res.get("status") != "ok":

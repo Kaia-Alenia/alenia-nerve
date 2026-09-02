@@ -153,10 +153,10 @@ class NexusHub:
             if cert and key:
                 self.ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
                 self.ssl_context.load_cert_chain(certfile=cert, keyfile=key)
-                
+
         if self.remote and not self.auth_token:
             raise ValueError("auth_token is required when remote=True")
-            
+
         if self.is_windows or self.remote:
             if self.remote:
                 host = str(config.get("host", "0.0.0.0"))

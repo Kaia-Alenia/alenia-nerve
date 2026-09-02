@@ -365,14 +365,19 @@ def test_nerve_host_rejects_unauthenticated_peer(
             assert hello["type"] == "lan_hello"
 
             # Send wrong token
-            auth = json.dumps({
-                "type": "lan_auth",
-                "token": "wrong-token",
-                "client_peer_id": "test-client",
-                "client_hostname": "test",
-                "client_platform": "Linux",
-                "protocol_version": 1,
-            }) + "\n"
+            auth = (
+                json.dumps(
+                    {
+                        "type": "lan_auth",
+                        "token": "wrong-token",
+                        "client_peer_id": "test-client",
+                        "client_hostname": "test",
+                        "client_platform": "Linux",
+                        "protocol_version": 1,
+                    }
+                )
+                + "\n"
+            )
             s.sendall(auth.encode())
 
             # Read response
@@ -390,9 +395,7 @@ def test_nerve_host_rejects_unauthenticated_peer(
         t.join(timeout=5)
 
 
-def test_nerve_host_accepts_authenticated_peer(
-    free_port: int, tmp_path: Path
-) -> None:
+def test_nerve_host_accepts_authenticated_peer(free_port: int, tmp_path: Path) -> None:
     """Peers with correct token must receive lan_auth_result ok."""
     from nerve.lan.host import NerveHost
 
@@ -431,14 +434,19 @@ def test_nerve_host_accepts_authenticated_peer(
             assert "hostname" in hello
             assert "platform" in hello
 
-            auth = json.dumps({
-                "type": "lan_auth",
-                "token": "shared-secret",
-                "client_peer_id": "test-client-ok",
-                "client_hostname": "test-machine",
-                "client_platform": "Linux",
-                "protocol_version": 1,
-            }) + "\n"
+            auth = (
+                json.dumps(
+                    {
+                        "type": "lan_auth",
+                        "token": "shared-secret",
+                        "client_peer_id": "test-client-ok",
+                        "client_hostname": "test-machine",
+                        "client_platform": "Linux",
+                        "protocol_version": 1,
+                    }
+                )
+                + "\n"
+            )
             s.sendall(auth.encode())
 
             while b"\n" not in buf:
@@ -517,9 +525,7 @@ def _start_test_host(
     return host, t, started
 
 
-def test_connect_and_register_saves_peer(
-    free_port: int, tmp_path: Path
-) -> None:
+def test_connect_and_register_saves_peer(free_port: int, tmp_path: Path) -> None:
     from nerve.lan.connect import connect_and_register
     from nerve.lan.peer_registry import PeerRegistry
 
@@ -545,9 +551,7 @@ def test_connect_and_register_saves_peer(
         t.join(timeout=5)
 
 
-def test_connect_wrong_token_raises_error(
-    free_port: int, tmp_path: Path
-) -> None:
+def test_connect_wrong_token_raises_error(free_port: int, tmp_path: Path) -> None:
     from nerve.lan.connect import LanAuthenticationError, connect_and_register
     from nerve.lan.peer_registry import PeerRegistry
 
@@ -567,9 +571,7 @@ def test_connect_wrong_token_raises_error(
         t.join(timeout=5)
 
 
-def test_connect_always_closes_connection(
-    free_port: int, tmp_path: Path
-) -> None:
+def test_connect_always_closes_connection(free_port: int, tmp_path: Path) -> None:
     """connect_and_register must close the TCP socket even on error."""
     from nerve.lan.connect import LanConnectionError, connect_and_register
     from nerve.lan.peer_registry import PeerRegistry
