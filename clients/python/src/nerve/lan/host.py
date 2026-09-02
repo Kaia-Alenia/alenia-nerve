@@ -369,7 +369,9 @@ class NerveHost:
         data.settimeout(_ACCEPT_TIMEOUT)
         self._data_server = data
 
-        # Discovery UDP
+        # Discovery UDP — non-fatal: if the OS blocks the port (e.g. Windows
+        # firewall or restricted CI environments), the host still starts and
+        # serves TCP transfers. Discovery is disabled silently in that case.
         udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         udp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         if hasattr(socket, "SO_REUSEPORT"):
@@ -377,22 +379,32 @@ class NerveHost:
                 udp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
             except OSError:
                 pass
-        udp.bind(("0.0.0.0", 50511))
-        udp.settimeout(_ACCEPT_TIMEOUT)
-        self._udp_server = udp
+        try:
+            udp.bind(("0.0.0.0", 50511))
+            udp.settimeout(_ACCEPT_TIMEOUT)
+            self._udp_server = udp
+        except OSError as exc:
+            udp.close()
+            self._udp_server = None
+            logger.warning(
+                "UDP discovery unavailable (port 50511 blocked): %s — "
+                "host starts without peer discovery.",
+                exc,
+            )
 
         self._running = True
         self._stop_event.clear()
 
-        # Discovery thread — registered so stop() joins it
-        disc_th = threading.Thread(
-            target=self._discovery_loop,
-            daemon=True,
-            name="nerve-lan-discovery",
-        )
-        with self._lock:
-            self._active_peer_threads.append(disc_th)
-        disc_th.start()
+        # Discovery thread — only started if UDP bind succeeded
+        if self._udp_server is not None:
+            disc_th = threading.Thread(
+                target=self._discovery_loop,
+                daemon=True,
+                name="nerve-lan-discovery",
+            )
+            with self._lock:
+                self._active_peer_threads.append(disc_th)
+            disc_th.start()
 
         # Data Plane listener thread — registered so stop() joins it (Bug #6 fix)
         data_th = threading.Thread(

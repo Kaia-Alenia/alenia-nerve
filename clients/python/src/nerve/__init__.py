@@ -32,10 +32,11 @@ Typical usage::
     client.send("other_tool", {"status": "ready"})
 """
 
+import importlib.metadata
+
 from .core import NexusClient, NexusHub, load_external_config
 from .nrv import pack_nrv, unpack_nrv
 
-import importlib.metadata
 try:
     __version__ = importlib.metadata.version("alenia-nerve")
 except importlib.metadata.PackageNotFoundError:

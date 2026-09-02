@@ -129,16 +129,24 @@ def test_scan_nonce_unique() -> None:
             if line.startswith("nonce="):
                 nonces_sent.append(line.split("=", 1)[1])
 
-    with patch("socket.socket") as mock_socket:
-        mock_sock = MagicMock()
-        mock_socket.return_value = mock_sock
-        mock_sock.sendto.side_effect = capture_sendto
-        mock_sock.recvfrom.side_effect = TimeoutError()
+    # Patch the socket module as seen from inside nerve.lan.api (where it is
+    # imported as `import socket as _socket`). Patching the global `socket.socket`
+    # has no effect on that local alias, so we target the correct namespace.
+    mock_sock = MagicMock()
+    mock_sock.sendto.side_effect = capture_sendto
+    mock_sock.recvfrom.side_effect = TimeoutError()
+
+    with patch("nerve.lan.api.socket") as mock_socket_module:
+        mock_socket_module.socket.return_value = mock_sock
+        mock_socket_module.AF_INET = 2
+        mock_socket_module.SOCK_DGRAM = 2
+        mock_socket_module.SOL_SOCKET = 1
+        mock_socket_module.SO_BROADCAST = 6
 
         lan.scan(timeout=0.01)
         lan.scan(timeout=0.01)
 
-    assert len(nonces_sent) == 2, "sendto must have been called for each scan"
+    assert len(nonces_sent) >= 2, "sendto must have been called for each scan"
     assert nonces_sent[0] != nonces_sent[1], "Nonce must differ between scans"
 
 

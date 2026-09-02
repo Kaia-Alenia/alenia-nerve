@@ -31,8 +31,10 @@ Fixes applied (confirmed by code review):
 
 from __future__ import annotations
 
+import json
 import logging
 import secrets
+import socket
 import threading
 import time
 from collections.abc import Callable
@@ -195,23 +197,20 @@ class NerveLAN:
         Bug #9 fix: peer_id taken from 'peer_id' field in response.
         Bug #10 fix: nonce generated per scan via secrets.token_hex(8).
         """
-        import json
-        import socket as _socket
-
         results: list[DiscoveryResult] = []
         nonce = secrets.token_hex(8)  # unique per scan
 
         try:
-            sock = _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM)
-            sock.setsockopt(_socket.SOL_SOCKET, _socket.SO_BROADCAST, 1)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
             sock.settimeout(timeout)
 
-            msg = f"NERVE_DISCOVERY\nversion=1\nnonce={nonce}".encode("utf-8")
-            
+            msg = f"NERVE_DISCOVERY\nversion=1\nnonce={nonce}".encode()
+
             bcast_addrs = {"255.255.255.255", "<broadcast>"}
             try:
-                hostname = _socket.gethostname()
-                _, _, ips = _socket.gethostbyname_ex(hostname)
+                hostname = socket.gethostname()
+                _, _, ips = socket.gethostbyname_ex(hostname)
                 for ip in ips:
                     if not ip.startswith("127."):
                         parts = ip.split(".")
@@ -219,7 +218,7 @@ class NerveLAN:
                             bcast_addrs.add(f"{parts[0]}.{parts[1]}.{parts[2]}.255")
             except Exception:
                 pass
-            
+
             for b_addr in bcast_addrs:
                 try:
                     sock.sendto(msg, (b_addr, 50511))
