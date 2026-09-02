@@ -35,7 +35,11 @@ Typical usage::
 from .core import NexusClient, NexusHub, load_external_config
 from .nrv import pack_nrv, unpack_nrv
 
-__version__ = "1.6.1"
+import importlib.metadata
+try:
+    __version__ = importlib.metadata.version("alenia-nerve")
+except importlib.metadata.PackageNotFoundError:
+    __version__ = "unknown"
 __author__ = "Alenia Studios"
 __license__ = "GNU General Public License v3 (GPL v3)"
 __email__ = "contact.aleniastudios@gmail.com"
