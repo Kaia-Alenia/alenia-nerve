@@ -1,6 +1,6 @@
 <div align="center">
   <h1>Nerve</h1>
-  <p><b>Decentralized Nervous System for Local Sockets.</b></p>
+  <p><b>The Ultimate LAN Transfer & IPC Streaming Engine</b></p>
   
   [![PyPI Version](https://img.shields.io/pypi/v/alenia-nerve.svg?color=blueviolet)](https://pypi.org/project/alenia-nerve/)
   [![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-darkviolet.svg)](https://github.com/Kaia-Alenia/alenia-nerve)
@@ -8,47 +8,87 @@
   [![Ko-fi](https://img.shields.io/badge/Support_us-Ko--fi-FF5E5B.svg?logo=ko-fi&logoColor=white)](https://ko-fi.com/aleniastudios)
 
   <br>
-  <p><i><b>Sovereignty, Speed, and Complete Privacy.</b> Nerve is the cross-platform local inter-process communication engine designed by <b>Alenia Studios</b> to orchestrate game development tools locally, requiring zero cloud dependency.</i></p>
+  <p><b>Sovereignty, Speed, and Complete Privacy.</b> Nerve is a cross-platform command-line engine designed to securely pack and transfer massive datasets, compiled binaries, and stream data between Windows, Linux, and macOS on the same local network. <b>Zero cloud, zero internet, zero configuration.</b></p>
 </div>
 
 ---
 
-##  What is Nerve for?
+## What is Nerve?
 
-Nerve is designed for developers who need to connect multiple local programs, scripts, or microservices so they can exchange data in real-time with sub-millisecond latency. Instead of running a heavy local web server (like Flask or FastAPI) that opens public ports, or writing to lock-prone shared files, Nerve creates a secure, ultra-fast, local communication bus.
+Forget about uploading 20GB of massive databases or heavy compiled binaries to cloud storage just to send them to a server across the room.
 
-### Core Use Cases:
-* **Local Microservices & Desktop Apps:** Link a modern frontend (Electron, Tauri, Flutter) to a heavy Python backend or local AI model.
-* **AI & Real-Time Data Pipelines:** Stream data (audio, video, text) between processing nodes. If an AI node crashes, Nerve automatically reconnects it.
-* **Automation & Script Orchestration:** Coordinate background tasks (log collectors, auto-backup scripts, scrapers) and aggregate their outputs.
-* **Polyglot Communication:** Connect programs written in different languages (Python, Rust, C++, Go) using simple line-based JSON over standard local sockets.
+Nerve turns your local network into a high-speed, peer-to-peer data bus. It separates traffic into two professional layers:
+1. **The Control Plane:** For discovering devices on your LAN (`nerve scan`), secure token authentication, and sending real-time lightweight JSON messages between polyglot microservices (Python, Rust, Go, JS).
+2. **The Data Plane:** A raw binary streaming transport built to move massive packed `.nrv` files via chunking without ever choking your RAM.
+
+### The Nerve Experience
+
+Transferring gigabytes securely across operating systems requires packing your assets and providing your secure auth token:
+
+```bash
+# 1. On your Windows workstation (Pack your heavy directory)
+$ nerve pack D:\HeavyDatasets\Project --output project.nrv
+
+# 2. On your Linux machine (Start listening securely)
+$ nerve host --dir ~/received_data --token "my-secure-password"
+
+# 3. On your Windows workstation (Discover and Send)
+$ nerve scan
+> Found: linux-server (192.168.1.10)
+$ nerve connect 192.168.1.10 --token "my-secure-password"
+$ nerve send project.nrv --to linux-server
+```
 
 ---
 
-##  The Concept: Sovereign Local Networks
+## Firewall and Port Requirements (Windows / Linux)
 
-In modern game development, the privacy of your assets, source code, and metadata is paramount. **Nerve** acts as an ultra-fast local data bus, allowing independent processes (such as sprite slicers, gif renderers, and system monitors) to sync in real-time with sub-millisecond latency, without sending a single byte outside your physical workstation.
+When using `nerve host` and `nerve scan` for Direct Device-to-Device communication, ensure your OS firewall allows traffic on the following ports:
+
+| Port | Protocol | Purpose |
+|--------|-----------|-----------|
+| `50511` | UDP | Discovery (broadcasts from `nerve scan`) |
+| `4432` | TCP | Control Plane (authentication and handshake) |
+| `50510` | TCP | Data Plane (file transfers and large payloads) |
+
+**Windows Firewall Solution:**
+If `nerve scan` fails to find a Windows machine, the Windows Firewall is likely blocking incoming UDP 50511. Open **PowerShell as Administrator** and run:
+```powershell
+New-NetFirewallRule -DisplayName "Nerve LAN Discovery" -Direction Inbound -Protocol UDP -LocalPort 50511 -Action Allow -Profile Any
+New-NetFirewallRule -DisplayName "Nerve LAN Control" -Direction Inbound -Protocol TCP -LocalPort 4432 -Action Allow -Profile Any
+New-NetFirewallRule -DisplayName "Nerve LAN Data" -Direction Inbound -Protocol TCP -LocalPort 50510 -Action Allow -Profile Any
+```
+
+**AP Isolation (Wi-Fi Routers):**
+If your router isolates Wi-Fi clients (blocking UDP broadcasts), `nerve scan` will fail. You can bypass this by scanning the exact IP directly (unicast):
+```bash
+nerve scan 192.168.1.50
+```
+
+**Linux Firewall Solution (UFW):**
+If you are running a strict firewall on Linux (like Ubuntu), incoming UDP broadcasts might be dropped. Allow the ports via UFW:
+```bash
+sudo ufw allow 50511/udp
+sudo ufw allow 4432/tcp
+sudo ufw allow 50510/tcp
+```
+
+**Fallback: Direct Connection**
+If discovery continues to fail due to strict router configurations, you can bypass `nerve scan` entirely and connect directly to the host's IP address:
+```bash
+$ nerve connect 192.168.1.50 --token "my-secure-password"
+```
+*(To find your host's local IP address, run `ipconfig` on Windows or `ip a` on Linux).*
 
 ---
 
-##  Multi-Platform Native Core ✓
+## Core Features
 
-Nerve is fully cross-platform and dynamically adapts to the host operating system to deliver the best local latency possible:
-
-* [![Linux](https://img.shields.io/badge/Linux-Unix%20Domain%20Sockets-blueviolet.svg?logo=linux&logoColor=white)](#) **Linux & macOS**: Utilizes native **Unix Domain Sockets (UDS)** via `socket.AF_UNIX` at `/tmp/nerve.sock` for high-performance direct memory piping.
-* [![Windows](https://img.shields.io/badge/Windows-TCP%20127.0.0.1%3A50505-6a0dad.svg?logo=windows&logoColor=white)](#) **Windows**: Dynamically falls back to a specialized **local TCP connection** via `socket.AF_INET` at `127.0.0.1:50505`, ensuring 100% compatibility across developer workstations without modifying a single line of your tools' logic.
-
----
-
-##  Key Features ⚠ ⚠
-
-* **Cross-Platform**: Zero configuration required; runs out-of-the-box on Windows, Linux, and macOS.
-* **Line-Based Framing**: Robust packet handling using newline delimiters (`\n`) to prevent data collision or buffer merging under heavy throughput.
-* **Hub-Client Architecture**: A single central coordinator (`NexusHub`) directs intelligent message routing to specific registered nodes (`NexusClient`).
-* **Industrial Auto-Reconnection**: `NexusClient` automatically reconnects every 2 seconds if the Hub restarts, protecting host applications from crashes.
-* **Background Heartbeats**: The Hub broadcasts ping packets every 5 seconds to detect and purge stale connections.
-* **External Config Support**: Customize ports and socket paths via a `nerve.config` file without touching code.
-* **Verbose Mode**: Run with `--verbose` to trace every packet routed through the Hub in real-time.
+* **Terminal-Native Transfers:** Direct `Linux <-> Windows` and `Windows <-> Windows` transfers out of the box.
+* **Dual-Architecture Engine:** Uses ultra-low latency **Unix Domain Sockets (UDS)** for local IPC, and dynamically pivots to **TCP Binary Streams** when reaching out to the LAN.
+* **True Streaming (No Memory Bloat):** Massive files are broken into `.nrv` binary chunks on the fly. Nerve will not load a 10GB file into your RAM.
+* **Secure by Default:** Connections require an auth token (via `--token` or `nerve.config`). LAN mode is strictly opt-in. Unless you run `nerve host`, Nerve remains completely silent and isolated.
+* **Polyglot SDKs:** Need to wire a Rust backend to a Python data pipeline locally? Nerve provides official clients to orchestrate local microservices with auto-reconnection and background heartbeats.
 
 ---
 
@@ -309,7 +349,7 @@ data_port=50510
 
 ---
 
-## 🛡️ LAN Discovery & Firewall (Windows / Linux)
+##  LAN Discovery & Firewall (Windows / Linux)
 
 When using `nerve host` and `nerve scan` for Direct Device Communication across multiple computers, ensure your firewall permits traffic on the following ports:
 
@@ -335,7 +375,7 @@ nerve scan 192.168.1.50
 
 ---
 
-## 🤝 Contributors
+##  Contributors
 
 We want to express our deepest gratitude to everyone who contributes to Nerve! Your work, reviews, and bug reports make this project possible.
 
@@ -347,11 +387,11 @@ See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 ---
 
-## 📜 License
+##  License
 
 [![License](https://img.shields.io/badge/License-GPLv3-8a2be2.svg)](LICENSE)
 
 This software is distributed under the **GNU General Public License v3 (GPL v3)**. See [LICENSE](LICENSE) for more details.
 
 ---
-*Crafted with passion by Alenia Studios to power sovereign game creators.*
+*Crafted with passion by Alenia Studios to power sovereign software engineers and creators.*

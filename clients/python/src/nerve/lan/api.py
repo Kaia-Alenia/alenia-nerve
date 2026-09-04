@@ -14,19 +14,9 @@
 # along with Nerve. If not, see <https://www.gnu.org/licenses/>.
 # -----------------------------------------------------------------------------
 """
-Nerve LAN — Headless public API (arch §77).
 
 All automation, CLI, and REST adapters consume this class.
 The LAN Core is headless: no print(), input(), or terminal rendering here.
-
-Fixes applied (confirmed by code review):
-  Bug #1  — send(): Peer has no auth_token attr; token resolved from config/env only
-  Bug #4  — send(): directory path detected early, returns honest error
-  Bug #7  — start(): HOST_STARTED only dispatched after host bind confirms success
-  Bug #8  — stop(): joins host thread before clearing reference
-  Bug #9  — scan(): peer_id taken from response field, not hostname fallback
-  Bug #10 — scan(): nonce generated per scan with secrets.token_hex
-  Bug #11 — receive(): receive_dir registered on host when host already running
 """
 
 from __future__ import annotations
@@ -74,7 +64,6 @@ class NerveLAN:
 
     All automation and UI layers should consume this API.
     CLI commands are adapters over this class.
-    REST endpoints will be adapters over this class (Phase 9).
     """
 
     def __init__(
@@ -102,15 +91,10 @@ class NerveLAN:
         """Unsubscribe from a LAN event."""
         self.events.off(event_name, callback)
 
-    # ------------------------------------------------------------------
-    # Host lifecycle
-    # ------------------------------------------------------------------
-
     def start(self) -> HostStatus:
         """
         Start the LAN Host in the background.
 
-        Bug #7 fix: HOST_STARTED is only dispatched after the host confirms
         successful bind via _ready_event. If bind fails within the startup
         timeout the method returns running=False.
         """
@@ -164,7 +148,6 @@ class NerveLAN:
         """
         Stop the LAN Host.
 
-        Bug #8 fix: joins host thread before clearing reference so callers
         receive STOPPED only after the thread has actually exited.
         """
         if self._host is None:
@@ -180,15 +163,11 @@ class NerveLAN:
             return HostStatus(running=False, error=str(exc))
         finally:
             if thread is not None:
-                thread.join(timeout=3.0)  # Bug #8 fix
+                thread.join(timeout=3.0)  
             self._host = None
             self._host_thread = None
 
         return HostStatus(running=False)
-
-    # ------------------------------------------------------------------
-    # Discovery
-    # ------------------------------------------------------------------
 
     def scan(
         self, timeout: float = 2.0, target_ip: str | None = None
@@ -200,8 +179,6 @@ class NerveLAN:
         instead of (or in addition to) broadcast — useful on networks where
         routers block broadcast packets between clients (AP/Client Isolation).
 
-        Bug #9 fix: peer_id taken from 'peer_id' field in response.
-        Bug #10 fix: nonce generated per scan via secrets.token_hex(8).
         """
         results: list[DiscoveryResult] = []
         nonce = secrets.token_hex(8)  # unique per scan
@@ -250,7 +227,7 @@ class NerveLAN:
                         resp = json.loads(data.decode("utf-8"))
                         if resp.get("type") != "nerve_discovery_response":
                             continue
-                        # Bug #9: use server-provided peer_id, not hostname
+                        
                         peer_id = resp.get("peer_id") or resp.get("hostname", "unknown")
                         key = f"{addr[0]}:{peer_id}"
                         if key in seen:
@@ -278,16 +255,11 @@ class NerveLAN:
 
         return results
 
-    # ------------------------------------------------------------------
-    # Diagnostics
-    # ------------------------------------------------------------------
-
     def diagnose(self, target_ip: str | None = None) -> dict:
         """
         Run local or targeted diagnostics.
 
         Returns structured evidence dict using levels: CONFIRMED, LIKELY,
-        POSSIBLE, UNKNOWN (arch Decision #7+#8).
         """
         import socket as _socket
 
@@ -345,10 +317,6 @@ class NerveLAN:
 
         return report
 
-    # ------------------------------------------------------------------
-    # Connect
-    # ------------------------------------------------------------------
-
     def connect(
         self, ip: str, name: str | None = None, token: str | None = None
     ) -> ConnectionResult:
@@ -366,10 +334,6 @@ class NerveLAN:
         except Exception as exc:
             return ConnectionResult(success=False, error=f"Unexpected error: {exc}")
 
-    # ------------------------------------------------------------------
-    # Send
-    # ------------------------------------------------------------------
-
     def send(
         self,
         path: str,
@@ -379,9 +343,7 @@ class NerveLAN:
         """
         Send a file to a remote peer.
 
-        Bug #1 fix: Peer object has no auth_token; token is resolved from
                     config/env — Peer is only used for address lookup.
-        Bug #4 fix: Directories return an honest error instead of AttributeError.
         """
         import platform as _platform
         import socket as _socket
@@ -398,14 +360,13 @@ class NerveLAN:
         if not src.exists():
             return TransferResult(success=False, error=f"Path not found: {path}")
 
-        # Bug #4: directory transfers not yet implemented in STANDARD mode
+        
         if src.is_dir():
             return TransferResult(
                 success=False,
                 error="Directory transfer not yet implemented in STANDARD mode.",
             )
 
-        # Resolve target address — Peer only provides the address (Bug #1)
         reg = PeerRegistry()
         target_peer = reg.get(to)
         if target_peer:
@@ -502,13 +463,8 @@ class NerveLAN:
         except Exception as exc:
             return TransferResult(success=False, error=str(exc))
 
-    # ------------------------------------------------------------------
-    # Receive
-    # ------------------------------------------------------------------
-
     def receive(self, receive_dir: str | None = None) -> None:
         """
-        Temporary receive session (Decision #11).
 
         If a compatible local host is already running, this method attaches
         by updating the host's receive_dir for this session.
@@ -516,7 +472,6 @@ class NerveLAN:
         If no host exists, starts a temporary host and blocks until Ctrl+C,
         then tears it down completely.
 
-        Bug #11 fix: receive_dir is communicated to the host (not just ignored).
         """
         import socket as _socket
 
@@ -565,10 +520,6 @@ class NerveLAN:
             finally:
                 self.stop()
                 self.receive_dir = old_dir
-
-    # ------------------------------------------------------------------
-    # Peer / transfer inspection
-    # ------------------------------------------------------------------
 
     def get_peer_capacity(self, to: str) -> dict:
         """
@@ -653,12 +604,10 @@ class NerveLAN:
         return PeerRegistry().list_peers()
 
     def get_transfers(self) -> list[Any]:
-        """Return active transfers. (Stub — Phase 3 streaming engine)."""
         return []
 
     def network_info(self) -> dict:
         """
-        Return local network information for automation (arch §84.9).
 
         No Internet required. Filters out loopback and 0.0.0.0.
         """

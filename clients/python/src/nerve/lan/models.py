@@ -19,7 +19,6 @@ from enum import Enum
 
 
 class TransferState(str, Enum):
-    """Structured transfer lifecycle states (arch §77.7, §79.4)."""
 
     PREPARING = "PREPARING"
     STARTED = "STARTED"

@@ -23,13 +23,7 @@ Protocol framing (big-endian):
 
 Sender includes 'sha256' in metadata.
 Receiver writes to a temporary file and verifies the hash before renaming to
-the final destination. A partial or tampered file never reaches the final path.
-
-Frozen requirements:
-  Decision #3  — File and Directory Conflict Policy
-  Decision #6  — Streaming / no full-file RAM loading / 512 KB default chunk
-  §72.3        — STANDARD transfer test matrix (SHA-256 success/mismatch)
-"""
+the final destination. A partial or tampered file never reaches the final path."""
 
 from __future__ import annotations
 
@@ -57,7 +51,6 @@ CHUNK_HEADER_SIZE = struct.calcsize(CHUNK_HEADER_FORMAT)
 
 LAN_DATA_PORT_DEFAULT = 50510
 
-# Decision #6: default chunk size 512 KB
 DEFAULT_CHUNK_SIZE = 512 * 1024
 
 # Suffix used for temporary files during receive; never exposed as final output
@@ -68,9 +61,6 @@ class TransferProtocolError(Exception):
     """Raised when binary protocol framing or integrity verification fails."""
 
 
-# ---------------------------------------------------------------------------
-# Sender
-# ---------------------------------------------------------------------------
 
 
 def send_file(
@@ -136,9 +126,6 @@ def send_file(
     return file_sha256
 
 
-# ---------------------------------------------------------------------------
-# Receiver
-# ---------------------------------------------------------------------------
 
 
 def receive_file(
@@ -150,7 +137,6 @@ def receive_file(
     """
     Receive a file over *conn* using the Nerve LAN STANDARD binary protocol.
 
-    Write flow (Decision #5 — no partial file at final path):
       1. Write chunks to <filename>.nrv_tmp
       2. After EOF: compare computed SHA-256 against metadata 'sha256'
       3. On match: rename temp → final (atomic on POSIX, best-effort on Windows)
@@ -263,9 +249,6 @@ def receive_file(
     return final_path, meta, computed_sha256
 
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
 
 
 def _recv_exactly(conn: socket.socket, num_bytes: int) -> bytes:

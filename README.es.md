@@ -1,55 +1,94 @@
 <div align="center">
   <h1>Nerve</h1>
-  <p><b>Sistema Nervioso Descentralizado para Sockets Locales.</b></p>
+  <p><b>El Motor Definitivo de Transferencia LAN y Streaming IPC</b></p>
   
   [![PyPI Version](https://img.shields.io/pypi/v/alenia-nerve.svg?color=blueviolet)](https://pypi.org/project/alenia-nerve/)
   [![GitHub Repository](https://img.shields.io/badge/GitHub-Repositorio-darkviolet.svg)](https://github.com/Kaia-Alenia/alenia-nerve)
   [![License: GPL v3](https://img.shields.io/badge/Licencia-GPLv3-blue.svg)](LICENSE)
-  [![Ko-fi](https://img.shields.io/badge/Apóyanos_en-Ko--fi-FF5E5B.svg?logo=ko-fi&logoColor=white)](https://ko-fi.com/aleniastudios)
+  [![Ko-fi](https://img.shields.io/badge/Apóyanos-Ko--fi-FF5E5B.svg?logo=ko-fi&logoColor=white)](https://ko-fi.com/aleniastudios)
 
   <br>
-  <p><i><b>Soberanía, Velocidad y Privacidad Absoluta.</b> Nerve es el motor de comunicación entre procesos (IPC) local multiplataforma diseñado por <b>Alenia Studios</b> para transferencia de datos y archivos offline entre aplicaciones de escritorio, scripts y microservicios, requiriendo cero dependencias en la nube.</i></p>
+  <p><b>Soberanía, Velocidad y Privacidad Absoluta.</b> Nerve es un motor de línea de comandos multiplataforma diseñado para empaquetar y transferir de forma segura bases de datos masivas, binarios pesados y transmitir datos entre Windows, Linux y macOS en la misma red local. <b>Cero nube, cero internet, cero configuración.</b></p>
 </div>
 
 ---
 
-##  ¿Para qué sirve Nerve?
+## ¿Qué es Nerve?
 
-Nerve está diseñado para desarrolladores que necesitan conectar múltiples programas, scripts o microservicios locales para que intercambien datos en tiempo real con una latencia de submilisegundos. En lugar de ejecutar un servidor web local pesado (como Flask o FastAPI) que abre puertos públicos, o escribir en archivos compartidos propensos a bloqueos, Nerve crea un bus de comunicación local seguro y ultrarrápido.
+Olvídate de subir 20GB de bases de datos o binarios pesados a la nube solo para pasarlos al servidor que está al otro lado de la habitación.
 
-### Casos de Uso Principales:
-* **Microservicios Locales y Aplicaciones de Escritorio:** Vincula un frontend moderno (Electron, Tauri, Flutter) con un backend pesado en Python o un modelo de IA local.
-* **Transferencia de Archivos Offline:** Mueve contenedores seguros y datos binarios entre procesos aislados de forma instantánea.
-* **Pipelines de Datos en Tiempo Real e IA:** Transmite datos (audio, video, texto) entre nodos de procesamiento. Si un nodo de IA falla, Nerve lo reconecta automáticamente.
-* **Automatización y Orquestación de Scripts:** Coordina tareas en segundo plano (colectores de logs, scripts de respaldo automático, scrapers) y agrega sus salidas.
-* **Comunicación Políglota:** Conecta programas escritos en diferentes lenguajes (Python, Rust, C++, Go) utilizando JSON simple delimitado por líneas sobre sockets locales estándar.
+Nerve convierte tu red local en un bus de datos peer-to-peer de alta velocidad. Separa el tráfico en dos capas profesionales:
+1. **El Plano de Control:** Para descubrir dispositivos en tu LAN (`nerve scan`), autenticación segura mediante tokens, y envío de mensajes JSON ligeros en tiempo real entre microservicios políglotas (Python, Rust, Go, JS).
+2. **El Plano de Datos:** Un transporte de transmisión binaria pura construido para mover archivos masivos `.nrv` empaquetados mediante fragmentación (chunking) sin saturar jamás tu memoria RAM.
+
+### La Experiencia Nerve
+
+Transferir gigabytes de forma segura entre sistemas operativos requiere empaquetar tus archivos y usar un token de autenticación:
+
+```bash
+# 1. En tu estación de trabajo Windows (Empaqueta tu directorio pesado)
+$ nerve pack D:\BasesDeDatos\Proyecto --output proyecto.nrv
+
+# 2. En tu máquina Linux (Inicia el host de forma segura)
+$ nerve host --dir ~/datos_recibidos --token "mi-contraseña-segura"
+
+# 3. En tu estación de trabajo Windows (Descubre y Envía)
+$ nerve scan
+> Found: linux-server (192.168.1.10)
+$ nerve connect 192.168.1.10 --token "mi-contraseña-segura"
+$ nerve send proyecto.nrv --to linux-server
+```
 
 ---
 
-##  El Concepto: Redes Locales Soberanas
+## Requisitos de Puertos y Firewall (Windows / Linux)
 
-En el desarrollo de software moderno, la privacidad de tus datos, recursos y lógica interna es primordial. **Nerve** actúa como un bus de datos local ultrarrápido, permitiendo que procesos independientes (como aplicaciones de escritorio, pipelines de procesamiento de datos, y herramientas de automatización) se sincronicen y compartan archivos en tiempo real con latencia de submilisegundos, sin enviar un solo byte fuera de tu estación de trabajo física.
+Cuando uses `nerve host` y `nerve scan` para Comunicación Directa entre Dispositivos, asegúrate de que tu firewall permita el tráfico en los siguientes puertos:
+
+| Puerto | Protocolo | Propósito |
+|--------|-----------|-----------|
+| `50511` | UDP | Descubrimiento (broadcasts de `nerve scan`) |
+| `4432` | TCP | Plano de Control (autenticación y handshake) |
+| `50510` | TCP | Plano de Datos (transferencia de archivos y cargas grandes) |
+
+**Solución para el Firewall de Windows:**
+Si `nerve scan` no puede encontrar una máquina Windows ejecutando `nerve host`, generalmente es porque el Firewall de Windows bloquea el puerto UDP 50511 de entrada. Abre un **PowerShell como Administrador** y ejecuta:
+```powershell
+New-NetFirewallRule -DisplayName "Nerve LAN Discovery" -Direction Inbound -Protocol UDP -LocalPort 50511 -Action Allow -Profile Any
+New-NetFirewallRule -DisplayName "Nerve LAN Control" -Direction Inbound -Protocol TCP -LocalPort 4432 -Action Allow -Profile Any
+New-NetFirewallRule -DisplayName "Nerve LAN Data" -Direction Inbound -Protocol TCP -LocalPort 50510 -Action Allow -Profile Any
+```
+
+**Aislamiento AP (Routers Wi-Fi):**
+Si tu router aísla a los clientes Wi-Fi (bloqueando paquetes broadcast UDP), `nerve scan` fallará. Puedes evitar esto escaneando la IP exacta directamente (unicast):
+```bash
+nerve scan 192.168.1.50
+```
+
+**Solución para el Firewall de Linux (UFW):**
+Si estás usando un firewall estricto en Linux (como Ubuntu), los paquetes UDP entrantes podrían ser descartados. Permite los puertos usando UFW:
+```bash
+sudo ufw allow 50511/udp
+sudo ufw allow 4432/tcp
+sudo ufw allow 50510/tcp
+```
+
+**Plan B: Conexión Directa**
+Si el escaneo sigue fallando debido a configuraciones de red o routers estrictos, puedes saltarte `nerve scan` por completo y conectarte directamente a la dirección IP del host:
+```bash
+$ nerve connect 192.168.1.50 --token "mi-contraseña-segura"
+```
+*(Para saber cuál es tu IP local, ejecuta `ipconfig` en Windows o `ip a` en Linux).*
 
 ---
 
-## Núcleo Nativo Multiplataforma ✓
+## Características Principales
 
-Nerve es totalmente multiplataforma y se adapta dinámicamente al sistema operativo anfitrión para ofrecer la mejor latencia local posible:
-
-* [![Linux](https://img.shields.io/badge/Linux-Unix%20Domain%20Sockets-blueviolet.svg?logo=linux&logoColor=white)](#) **Linux y macOS**: Utiliza **Unix Domain Sockets (UDS)** nativos a través de `socket.AF_UNIX` en `/tmp/nerve.sock` para tuberías de memoria directa de alto rendimiento.
-* [![Windows](https://img.shields.io/badge/Windows-TCP%20127.0.0.1%3A50505-6a0dad.svg?logo=windows&logoColor=white)](#) **Windows**: Alterna dinámicamente a una conexión **TCP local** especializada a través de `socket.AF_INET` en `127.0.0.1:50505`, garantizando compatibilidad al 100% en estaciones de trabajo de desarrolladores sin modificar una sola línea de lógica de tus herramientas.
-
----
-
-##  Características Principales ⚠ ⚠
-
-* **Multiplataforma**: No requiere configuración; funciona sin ajustes previos en Windows, Linux y macOS.
-* **Enmarcado por Líneas**: Manejo robusto de paquetes usando delimitadores de nueva línea (`\n`) para evitar colisiones de datos bajo alto rendimiento.
-* **Arquitectura Hub-Cliente**: Un coordinador central único (`NexusHub`) dirige el enrutamiento inteligente de mensajes a nodos registrados específicos (`NexusClient`).
-* **Auto-Reconexión Industrial**: `NexusClient` se reconecta automáticamente cada 2 segundos si el Hub se reinicia, protegiendo las aplicaciones anfitrionas de fallos.
-* **Latidos (Heartbeats) en Segundo Plano**: El Hub emite pings cada 5 segundos para detectar y purgar conexiones inactivas.
-* **Soporte para Configuración Externa**: Personaliza puertos y rutas de socket mediante un archivo `nerve.config` sin tocar el código.
-* **Modo Verbose**: Ejecuta con `--verbose` para trazar cada paquete enrutado a través del Hub en tiempo real.
+* **Transferencias Nativas en Terminal:** Transferencias directas `Linux <-> Windows` y `Windows <-> Windows` listas para usar.
+* **Motor de Doble Arquitectura:** Utiliza **Unix Domain Sockets (UDS)** de latencia ultrabaja para IPC local, y pivota dinámicamente a **Flujos Binarios TCP** al salir a la red LAN.
+* **Streaming Real (Sin Inflar Memoria):** Los archivos masivos se dividen en fragmentos binarios `.nrv` sobre la marcha. Nerve no cargará un archivo de 10GB en tu memoria RAM.
+* **Seguro por Defecto:** Las conexiones LAN requieren un token de autenticación (vía `--token` o `nerve.config`). A menos que ejecutes `nerve host`, Nerve permanece completamente silencioso y aislado.
+* **SDKs Políglotas:** ¿Necesitas conectar un backend en Rust a un pipeline de datos en Python localmente? Nerve proporciona clientes oficiales para orquestar microservicios locales con reconexión automática y latidos en segundo plano.
 
 ---
 
@@ -277,7 +316,7 @@ Una interfaz web local ligera que renderiza una **Vista de Topología de Red** e
 
 ---
 
-## 🏭 Casos de Uso Reales en Producción
+##  Casos de Uso Reales en Producción
 
 Nerve fue construido para operar en entornos exigentes. Actualmente, orquesta el ecosistema de herramientas de **Alenia Studios**, sirviendo como el puente de comunicación en tiempo real para aplicaciones pesadas de escritorio:
 
@@ -317,7 +356,7 @@ data_port=50510
 
 ---
 
-## 🛡️ Descubrimiento LAN y Firewall (Windows / Linux)
+##  Descubrimiento LAN y Firewall (Windows / Linux)
 
 Cuando uses `nerve host` y `nerve scan` para Comunicación Directa entre Dispositivos a través de múltiples computadoras, asegúrate de que tu firewall permita el tráfico en los siguientes puertos:
 
@@ -343,7 +382,7 @@ nerve scan 192.168.1.50
 
 ---
 
-## 🤝 Contribuidores
+##  Contribuidores
 
 ¡Queremos expresar nuestro más profundo agradecimiento a todas las personas que contribuyen a Nerve! Su trabajo, revisiones y reportes de errores hacen que este proyecto sea posible.
 
@@ -355,11 +394,11 @@ Consulta [CHANGELOG.md](CHANGELOG.md) para ver el historial completo de versione
 
 ---
 
-## 📜 Licencia
+##  Licencia
 
 [![Licencia](https://img.shields.io/badge/Licencia-GPLv3-8a2be2.svg)](LICENSE)
 
 Este software se distribuye bajo la **Licencia Pública General de GNU v3 (GPL v3)**. Consulta [LICENSE](LICENSE) para más detalles.
 
 ---
-*Elaborado con pasión por Alenia Studios para impulsar a creadores de videojuegos soberanos.*
+*Elaborado con pasión por Alenia Studios para impulsar a creadores e ingenieros de software soberano.*

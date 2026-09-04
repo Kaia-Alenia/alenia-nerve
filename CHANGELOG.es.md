@@ -2,7 +2,12 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
-## [1.6.10] — 2026-09-02
+
+## [1.6.9] — 2026-09-03
+### Cambiado
+- **Reposicionamiento Universal:** Nerve ha evolucionado oficialmente de un transporte de datos para GameDev a un **Motor Universal de Transferencia LAN e IPC**. La arquitectura se mantiene intacta, pero la orientación del proyecto ahora abarca datos masivos, ingeniería y flujos empresariales.
+
+## [1.6.8] — 2026-09-02
 ### Agregado
 - **LAN** (`api.py`): Añadido el parámetro `target_ip` a `scan()` (y al CLI `nerve scan <IP>`) para descubrimiento unicast. Esto evita el aislamiento de AP (AP Isolation) en routers Wi-Fi restrictivos donde se bloquea el broadcast UDP.
 - **Nerve LAN Fase 1**: Introducida la Comunicación Directa entre Dispositivos sin necesidad de un hub central (a partir de la versión 1.6.0).

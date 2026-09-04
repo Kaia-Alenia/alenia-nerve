@@ -22,7 +22,6 @@ NERVE_LAN_ARCHITECTURE_v1_FINAL_AUDITED.md.
 Existing local IPC (NexusHub, NexusClient, nerve start) is not modified
 by this subpackage.
 
-Public API is intentionally minimal at Phase 1. Exports will be extended
 as each implementation phase is completed and reviewed.
 """
 

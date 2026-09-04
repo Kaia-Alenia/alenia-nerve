@@ -16,7 +16,6 @@
 """
 nerve connect — LAN peer verification and registration.
 
-Frozen requirement: Decision #4 — Peer Registry, connect, and Connection Lifetime.
 
 nerve connect <IP> [--name NAME] [--token TOKEN]
 
@@ -28,8 +27,6 @@ Behavior:
 5. Save or update the peer in the PeerRegistry.
 6. Return the saved Peer.
 
-Authentication is Layer 1 only (Phase 1). TLS (Layer 2) and NRV_SECURE
-payload encryption (Layer 3) are Phase 3 concerns.
 """
 
 from __future__ import annotations
@@ -46,7 +43,6 @@ from nerve.lan.util import (
 )
 
 # LAN control plane default port.
-# Implementation Proposal: 50507 (next free after 50505 IPC and 50506 bridge).
 # This value is NOT frozen in any CLOSED — V1 decision.
 # It is configurable via nerve.config key "lan_port".
 LAN_CONTROL_PORT_DEFAULT: int = 50507
@@ -58,9 +54,6 @@ CONNECT_TIMEOUT: float = 10.0
 LAN_PROTOCOL_VERSION: int = 1
 
 
-# ---------------------------------------------------------------------------
-# Exceptions
-# ---------------------------------------------------------------------------
 
 
 class LanAuthenticationError(Exception):
@@ -75,9 +68,6 @@ class LanConnectionError(Exception):
     """Raised when the TCP connection to the remote host fails."""
 
 
-# ---------------------------------------------------------------------------
-# Connect and register
-# ---------------------------------------------------------------------------
 
 
 def connect_and_register(
@@ -190,16 +180,12 @@ def connect_and_register(
         return peer
 
     finally:
-        # Connection is always closed after verification — Decision #4.
         try:
             sock.close()
         except OSError:
             pass
 
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
 
 
 def _parse_address(address: str, config: dict) -> tuple[str, int]:

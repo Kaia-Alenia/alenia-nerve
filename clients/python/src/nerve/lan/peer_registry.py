@@ -16,7 +16,6 @@
 """
 Persistent peer registry for Nerve LAN V1.
 
-Frozen requirement: Decision #4 — Peer Registry, connect, and Connection Lifetime.
 
 A peer is identified by a stable peer_id, not by its IP address.
 The IP address (last_address) is metadata that may change (DHCP).
@@ -24,7 +23,6 @@ The IP address (last_address) is metadata that may change (DHCP).
 Storage decision (Implementation Proposal):
     The existing repository has no established persistent data directory.
     nerve.config is the only existing persistence, and it is explicitly
-    excluded by Decision #4: "must not casually overload nerve.config into
     an unstructured peer database if a separate Nerve-managed registry is
     architecturally cleaner."
 
@@ -52,9 +50,6 @@ from pathlib import Path
 
 from nerve.lan.util import atomic_json_write
 
-# ---------------------------------------------------------------------------
-# Peer data model
-# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -92,9 +87,6 @@ class Peer:
         )
 
 
-# ---------------------------------------------------------------------------
-# Registry
-# ---------------------------------------------------------------------------
 
 
 def _registry_path() -> Path:
@@ -131,9 +123,6 @@ class PeerRegistry:
         self._peers: dict[str, Peer] = {}
         self.load()
 
-    # ------------------------------------------------------------------
-    # Persistence
-    # ------------------------------------------------------------------
 
     def load(self) -> None:
         """Load peers from disk. Silently no-ops if the file does not exist."""
@@ -164,9 +153,6 @@ class PeerRegistry:
         data = {"peers": [p.to_dict() for p in self._peers.values()]}
         atomic_json_write(self._path, data)
 
-    # ------------------------------------------------------------------
-    # Peer operations
-    # ------------------------------------------------------------------
 
     def add_or_update(self, peer: Peer) -> None:
         """
@@ -219,9 +205,6 @@ class PeerRegistry:
         return True
 
 
-# ---------------------------------------------------------------------------
-# Helper: build a Peer from a connect handshake response
-# ---------------------------------------------------------------------------
 
 
 def peer_from_handshake(

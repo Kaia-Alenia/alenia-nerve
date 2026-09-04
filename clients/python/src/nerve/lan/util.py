@@ -37,7 +37,6 @@ import uuid
 from pathlib import Path
 
 # Maximum size for a JSON control message in bytes (64KB).
-# This is an implementation detail chosen to satisfy the bounded memory requirement.
 MAX_CONTROL_MESSAGE_SIZE = 1024 * 64
 
 
@@ -47,11 +46,6 @@ class LanProtocolError(Exception):
 
 class LanAuthenticationError(Exception):
     """Raised when authentication fails or required credentials are missing."""
-
-
-# ---------------------------------------------------------------------------
-# Control Message Framing
-# ---------------------------------------------------------------------------
 
 
 def send_message(sock: socket.socket, msg: dict) -> None:
@@ -96,11 +90,6 @@ def recv_message(sock: socket.socket, buffer: bytearray) -> tuple[dict, bytearra
         raise LanProtocolError(f"Invalid JSON from remote: {exc}") from exc
 
 
-# ---------------------------------------------------------------------------
-# Atomic Persistence & Identity
-# ---------------------------------------------------------------------------
-
-
 def atomic_json_write(target_path: Path, data: dict) -> None:
     """
     Safely write a dictionary to a JSON file using atomic replacement.
@@ -137,9 +126,6 @@ def get_or_create_host_identity(registry_dir: Path) -> str:
     """
     Retrieve the persistent stable host identity (peer_id) for this Nerve installation.
     If it does not exist or is corrupt, generates a new one safely.
-
-    This is the minimal implementation detail required to satisfy the MD's
-    PERSISTENT STABLE IDENTITY requirement without overloading nerve.config.
     """
     identity_path = registry_dir / "identity.json"
 
@@ -169,11 +155,6 @@ def get_or_create_host_identity(registry_dir: Path) -> str:
     new_id = str(uuid.uuid4())
     atomic_json_write(identity_path, {"host_id": new_id})
     return new_id
-
-
-# ---------------------------------------------------------------------------
-# Authentication Resolution
-# ---------------------------------------------------------------------------
 
 
 def resolve_auth_token(

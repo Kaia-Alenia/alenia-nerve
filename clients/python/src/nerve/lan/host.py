@@ -16,20 +16,6 @@
 """
 nerve host — foreground LAN host mode.
 
-Frozen requirements:
-  Decision #9  — nerve host Lifecycle and Shutdown
-  Decision #10 — Authentication, Credentials, and First Pairing
-  F-1   nerve host is a new foreground command, separate from nerve start.
-  F-2   nerve host binds to a LAN-reachable address (not loopback-only).
-  F-3   nerve host must never operate as an unauthenticated open listener.
-  F-4   Interactive missing credentials: may enter the official setup/generation flow.
-  F-5   Non-interactive missing credentials: clear failure, no silent generation.
-  F-6   Ctrl+C stops all host-owned resources cleanly.
-  F-7   No orphan listener or hidden daemon remains after exit.
-  F-12  nerve host shows the receive destination at startup.
-  F-13  Existing nerve start / NexusHub is completely unchanged.
-
-LAN control plane protocol (Phase 1):
   host → client:  {type: lan_hello, peer_id, hostname, platform, protocol_version}
   client → host:  {type: lan_auth, token, client_peer_id, client_hostname,
                    client_platform, protocol_version}
@@ -116,14 +102,10 @@ _ACCEPT_TIMEOUT: float = 0.5
 _PEER_HANDSHAKE_TIMEOUT: float = 15.0
 
 
-# ---------------------------------------------------------------------------
-# Receive destination resolution
-# ---------------------------------------------------------------------------
 
 
 def _get_os_downloads_dir() -> Path:
     """
-    Return the platform Downloads directory (frozen fallback, Decision #2).
 
     Linux / macOS: ~/Downloads
     Windows:       User's Downloads (resolved via registry or USERPROFILE)
@@ -148,7 +130,6 @@ def _resolve_display_receive_dir(cli_receive_dir: str | None, config: dict) -> P
     """
     Resolve the receive destination displayed at startup.
 
-    Priority (Decision #2 / Decision #11):
         1. Explicit CLI --receive-dir
         2. Persistent nerve.config receive_dir
         3. OS Downloads directory fallback
@@ -161,9 +142,6 @@ def _resolve_display_receive_dir(cli_receive_dir: str | None, config: dict) -> P
     return _get_os_downloads_dir()
 
 
-# ---------------------------------------------------------------------------
-# NerveHost
-# ---------------------------------------------------------------------------
 
 
 class NerveHost:
@@ -172,10 +150,8 @@ class NerveHost:
 
     Starts a TCP control-plane listener and a persistent Data Plane listener,
     plus a UDP discovery responder. All owned threads and sockets are tracked
-    so stop() can perform a deterministic, complete shutdown (Decision #9).
 
     Architecturally separate from NexusHub (nerve start). Existing local IPC
-    is completely unchanged (Decision #9 F-13).
     """
 
     def __init__(
@@ -207,7 +183,6 @@ class NerveHost:
         # Stable peer identity for this host
         self._peer_id: str = get_or_create_host_identity(_registry_path().parent)
 
-        # Receive destination (Decision #2)
         self._receive_dir: Path = _resolve_display_receive_dir(
             receive_dir, self._config
         )
@@ -237,9 +212,6 @@ class NerveHost:
         # Set by _start_server() once bind succeeds — used by start() to confirm readiness
         self._ready_event: threading.Event = threading.Event()
 
-    # ------------------------------------------------------------------
-    # Public interface
-    # ------------------------------------------------------------------
 
     def start(self) -> None:
         """
@@ -256,7 +228,6 @@ class NerveHost:
 
     def stop(self) -> None:
         """
-        Stop the host and release all owned resources (Decision #9 F-6/F-7).
 
         Closes all sockets, joins all registered threads within a bounded
         deadline, and signals the stop event. Safe to call multiple times.
@@ -290,7 +261,6 @@ class NerveHost:
             except OSError:
                 pass
 
-        # Join all threads with a shared bounded deadline (Decision #9).
         # Two passes: first covers threads that existed at snapshot time;
         # second covers threads spawned in the race window between snapshot
         # and socket shutdown (avoids orphan threads on macOS/Linux).
@@ -318,9 +288,6 @@ class NerveHost:
             except RuntimeError:
                 pass
 
-    # ------------------------------------------------------------------
-    # Authentication enforcement (F-3, F-4, F-5)
-    # ------------------------------------------------------------------
 
     def _ensure_auth_configured(self) -> None:
         from nerve.lan.util import LanAuthenticationError
@@ -355,9 +322,6 @@ class NerveHost:
                 f"\nAdd it manually.{RESET}"
             )
 
-    # ------------------------------------------------------------------
-    # Server lifecycle
-    # ------------------------------------------------------------------
 
     def _start_server(self) -> None:
         """
@@ -423,7 +387,6 @@ class NerveHost:
                 self._active_peer_threads.append(disc_th)
             disc_th.start()
 
-        # Data Plane listener thread — registered so stop() joins it (Bug #6 fix)
         data_th = threading.Thread(
             target=self._data_accept_loop,
             daemon=True,
@@ -433,7 +396,6 @@ class NerveHost:
             self._active_peer_threads.append(data_th)
         data_th.start()
 
-        # Signal readiness after all binds succeed (Bug #7 fix)
         self._ready_event.set()
 
     def _print_startup_banner(self) -> None:
@@ -454,9 +416,6 @@ class NerveHost:
         )
         print(f"{YELLOW}[NERVE HOST] Press Ctrl+C to stop.{RESET}")
 
-    # ------------------------------------------------------------------
-    # Verbose print helper
-    # ------------------------------------------------------------------
 
     def _vprint(self, msg: str, color: str = "") -> None:
         """Print a timestamped verbose log line to stdout (no-op if not verbose)."""
@@ -467,9 +426,6 @@ class NerveHost:
         ts = _time.strftime("%H:%M:%S")
         print(f"{color}[{ts}] {msg}{RESET}", flush=True)
 
-    # ------------------------------------------------------------------
-    # Discovery responder
-    # ------------------------------------------------------------------
 
     def _discovery_loop(self) -> None:
         """Listen for UDP discovery broadcasts and respond with stable peer_id."""
@@ -489,7 +445,6 @@ class NerveHost:
 
             resp = {
                 "type": "nerve_discovery_response",
-                "peer_id": self._peer_id,  # stable identity (Bug #9 fix)
                 "hostname": socket.gethostname(),
                 "platform": platform.system(),
                 "version": __version__,
@@ -501,9 +456,6 @@ class NerveHost:
             except OSError:
                 pass
 
-    # ------------------------------------------------------------------
-    # Data Plane accept loop
-    # ------------------------------------------------------------------
 
     def _data_accept_loop(self) -> None:
         """
@@ -599,9 +551,6 @@ class NerveHost:
             except OSError:
                 pass
 
-    # ------------------------------------------------------------------
-    # Control Plane accept loop
-    # ------------------------------------------------------------------
 
     def _accept_loop(self) -> None:
         """
@@ -643,9 +592,6 @@ class NerveHost:
             self.stop()
             print(f"\n{PURPLE}[NERVE HOST] Stopped.{RESET}")
 
-    # ------------------------------------------------------------------
-    # Control Plane peer handshake
-    # ------------------------------------------------------------------
 
     def _handle_peer(self, conn: socket.socket, addr: tuple[str, int]) -> None:
         """
@@ -768,7 +714,6 @@ class NerveHost:
                     f"slot {active_now}/{self._max_concurrent_transfers}",
                     GREEN,
                 )
-                # Inform sender of the fixed Data Plane port (Bug #5 fix)
                 send_message(
                     conn,
                     {

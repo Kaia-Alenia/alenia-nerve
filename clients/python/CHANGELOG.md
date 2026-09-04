@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+
+## [1.6.9] — 2026-09-03
+### Changed
+- **Universal Repositioning:** Nerve has officially evolved from a GameDev data transport into a **Universal LAN Transfer & IPC Engine**. The architecture remains intact, but the project's orientation now formally encompasses massive datasets, engineering, and enterprise workflows.
+
 ## [1.5.7] — 2026-07-31
 ### Fixed
 - **Bridge** (`bridge.py`): Resolved Ruff S110 lint error — replaced silent `except Exception: pass` in `_handle_hub_message._send()` with `logger.debug(...)` to log the exception instead of swallowing it.
