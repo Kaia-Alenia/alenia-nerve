@@ -8,7 +8,7 @@
   [![Ko-fi](https://img.shields.io/badge/Support_us-Ko--fi-FF5E5B.svg?logo=ko-fi&logoColor=white)](https://ko-fi.com/aleniastudios)
 
   <br>
-  <p><b>Sovereignty, Speed, and Complete Privacy.</b> Nerve is a cross-platform command-line engine designed to securely pack and transfer massive datasets, compiled binaries, and stream data between Windows, Linux, and macOS on the same local network. <b>Zero cloud, zero internet, zero configuration.</b></p>
+  <p><b>Sovereignty, Speed, and Complete Privacy.</b> Nerve is a cross-platform command-line engine designed to securely pack and transfer massive datasets, compiled binaries, and stream data between Windows, Linux, macOS, and Android through Termux. <b>No cloud or Internet access is required.</b></p>
 </div>
 
 ---
@@ -21,16 +21,24 @@ Nerve turns your local network into a high-speed, peer-to-peer data bus. It sepa
 1. **The Control Plane:** For discovering devices on your LAN (`nerve scan`), secure token authentication, and sending real-time lightweight JSON messages between polyglot microservices (Python, Rust, Go, JS).
 2. **The Data Plane:** A raw binary streaming transport built to move massive packed `.nrv` files via chunking without ever choking your RAM.
 
+### No Internet does not mean no local network
+
+Nerve does not contact external servers to discover, authenticate, or transfer files. All LAN traffic is direct between devices:
+
+`nerve scan` sends a UDP discovery query, `nerve host` responds, the TCP control plane authenticates with the token, and the TCP data plane transfers the file.
+
+To work without Internet access, Wi-Fi or Ethernet must remain connected to a common local network. You can turn off the router's WAN/Internet connection while keeping its LAN active, use a local hotspot, Wi-Fi Direct, or a direct Ethernet cable. If the network adapter itself is disabled, there is no IP route and no application can connect the devices.
+
 ### The Nerve Experience
 
 Transferring gigabytes securely across operating systems requires packing your assets and providing your secure auth token:
 
 ```bash
-# 1. On your Windows workstation (Pack your heavy directory)
-$ nerve pack D:\HeavyDatasets\Project --output project.nrv
+# 1. On your Windows workstation (pack your heavy directory)
+$ nerve pack D:\HeavyDatasets\Project project.nrv
 
-# 2. On your Linux machine (Start listening securely)
-$ nerve host --dir ~/received_data --token "my-secure-password"
+# 2. On your Linux machine (configure auth_token in nerve.config)
+$ nerve host --receive-dir ~/received_data
 
 # 3. On your Windows workstation (Discover and Send)
 $ nerve scan
@@ -38,6 +46,39 @@ $ nerve scan
 $ nerve connect 192.168.1.10 --token "my-secure-password"
 $ nerve send project.nrv --to linux-server
 ```
+
+The same flow works in every direction: Linux to Windows, Windows to Linux, Windows to Windows, and macOS to any of them. The host receives files; `send` starts a transfer from the device that owns the file.
+
+### Android through Termux
+
+Android can participate in the same LAN by running Nerve's Python client inside [Termux](https://termux.dev/). No special Android application or Internet connection is required during the transfer.
+
+```bash
+# In Termux
+pkg update
+pkg install python git
+termux-setup-storage
+git clone https://github.com/Kaia-Alenia/alenia-nerve.git
+cd alenia-nerve/clients/python
+pip install .
+```
+
+To receive files on Android:
+
+```bash
+export NERVE_AUTH_TOKEN="my-local-token"
+nerve host --receive-dir ~/storage/downloads
+```
+
+From Windows or Linux, find Android's IP and connect directly:
+
+```bash
+nerve diagnose 192.168.1.50
+nerve connect 192.168.1.50 --token "my-local-token"
+nerve send archive.zip --to 192.168.1.50
+```
+
+To send from Android to Windows or Linux, start `nerve host` on the destination and run `nerve send` from Termux using the file path. Keep Termux active during transfers; Android may suspend background processes when the screen is locked.
 
 ---
 
@@ -48,14 +89,14 @@ When using `nerve host` and `nerve scan` for Direct Device-to-Device communicati
 | Port | Protocol | Purpose |
 |--------|-----------|-----------|
 | `50511` | UDP | Discovery (broadcasts from `nerve scan`) |
-| `4432` | TCP | Control Plane (authentication and handshake) |
+| `50507` | TCP | Control Plane (authentication and handshake; configurable) |
 | `50510` | TCP | Data Plane (file transfers and large payloads) |
 
 **Windows Firewall Solution:**
 If `nerve scan` fails to find a Windows machine, the Windows Firewall is likely blocking incoming UDP 50511. Open **PowerShell as Administrator** and run:
 ```powershell
 New-NetFirewallRule -DisplayName "Nerve LAN Discovery" -Direction Inbound -Protocol UDP -LocalPort 50511 -Action Allow -Profile Any
-New-NetFirewallRule -DisplayName "Nerve LAN Control" -Direction Inbound -Protocol TCP -LocalPort 4432 -Action Allow -Profile Any
+New-NetFirewallRule -DisplayName "Nerve LAN Control" -Direction Inbound -Protocol TCP -LocalPort 50507 -Action Allow -Profile Any
 New-NetFirewallRule -DisplayName "Nerve LAN Data" -Direction Inbound -Protocol TCP -LocalPort 50510 -Action Allow -Profile Any
 ```
 
@@ -69,7 +110,7 @@ nerve scan 192.168.1.50
 If you are running a strict firewall on Linux (like Ubuntu), incoming UDP broadcasts might be dropped. Allow the ports via UFW:
 ```bash
 sudo ufw allow 50511/udp
-sudo ufw allow 4432/tcp
+sudo ufw allow 50507/tcp
 sudo ufw allow 50510/tcp
 ```
 
@@ -78,7 +119,21 @@ If discovery continues to fail due to strict router configurations, you can bypa
 ```bash
 $ nerve connect 192.168.1.50 --token "my-secure-password"
 ```
-*(To find your host's local IP address, run `ipconfig` on Windows or `ip a` on Linux).*
+To find your local IP address:
+
+```powershell
+# Windows
+ipconfig
+```
+
+```bash
+# Linux / macOS / Termux
+ip addr
+# If ip is unavailable in Termux:
+ifconfig
+```
+
+Use the private IPv4 address of the adapter that connects both devices, such as `192.168.1.50`, `10.0.0.25`, or `172.20.10.4`. Do not use `127.0.0.1`; that address only works inside the same device.
 
 ---
 
@@ -87,7 +142,7 @@ $ nerve connect 192.168.1.50 --token "my-secure-password"
 * **Terminal-Native Transfers:** Direct `Linux <-> Windows` and `Windows <-> Windows` transfers out of the box.
 * **Dual-Architecture Engine:** Uses ultra-low latency **Unix Domain Sockets (UDS)** for local IPC, and dynamically pivots to **TCP Binary Streams** when reaching out to the LAN.
 * **True Streaming (No Memory Bloat):** Massive files are broken into `.nrv` binary chunks on the fly. Nerve will not load a 10GB file into your RAM.
-* **Secure by Default:** Connections require an auth token (via `--token` or `nerve.config`). LAN mode is strictly opt-in. Unless you run `nerve host`, Nerve remains completely silent and isolated.
+* **Secure by Default:** LAN connections require an auth token configured in `nerve.config` or `NERVE_AUTH_TOKEN`; `nerve connect` also accepts `--token`. LAN mode is strictly opt-in. Unless you run `nerve host`, Nerve remains completely silent and isolated.
 * **Polyglot SDKs:** Need to wire a Rust backend to a Python data pipeline locally? Nerve provides official clients to orchestrate local microservices with auto-reconnection and background heartbeats.
 
 ---
@@ -333,8 +388,7 @@ Place a `nerve.config` file in your project root or user home directory to custo
   "port": 50505,
   "host": "127.0.0.1",
   "auth_token": "my_secure_token",
-  "lan_port": 4432,
-  "data_port": 50510
+  "lan_port": 50507
 }
 ```
 
@@ -343,8 +397,7 @@ Place a `nerve.config` file in your project root or user home directory to custo
 socket_path=/tmp/nerve.sock
 port=50505
 auth_token=my_secure_token
-lan_port=4432
-data_port=50510
+lan_port=50507
 ```
 
 ---
@@ -356,14 +409,14 @@ When using `nerve host` and `nerve scan` for Direct Device Communication across 
 | Port | Protocol | Purpose |
 |------|----------|---------|
 | `50511` | UDP | Discovery (`nerve scan` broadcasts) |
-| `4432` | TCP | Control Plane (authentication & handshake) |
+| `50507` | TCP | Control Plane (authentication & handshake; configurable with `lan_port`) |
 | `50510` | TCP | Data Plane (file transfer & large payloads) |
 
 **Windows Firewall Fix:**
 If `nerve scan` cannot find a Windows machine running `nerve host`, it is usually because Windows Firewall blocks inbound UDP 50511 by default. Open an **Administrator PowerShell** and run:
 ```powershell
 New-NetFirewallRule -DisplayName "Nerve LAN Discovery" -Direction Inbound -Protocol UDP -LocalPort 50511 -Action Allow -Profile Any
-New-NetFirewallRule -DisplayName "Nerve LAN Control" -Direction Inbound -Protocol TCP -LocalPort 4432 -Action Allow -Profile Any
+New-NetFirewallRule -DisplayName "Nerve LAN Control" -Direction Inbound -Protocol TCP -LocalPort 50507 -Action Allow -Profile Any
 New-NetFirewallRule -DisplayName "Nerve LAN Data" -Direction Inbound -Protocol TCP -LocalPort 50510 -Action Allow -Profile Any
 ```
 
@@ -372,6 +425,37 @@ If your router isolates Wi-Fi clients (blocking broadcast packets), `nerve scan`
 ```bash
 nerve scan 192.168.1.50
 ```
+
+### Finding local IP addresses
+
+Use the private IPv4 address of the adapter connected to the same LAN as the other device. Do not use `127.0.0.1`, which only represents the current device.
+
+```powershell
+# Windows
+ipconfig
+```
+
+```bash
+# Linux and macOS
+ip addr
+
+# Android / Termux
+ip addr
+# Fallback if ip is unavailable:
+ifconfig
+```
+
+Valid examples include `192.168.1.50`, `10.0.0.25`, and `172.20.10.4`. To verify the local interface and remote host:
+
+```bash
+nerve diagnose 192.168.1.50
+```
+
+If the diagnostic reports a local interface but TCP fails, check the firewall, confirm both devices are on the same subnet, and disable client isolation on the router. If no IPv4 interface is detected, the computer has been fully disconnected from the LAN: turning off Internet access is compatible with Nerve, but disabling Wi-Fi/Ethernet is not.
+
+### Configurable ports
+
+The default `nerve host` control port is `50507`. If you set another value with `lan_port` or `--port`, open that TCP port and include it when connecting, for example `nerve connect 192.168.1.50:4432`. The data port remains `50510` and discovery uses UDP `50511`.
 
 ---
 

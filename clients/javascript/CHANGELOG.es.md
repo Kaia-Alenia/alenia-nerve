@@ -3,6 +3,10 @@
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 
+## [7.0.0] — 2026-09-09
+### Cambiado
+- Sincronizada la versión del cliente JavaScript con la release principal de Nerve.
+
 ## [1.6.9] — 2026-09-03
 ### Cambiado
 - **Reposicionamiento Universal:** Nerve ha evolucionado oficialmente de un transporte de datos para GameDev a un **Motor Universal de Transferencia LAN e IPC**. La arquitectura se mantiene intacta, pero la orientación del proyecto ahora abarca datos masivos, ingeniería y flujos empresariales.

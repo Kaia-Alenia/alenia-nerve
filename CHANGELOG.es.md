@@ -3,6 +3,18 @@
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 
+## [7.0.0] — 2026-09-09
+### Agregado
+- Documentada la arquitectura LAN offline-first, incluyendo plano de control, plano de datos, firewall, consulta de IP local y flujos Android/Termux.
+
+### Solucionado
+- El descubrimiento LAN ya no depende de DNS ni de una ruta predeterminada hacia Internet para identificar interfaces IPv4 locales.
+- Las respuestas de descubrimiento ahora incluyen la identidad estable del host.
+
+### Cambiado
+- Sincronizadas las versiones de los paquetes Python, JavaScript y Rust en `7.0.0`.
+
+
 ## [1.6.9] — 2026-09-03
 ### Cambiado
 - **Reposicionamiento Universal:** Nerve ha evolucionado oficialmente de un transporte de datos para GameDev a un **Motor Universal de Transferencia LAN e IPC**. La arquitectura se mantiene intacta, pero la orientación del proyecto ahora abarca datos masivos, ingeniería y flujos empresariales.

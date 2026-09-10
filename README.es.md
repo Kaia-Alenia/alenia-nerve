@@ -8,7 +8,7 @@
   [![Ko-fi](https://img.shields.io/badge/Apóyanos-Ko--fi-FF5E5B.svg?logo=ko-fi&logoColor=white)](https://ko-fi.com/aleniastudios)
 
   <br>
-  <p><b>Soberanía, Velocidad y Privacidad Absoluta.</b> Nerve es un motor de línea de comandos multiplataforma diseñado para empaquetar y transferir de forma segura bases de datos masivas, binarios pesados y transmitir datos entre Windows, Linux y macOS en la misma red local. <b>Cero nube, cero internet, cero configuración.</b></p>
+  <p><b>Soberanía, Velocidad y Privacidad Absoluta.</b> Nerve es un motor de línea de comandos multiplataforma diseñado para empaquetar y transferir de forma segura bases de datos masivas, binarios pesados y transmitir datos entre Windows, Linux, macOS y Android mediante Termux. <b>No necesita nube ni acceso a Internet.</b></p>
 </div>
 
 ---
@@ -21,16 +21,24 @@ Nerve convierte tu red local en un bus de datos peer-to-peer de alta velocidad. 
 1. **El Plano de Control:** Para descubrir dispositivos en tu LAN (`nerve scan`), autenticación segura mediante tokens, y envío de mensajes JSON ligeros en tiempo real entre microservicios políglotas (Python, Rust, Go, JS).
 2. **El Plano de Datos:** Un transporte de transmisión binaria pura construido para mover archivos masivos `.nrv` empaquetados mediante fragmentación (chunking) sin saturar jamás tu memoria RAM.
 
+### Sin Internet no significa sin red local
+
+Nerve no contacta servidores externos para descubrir, autenticar o transferir archivos. Todo el tráfico LAN usa conexiones directas entre dispositivos:
+
+`nerve scan` envía una consulta UDP, `nerve host` responde, el plano de control TCP autentica con el token y el plano de datos TCP transfiere el archivo.
+
+Para trabajar sin Internet, el Wi-Fi o Ethernet debe seguir conectado a una red local común. Puedes apagar la conexión WAN del router y mantener su LAN activa, usar un hotspot local, Wi-Fi Direct o un cable Ethernet directo. Si se desactiva por completo el adaptador de red, no existe una ruta IP y ningún programa puede conectar los dispositivos.
+
 ### La Experiencia Nerve
 
 Transferir gigabytes de forma segura entre sistemas operativos requiere empaquetar tus archivos y usar un token de autenticación:
 
 ```bash
-# 1. En tu estación de trabajo Windows (Empaqueta tu directorio pesado)
-$ nerve pack D:\BasesDeDatos\Proyecto --output proyecto.nrv
+# 1. En tu estación de trabajo Windows (empaqueta tu directorio pesado)
+$ nerve pack D:\BasesDeDatos\Proyecto proyecto.nrv
 
-# 2. En tu máquina Linux (Inicia el host de forma segura)
-$ nerve host --dir ~/datos_recibidos --token "mi-contraseña-segura"
+# 2. En tu máquina Linux (configura auth_token en nerve.config)
+$ nerve host --receive-dir ~/datos_recibidos
 
 # 3. En tu estación de trabajo Windows (Descubre y Envía)
 $ nerve scan
@@ -38,6 +46,39 @@ $ nerve scan
 $ nerve connect 192.168.1.10 --token "mi-contraseña-segura"
 $ nerve send proyecto.nrv --to linux-server
 ```
+
+El mismo flujo funciona en cualquier dirección: Linux a Windows, Windows a Linux, Windows a Windows y macOS a cualquiera de ellos. El host recibe archivos; el comando `send` inicia la transferencia desde el dispositivo que contiene el archivo.
+
+### Android mediante Termux
+
+Android puede participar en la misma LAN ejecutando el cliente Python de Nerve dentro de [Termux](https://termux.dev/). No requiere una aplicación Android especial ni Internet durante la transferencia.
+
+```bash
+# En Termux
+pkg update
+pkg install python git
+termux-setup-storage
+git clone https://github.com/Kaia-Alenia/alenia-nerve.git
+cd alenia-nerve/clients/python
+pip install .
+```
+
+Para recibir archivos en Android:
+
+```bash
+export NERVE_AUTH_TOKEN="mi-token-local"
+nerve host --receive-dir ~/storage/downloads
+```
+
+Desde Windows o Linux, consulta la IP de Android y conecta directamente:
+
+```bash
+nerve diagnose 192.168.1.50
+nerve connect 192.168.1.50 --token "mi-token-local"
+nerve send archivo.zip --to 192.168.1.50
+```
+
+Para enviar desde Android hacia Windows o Linux, inicia `nerve host` en el equipo destino y ejecuta `nerve send` desde Termux usando la ruta del archivo. Mantén Termux activo durante la transferencia; Android puede suspender procesos en segundo plano si se bloquea la pantalla.
 
 ---
 
@@ -48,14 +89,14 @@ Cuando uses `nerve host` y `nerve scan` para Comunicación Directa entre Disposi
 | Puerto | Protocolo | Propósito |
 |--------|-----------|-----------|
 | `50511` | UDP | Descubrimiento (broadcasts de `nerve scan`) |
-| `4432` | TCP | Plano de Control (autenticación y handshake) |
+| `50507` | TCP | Plano de Control (autenticación y handshake; configurable) |
 | `50510` | TCP | Plano de Datos (transferencia de archivos y cargas grandes) |
 
 **Solución para el Firewall de Windows:**
 Si `nerve scan` no puede encontrar una máquina Windows ejecutando `nerve host`, generalmente es porque el Firewall de Windows bloquea el puerto UDP 50511 de entrada. Abre un **PowerShell como Administrador** y ejecuta:
 ```powershell
 New-NetFirewallRule -DisplayName "Nerve LAN Discovery" -Direction Inbound -Protocol UDP -LocalPort 50511 -Action Allow -Profile Any
-New-NetFirewallRule -DisplayName "Nerve LAN Control" -Direction Inbound -Protocol TCP -LocalPort 4432 -Action Allow -Profile Any
+New-NetFirewallRule -DisplayName "Nerve LAN Control" -Direction Inbound -Protocol TCP -LocalPort 50507 -Action Allow -Profile Any
 New-NetFirewallRule -DisplayName "Nerve LAN Data" -Direction Inbound -Protocol TCP -LocalPort 50510 -Action Allow -Profile Any
 ```
 
@@ -69,7 +110,7 @@ nerve scan 192.168.1.50
 Si estás usando un firewall estricto en Linux (como Ubuntu), los paquetes UDP entrantes podrían ser descartados. Permite los puertos usando UFW:
 ```bash
 sudo ufw allow 50511/udp
-sudo ufw allow 4432/tcp
+sudo ufw allow 50507/tcp
 sudo ufw allow 50510/tcp
 ```
 
@@ -78,7 +119,21 @@ Si el escaneo sigue fallando debido a configuraciones de red o routers estrictos
 ```bash
 $ nerve connect 192.168.1.50 --token "mi-contraseña-segura"
 ```
-*(Para saber cuál es tu IP local, ejecuta `ipconfig` en Windows o `ip a` en Linux).*
+Para saber cuál es tu IP local:
+
+```powershell
+# Windows
+ipconfig
+```
+
+```bash
+# Linux / macOS / Termux
+ip addr
+# Si el comando ip no está disponible en Termux:
+ifconfig
+```
+
+Busca la dirección IPv4 privada del adaptador que realmente conecta ambos equipos, por ejemplo `192.168.1.50`, `10.0.0.25` o `172.20.10.4`. No uses `127.0.0.1`: esa dirección solo funciona dentro del mismo dispositivo.
 
 ---
 
@@ -87,7 +142,7 @@ $ nerve connect 192.168.1.50 --token "mi-contraseña-segura"
 * **Transferencias Nativas en Terminal:** Transferencias directas `Linux <-> Windows` y `Windows <-> Windows` listas para usar.
 * **Motor de Doble Arquitectura:** Utiliza **Unix Domain Sockets (UDS)** de latencia ultrabaja para IPC local, y pivota dinámicamente a **Flujos Binarios TCP** al salir a la red LAN.
 * **Streaming Real (Sin Inflar Memoria):** Los archivos masivos se dividen en fragmentos binarios `.nrv` sobre la marcha. Nerve no cargará un archivo de 10GB en tu memoria RAM.
-* **Seguro por Defecto:** Las conexiones LAN requieren un token de autenticación (vía `--token` o `nerve.config`). A menos que ejecutes `nerve host`, Nerve permanece completamente silencioso y aislado.
+* **Seguro por Defecto:** Las conexiones LAN requieren un token de autenticación configurado en `nerve.config` o `NERVE_AUTH_TOKEN`; `nerve connect` también acepta `--token`. A menos que ejecutes `nerve host`, Nerve permanece completamente silencioso y aislado.
 * **SDKs Políglotas:** ¿Necesitas conectar un backend en Rust a un pipeline de datos en Python localmente? Nerve proporciona clientes oficiales para orquestar microservicios locales con reconexión automática y latidos en segundo plano.
 
 ---
@@ -340,8 +395,7 @@ Coloca un archivo `nerve.config` en la raíz de tu proyecto o en el directorio d
   "port": 50505,
   "host": "127.0.0.1",
   "auth_token": "mi_token_seguro",
-  "lan_port": 4432,
-  "data_port": 50510
+  "lan_port": 50507
 }
 ```
 
@@ -350,8 +404,7 @@ Coloca un archivo `nerve.config` en la raíz de tu proyecto o en el directorio d
 socket_path=/tmp/nerve.sock
 port=50505
 auth_token=mi_token_seguro
-lan_port=4432
-data_port=50510
+lan_port=50507
 ```
 
 ---
@@ -363,14 +416,14 @@ Cuando uses `nerve host` y `nerve scan` para Comunicación Directa entre Disposi
 | Puerto | Protocolo | Propósito |
 |--------|-----------|-----------|
 | `50511` | UDP | Descubrimiento (broadcasts de `nerve scan`) |
-| `4432` | TCP | Plano de Control (autenticación y handshake) |
+| `50507` | TCP | Plano de Control (autenticación y handshake; configurable con `lan_port`) |
 | `50510` | TCP | Plano de Datos (transferencia de archivos y cargas grandes) |
 
 **Solución para el Firewall de Windows:**
 Si `nerve scan` no puede encontrar una máquina Windows ejecutando `nerve host`, generalmente es porque el Firewall de Windows bloquea el puerto UDP 50511 de entrada por defecto. Abre un **PowerShell como Administrador** y ejecuta:
 ```powershell
 New-NetFirewallRule -DisplayName "Nerve LAN Discovery" -Direction Inbound -Protocol UDP -LocalPort 50511 -Action Allow -Profile Any
-New-NetFirewallRule -DisplayName "Nerve LAN Control" -Direction Inbound -Protocol TCP -LocalPort 4432 -Action Allow -Profile Any
+New-NetFirewallRule -DisplayName "Nerve LAN Control" -Direction Inbound -Protocol TCP -LocalPort 50507 -Action Allow -Profile Any
 New-NetFirewallRule -DisplayName "Nerve LAN Data" -Direction Inbound -Protocol TCP -LocalPort 50510 -Action Allow -Profile Any
 ```
 
@@ -379,6 +432,37 @@ Si tu router aísla a los clientes Wi-Fi (bloqueando paquetes broadcast), `nerve
 ```bash
 nerve scan 192.168.1.50
 ```
+
+### Cómo consultar las IP locales
+
+La IP que debes usar es la IPv4 privada del adaptador conectado a la misma LAN que el otro dispositivo. No uses `127.0.0.1`, porque solo representa el propio equipo.
+
+```powershell
+# Windows
+ipconfig
+```
+
+```bash
+# Linux y macOS
+ip addr
+
+# Android / Termux
+ip addr
+# Alternativa si no está disponible:
+ifconfig
+```
+
+Ejemplos válidos son `192.168.1.50`, `10.0.0.25` o `172.20.10.4`. Si solo quieres verificar el estado de la red y del host remoto:
+
+```bash
+nerve diagnose 192.168.1.50
+```
+
+Si el diagnóstico muestra una interfaz local disponible pero la conexión TCP falla, revisa el firewall, que ambos dispositivos estén en la misma subred y que el router no tenga activado el aislamiento de clientes. Si no hay una interfaz IPv4 activa, la PC fue desconectada completamente de la LAN: apagar Internet es compatible con Nerve, apagar el enlace Wi-Fi/Ethernet no lo es.
+
+### Nota sobre los puertos configurables
+
+El puerto de control predeterminado de `nerve host` es `50507`. Si defines otro valor con `lan_port` o `--port`, debes abrir ese mismo puerto TCP y usarlo al conectar, por ejemplo `nerve connect 192.168.1.50:4432`. El puerto de datos permanece en `50510` y el descubrimiento usa UDP `50511`.
 
 ---
 
