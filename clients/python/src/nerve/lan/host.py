@@ -445,6 +445,9 @@ class NerveHost:
 
             resp = {
                 "type": "nerve_discovery_response",
+                # The identity is local and persistent; discovery must not
+                # depend on DNS or an Internet-backed registry.
+                "peer_id": self._peer_id,
                 "hostname": socket.gethostname(),
                 "platform": platform.system(),
                 "version": __version__,

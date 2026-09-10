@@ -58,6 +58,37 @@ from nerve.lan.util import resolve_auth_token
 logger = logging.getLogger("nerve.lan.api")
 
 
+def _local_ipv4_addresses() -> set[str]:
+    """Return local IPv4 addresses without requiring DNS or Internet.
+
+    Hostname resolution is not a reliable source of interface addresses on
+    offline Windows installations.  The UDP route probe asks the OS which
+    interface it would use for a broadcast destination; it does not transmit
+    a packet and does not require a gateway or Internet access.
+    """
+    addresses: set[str] = set()
+
+    try:
+        hostname = socket.gethostname()
+        for info in socket.getaddrinfo(hostname, None, socket.AF_INET):
+            ip = info[4][0]
+            if ip and not ip.startswith("127.") and ip != "0.0.0.0":
+                addresses.add(ip)
+    except OSError:
+        pass
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as route_sock:
+            route_sock.connect(("255.255.255.255", 1))
+            ip = route_sock.getsockname()[0]
+            if isinstance(ip, str) and ip and not ip.startswith("127."):
+                addresses.add(ip)
+    except OSError:
+        pass
+
+    return addresses
+
+
 class NerveLAN:
     """
     Headless public API surface for Nerve LAN V1.
@@ -194,20 +225,14 @@ class NerveLAN:
                 # Unicast mode: probe the specific IP directly (bypasses AP Isolation).
                 addrs_to_probe = {target_ip}
             else:
-                # Broadcast mode: probe all known broadcast addresses.
-                addrs_to_probe = {"255.255.255.255", "<broadcast>"}
-                try:
-                    hostname = socket.gethostname()
-                    _, _, ips = socket.gethostbyname_ex(hostname)
-                    for ip in ips:
-                        if not ip.startswith("127."):
-                            parts = ip.split(".")
-                            if len(parts) == 4:
-                                addrs_to_probe.add(
-                                    f"{parts[0]}.{parts[1]}.{parts[2]}.255"
-                                )
-                except Exception:
-                    pass
+                # Broadcast mode: keep the global broadcast as a fallback,
+                # then add subnet broadcasts derived from local interfaces.
+                # No DNS lookup or default Internet route is required.
+                addrs_to_probe = {"255.255.255.255"}
+                for ip in _local_ipv4_addresses():
+                    parts = ip.split(".")
+                    if len(parts) == 4 and all(part.isdigit() for part in parts):
+                        addrs_to_probe.add(f"{parts[0]}.{parts[1]}.{parts[2]}.255")
 
             for addr_str in addrs_to_probe:
                 try:
@@ -279,8 +304,19 @@ class NerveLAN:
         except Exception:
             local_ip = "unavailable"
 
-        report["local"]["interface"] = "[CONFIRMED] Network interface available"
-        report["local"]["address"] = f"[CONFIRMED] Local address: {local_ip}"
+        if local_ip == "unavailable":
+            report["local"]["interface"] = (
+                "[FAILED] No active IPv4 interface was detected"
+            )
+            report["local"]["address"] = (
+                "[FAILED] The device is disconnected from the LAN"
+            )
+            report["causes"].append(
+                "[LIKELY] Wi-Fi/Ethernet is disabled or the devices are not on the same local network"
+            )
+        else:
+            report["local"]["interface"] = "[CONFIRMED] Network interface available"
+            report["local"]["address"] = f"[CONFIRMED] Local address: {local_ip}"
 
         if not target_ip:
             return report
@@ -615,16 +651,7 @@ class NerveLAN:
         import socket as _socket
 
         hostname = _socket.gethostname()
-        addresses: list[str] = []
-        try:
-            addrs = _socket.getaddrinfo(hostname, None, _socket.AF_INET)
-            for info in addrs:
-                ip = info[4][0]
-                if ip and not ip.startswith("127.") and ip != "0.0.0.0":
-                    if ip not in addresses:
-                        addresses.append(ip)
-        except OSError:
-            pass
+        addresses = sorted(_local_ipv4_addresses())
 
         return {
             "hostname": hostname,
