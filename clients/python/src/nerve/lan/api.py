@@ -194,7 +194,7 @@ class NerveLAN:
             return HostStatus(running=False, error=str(exc))
         finally:
             if thread is not None:
-                thread.join(timeout=3.0)  
+                thread.join(timeout=3.0)
             self._host = None
             self._host_thread = None
 
@@ -252,7 +252,7 @@ class NerveLAN:
                         resp = json.loads(data.decode("utf-8"))
                         if resp.get("type") != "nerve_discovery_response":
                             continue
-                        
+
                         peer_id = resp.get("peer_id") or resp.get("hostname", "unknown")
                         key = f"{addr[0]}:{peer_id}"
                         if key in seen:
@@ -396,7 +396,6 @@ class NerveLAN:
         if not src.exists():
             return TransferResult(success=False, error=f"Path not found: {path}")
 
-        
         if src.is_dir():
             return TransferResult(
                 success=False,

@@ -51,7 +51,6 @@ from pathlib import Path
 from nerve.lan.util import atomic_json_write
 
 
-
 @dataclass
 class Peer:
     """
@@ -85,8 +84,6 @@ class Peer:
             last_address=data["last_address"],
             last_seen=float(data.get("last_seen", time.time())),
         )
-
-
 
 
 def _registry_path() -> Path:
@@ -123,7 +120,6 @@ class PeerRegistry:
         self._peers: dict[str, Peer] = {}
         self.load()
 
-
     def load(self) -> None:
         """Load peers from disk. Silently no-ops if the file does not exist."""
         if not self._path.exists():
@@ -152,7 +148,6 @@ class PeerRegistry:
         """Persist the current registry to disk."""
         data = {"peers": [p.to_dict() for p in self._peers.values()]}
         atomic_json_write(self._path, data)
-
 
     def add_or_update(self, peer: Peer) -> None:
         """
@@ -203,8 +198,6 @@ class PeerRegistry:
             return False
         del self._peers[peer.peer_id]
         return True
-
-
 
 
 def peer_from_handshake(

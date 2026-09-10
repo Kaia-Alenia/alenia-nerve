@@ -61,8 +61,6 @@ class TransferProtocolError(Exception):
     """Raised when binary protocol framing or integrity verification fails."""
 
 
-
-
 def send_file(
     conn: socket.socket,
     filepath: str | Path,
@@ -124,8 +122,6 @@ def send_file(
     conn.sendall(struct.pack(CHUNK_HEADER_FORMAT, 0))
 
     return file_sha256
-
-
 
 
 def receive_file(
@@ -247,8 +243,6 @@ def receive_file(
         raise TransferProtocolError(f"DISK_WRITE_ERROR: {exc}") from exc
 
     return final_path, meta, computed_sha256
-
-
 
 
 def _recv_exactly(conn: socket.socket, num_bytes: int) -> bytes:

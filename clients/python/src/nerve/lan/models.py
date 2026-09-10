@@ -19,7 +19,6 @@ from enum import Enum
 
 
 class TransferState(str, Enum):
-
     PREPARING = "PREPARING"
     STARTED = "STARTED"
     PROGRESS = "PROGRESS"

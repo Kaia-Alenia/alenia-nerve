@@ -54,8 +54,6 @@ CONNECT_TIMEOUT: float = 10.0
 LAN_PROTOCOL_VERSION: int = 1
 
 
-
-
 class LanAuthenticationError(Exception):
     """Raised when the remote host rejects authentication."""
 
@@ -66,8 +64,6 @@ class LanProtocolError(Exception):
 
 class LanConnectionError(Exception):
     """Raised when the TCP connection to the remote host fails."""
-
-
 
 
 def connect_and_register(
@@ -184,8 +180,6 @@ def connect_and_register(
             sock.close()
         except OSError:
             pass
-
-
 
 
 def _parse_address(address: str, config: dict) -> tuple[str, int]:

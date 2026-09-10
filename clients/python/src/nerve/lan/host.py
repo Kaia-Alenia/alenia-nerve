@@ -102,8 +102,6 @@ _ACCEPT_TIMEOUT: float = 0.5
 _PEER_HANDSHAKE_TIMEOUT: float = 15.0
 
 
-
-
 def _get_os_downloads_dir() -> Path:
     """
 
@@ -140,8 +138,6 @@ def _resolve_display_receive_dir(cli_receive_dir: str | None, config: dict) -> P
     if config_dir:
         return Path(str(config_dir))
     return _get_os_downloads_dir()
-
-
 
 
 class NerveHost:
@@ -211,7 +207,6 @@ class NerveHost:
 
         # Set by _start_server() once bind succeeds — used by start() to confirm readiness
         self._ready_event: threading.Event = threading.Event()
-
 
     def start(self) -> None:
         """
@@ -288,7 +283,6 @@ class NerveHost:
             except RuntimeError:
                 pass
 
-
     def _ensure_auth_configured(self) -> None:
         from nerve.lan.util import LanAuthenticationError
 
@@ -321,7 +315,6 @@ class NerveHost:
                 f"{YELLOW}[NERVE HOST] Could not save token to config: {exc}"
                 f"\nAdd it manually.{RESET}"
             )
-
 
     def _start_server(self) -> None:
         """
@@ -416,7 +409,6 @@ class NerveHost:
         )
         print(f"{YELLOW}[NERVE HOST] Press Ctrl+C to stop.{RESET}")
 
-
     def _vprint(self, msg: str, color: str = "") -> None:
         """Print a timestamped verbose log line to stdout (no-op if not verbose)."""
         if not self._verbose:
@@ -425,7 +417,6 @@ class NerveHost:
 
         ts = _time.strftime("%H:%M:%S")
         print(f"{color}[{ts}] {msg}{RESET}", flush=True)
-
 
     def _discovery_loop(self) -> None:
         """Listen for UDP discovery broadcasts and respond with stable peer_id."""
@@ -458,7 +449,6 @@ class NerveHost:
                 self._udp_server.sendto(json.dumps(resp).encode("utf-8"), addr)
             except OSError:
                 pass
-
 
     def _data_accept_loop(self) -> None:
         """
@@ -554,7 +544,6 @@ class NerveHost:
             except OSError:
                 pass
 
-
     def _accept_loop(self) -> None:
         """
         Main blocking accept loop for the Control Plane.
@@ -594,7 +583,6 @@ class NerveHost:
         finally:
             self.stop()
             print(f"\n{PURPLE}[NERVE HOST] Stopped.{RESET}")
-
 
     def _handle_peer(self, conn: socket.socket, addr: tuple[str, int]) -> None:
         """

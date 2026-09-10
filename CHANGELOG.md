@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 
 
+## [7.0.1] — 2026-09-09
+### Fixed
+- Fixed Python lint (Ruff) formatting issues.
+
 ## [7.0.0] — 2026-09-09
 ### Added
 - Documented the offline-first LAN architecture, including the control plane, data plane, firewall requirements, local IP discovery, and Android/Termux workflows.

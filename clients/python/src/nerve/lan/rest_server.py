@@ -1,4 +1,4 @@
-﻿# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # This file is part of Nerve.
 #
 # Nerve is free software: you can redistribute it and/or modify
@@ -57,10 +57,12 @@ class LANRestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
         path = parsed.path
-        
+
         content_length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(content_length).decode("utf-8") if content_length else "{}"
-        
+        body = (
+            self.rfile.read(content_length).decode("utf-8") if content_length else "{}"
+        )
+
         try:
             data = json.loads(body)
         except json.JSONDecodeError:
