@@ -3,6 +3,13 @@
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 
+## [7.1.0] — 2026-11-19
+### Agregado
+- Transferencias LAN reanudables por chunks con verificación `.nrv_tmp.meta` y reintento automático.
+- TCP keepalive multiplataforma, detección Android/Termux y descubrimiento mejorado de interfaces IPv4 / aislamiento AP.
+- Métodos empresariales en `NerveLAN` (`get_transfers`, `get_audit_log`, `pack_container`, `unpack_container`) y bitácora SHA-256 (`~/.nerve/audit.jsonl`).
+- Consola Web Empresarial Unificada (`nerve ui` y `nerve dashboard --standalone`).
+
 ## [7.0.0] — 2026-09-09
 ### Cambiado
 - Sincronizada la versión del cliente Python con la release principal de Nerve.

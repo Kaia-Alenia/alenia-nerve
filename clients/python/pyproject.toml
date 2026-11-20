@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "alenia-nerve"
-version = "7.0.1"
+version = "7.1.0"
 description = "Ultra-fast cross-platform local IPC engine for sovereign game developers."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -62,6 +62,7 @@ license-files = []
 "nerve" = ["py.typed", "dashboard/index.html", "eff_large_wordlist.txt", "icons/*"]
 
 [tool.pytest.ini_options]
+pythonpath = ["src"]
 testpaths = ["tests"]
 timeout = 120
 

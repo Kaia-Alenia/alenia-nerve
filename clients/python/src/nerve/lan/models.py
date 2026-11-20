@@ -67,3 +67,18 @@ class ProgressEvent:
     transferred_bytes: int
     total_bytes: int
     current_file: str | None = None
+
+
+@dataclass
+class TransferRecord:
+    transfer_id: str
+    filename: str
+    size: int
+    sha256: str
+    peer: str
+    direction: str
+    state: str
+    transferred_bytes: int
+    timestamp: float
+    resumed_from: int = 0
+    error: str | None = None

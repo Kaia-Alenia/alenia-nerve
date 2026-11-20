@@ -35,6 +35,18 @@ Typical usage::
 import importlib.metadata
 
 from .core import NexusClient, NexusHub, load_external_config
+from .lan import (
+    ConnectionResult,
+    DiscoveryResult,
+    HostStatus,
+    NerveHost,
+    NerveLAN,
+    ProgressEvent,
+    TransferRecord,
+    TransferResult,
+    TransferState,
+    read_audit_log,
+)
 from .nrv import pack_nrv, unpack_nrv
 
 try:
@@ -44,7 +56,23 @@ except importlib.metadata.PackageNotFoundError:
 __author__ = "Alenia Studios"
 __license__ = "GNU General Public License v3 (GPL v3)"
 __email__ = "contact.aleniastudios@gmail.com"
-__all__ = ["NexusClient", "NexusHub", "load_external_config", "pack_nrv", "unpack_nrv"]
+__all__ = [
+    "ConnectionResult",
+    "DiscoveryResult",
+    "HostStatus",
+    "NerveHost",
+    "NerveLAN",
+    "NexusClient",
+    "NexusHub",
+    "ProgressEvent",
+    "TransferRecord",
+    "TransferResult",
+    "TransferState",
+    "load_external_config",
+    "pack_nrv",
+    "read_audit_log",
+    "unpack_nrv",
+]
 
 # pack_nrv: Packs a file or directory into a secure encrypted .nrv container
 # unpack_nrv: Decrypts and extracts a .nrv container safely

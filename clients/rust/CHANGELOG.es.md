@@ -3,6 +3,10 @@
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 
+## [7.1.0] — 2026-11-19
+### Agregado
+- Cliente HTTP `NerveLanClient` (`lan_status`, `lan_scan`, `lan_connect`, `lan_send`, `lan_audit`, `pack_nrv`, `unpack_nrv`) sin dependencias externas adicionales.
+
 ## [7.0.0] — 2026-09-09
 ### Cambiado
 - Sincronizada la versión del cliente Rust con la release principal de Nerve.

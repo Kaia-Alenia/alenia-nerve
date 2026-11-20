@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 
 
+## [7.1.0] — 2026-11-19
+### Added
+- **Resumable Chunked LAN Transfers** (`transfer.py`, `host.py`, `api.py`): Preserves verified partial chunks (`.nrv_tmp` + `.nrv_tmp.meta`), negotiates `resume_offset` on reconnect, and verifies full-file SHA-256 on completion.
+- **Cross-Platform Keepalive & Android/Termux Connectivity** (`util.py`, `connect.py`, `api.py`): OS-native TCP keepalive probes, `detect_platform_name()` for Android/Termux, direct interface inspection, offline diagnostic fallback, and registered-peer unicast scanning under AP Isolation.
+- **Enterprise LAN SDK & SHA-256 Chain-of-Custody Audit Log** (`models.py`, `util.py`, `api.py`, `rest_server.py`, polyglot clients): Added `TransferRecord`, persistent `~/.nerve/audit.jsonl` audit trail, `NerveLAN.pack_container()`/`unpack_container()`, extended REST endpoints, and lightweight HTTP helpers (`NerveLanClient` / `LanClient`) for JavaScript, Go, and Rust.
+- **Unified Enterprise Web Console (`nerve ui`)** (`cli.py`, `cli_monitor.py`, `dashboard/index.html`): Integrated IPC Hub Monitor, LAN Transfer & Devices, `.nrv` Security Vault, and SHA-256 Audit Trail in one standalone web console.
+- **Dual Licensing (Open Core)**: Added `LICENSE-COMMERCIAL.md` and `LICENSE-COMMERCIAL.es.md` alongside `GNU GPL v3`.
+
+### Fixed
+- **REST Server** (`rest_server.py`): Fixed argument order in `POST /api/lan/send` and status serialization in `GET /api/lan/status`.
+
 ## [7.0.1] — 2026-09-09
 ### Fixed
 - Fixed Python lint (Ruff) formatting issues.

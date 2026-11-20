@@ -7,6 +7,7 @@
  */
 const net = require('net');
 const tls = require('tls');
+const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -317,4 +318,126 @@ class NexusClient extends EventEmitter {
   }
 }
 
-module.exports = { NexusClient, loadExternalConfig };
+const DEFAULT_LAN_REST_URL = 'http://127.0.0.1:50508';
+
+function _lanHttpRequest(method, apiPath, body = null, baseUrl = DEFAULT_LAN_REST_URL) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(apiPath, baseUrl);
+    const payload = body !== null ? JSON.stringify(body) : null;
+    const headers = { Accept: 'application/json' };
+    if (payload !== null) {
+      headers['Content-Type'] = 'application/json';
+      headers['Content-Length'] = Buffer.byteLength(payload);
+    }
+
+    const req = http.request(
+      {
+        hostname: url.hostname,
+        port: url.port || 80,
+        path: url.pathname + url.search,
+        method,
+        headers,
+        timeout: 15000,
+      },
+      (res) => {
+        let raw = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => {
+          raw += chunk;
+        });
+        res.on('end', () => {
+          try {
+            const parsed = raw ? JSON.parse(raw) : {};
+            if (res.statusCode >= 400) {
+              const err = new Error(parsed.error || `HTTP ${res.statusCode}`);
+              err.statusCode = res.statusCode;
+              return reject(err);
+            }
+            resolve(parsed);
+          } catch (err) {
+            reject(err);
+          }
+        });
+      }
+    );
+
+    req.on('error', reject);
+    req.on('timeout', () => {
+      req.destroy(new Error('Request timed out'));
+    });
+
+    if (payload !== null) {
+      req.write(payload);
+    }
+    req.end();
+  });
+}
+
+function lanStatus(baseUrl = DEFAULT_LAN_REST_URL) {
+  return _lanHttpRequest('GET', '/api/lan/status', null, baseUrl);
+}
+
+function lanScan(options = {}, baseUrl = DEFAULT_LAN_REST_URL) {
+  return _lanHttpRequest('POST', '/api/lan/scan', options, baseUrl);
+}
+
+function lanConnect(ip, options = {}, baseUrl = DEFAULT_LAN_REST_URL) {
+  return _lanHttpRequest('POST', '/api/lan/connect', { ip, ...options }, baseUrl);
+}
+
+function lanSend(filePath, to, baseUrl = DEFAULT_LAN_REST_URL) {
+  return _lanHttpRequest('POST', '/api/lan/send', { file_path: filePath, to }, baseUrl);
+}
+
+function lanAudit(limit = 100, baseUrl = DEFAULT_LAN_REST_URL) {
+  return _lanHttpRequest('GET', `/api/lan/audit?limit=${encodeURIComponent(limit)}`, null, baseUrl);
+}
+
+function packNrv(sourcePath, outputPath, password, baseUrl = DEFAULT_LAN_REST_URL) {
+  return _lanHttpRequest(
+    'POST',
+    '/api/nrv/pack',
+    { source_path: sourcePath, output_path: outputPath, password },
+    baseUrl
+  );
+}
+
+function unpackNrv(nrvPath, outputDir, password, baseUrl = DEFAULT_LAN_REST_URL) {
+  return _lanHttpRequest(
+    'POST',
+    '/api/nrv/unpack',
+    { nrv_path: nrvPath, output_dir: outputDir, password },
+    baseUrl
+  );
+}
+
+class NerveLanClient {
+  constructor(baseUrl = DEFAULT_LAN_REST_URL) {
+    this.baseUrl = baseUrl;
+  }
+
+  lanStatus() { return lanStatus(this.baseUrl); }
+  lanScan(options = {}) { return lanScan(options, this.baseUrl); }
+  lanConnect(ip, options = {}) { return lanConnect(ip, options, this.baseUrl); }
+  lanSend(filePath, to) { return lanSend(filePath, to, this.baseUrl); }
+  lanAudit(limit = 100) { return lanAudit(limit, this.baseUrl); }
+  packNrv(sourcePath, outputPath, password) {
+    return packNrv(sourcePath, outputPath, password, this.baseUrl);
+  }
+  unpackNrv(nrvPath, outputDir, password) {
+    return unpackNrv(nrvPath, outputDir, password, this.baseUrl);
+  }
+}
+
+module.exports = {
+  NexusClient,
+  NerveLanClient,
+  loadExternalConfig,
+  lanStatus,
+  lanScan,
+  lanConnect,
+  lanSend,
+  lanAudit,
+  packNrv,
+  unpackNrv,
+};

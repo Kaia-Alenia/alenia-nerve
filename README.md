@@ -141,9 +141,11 @@ Use the private IPv4 address of the adapter that connects both devices, such as 
 
 * **Terminal-Native Transfers:** Direct `Linux <-> Windows` and `Windows <-> Windows` transfers out of the box.
 * **Dual-Architecture Engine:** Uses ultra-low latency **Unix Domain Sockets (UDS)** for local IPC, and dynamically pivots to **TCP Binary Streams** when reaching out to the LAN.
-* **True Streaming (No Memory Bloat):** Massive files are broken into `.nrv` binary chunks on the fly. Nerve will not load a 10GB file into your RAM.
+* **True Streaming & Resumable Chunk Transfers:** Massive files are streamed in binary chunks without RAM bloat. If a LAN or Wi-Fi connection drops mid-transfer, Nerve keeps verified partial chunks (`.nrv_tmp` + `.nrv_tmp.meta`), negotiates the exact byte offset on reconnect, and resumes only the remaining chunks.
+* **Cross-Platform Keepalive & Android/Termux Support:** OS-level TCP keepalive probes, direct interface discovery (`ip`, `ifconfig`, `ipconfig`), and registered-peer unicast probing ensure reliable transfers across Windows, Linux, macOS, and Android/Termux even under strict AP Isolation.
+* **SHA-256 Chain-of-Custody Audit Trail:** Every LAN transfer and `.nrv` container operation (`pack`/`unpack`) is logged with its SHA-256 digest, peer, byte offset, and timestamp in `~/.nerve/audit.jsonl`.
 * **Secure by Default:** LAN connections require an auth token configured in `nerve.config` or `NERVE_AUTH_TOKEN`; `nerve connect` also accepts `--token`. LAN mode is strictly opt-in. Unless you run `nerve host`, Nerve remains completely silent and isolated.
-* **Polyglot SDKs:** Need to wire a Rust backend to a Python data pipeline locally? Nerve provides official clients to orchestrate local microservices with auto-reconnection and background heartbeats.
+* **Polyglot SDKs & Enterprise LAN API:** Includes `NerveLAN` in Python plus lightweight HTTP/REST helpers (`NerveLanClient` / `LanClient`) across Python, Rust, Go, and JavaScript.
 
 ---
 
@@ -296,7 +298,8 @@ Once installed, the `nerve` command provides a suite of tools for managing your 
 
 * **`nerve start`**: Spins up the **NexusHub** — the central message router for your local network. It runs immediately with zero configuration and listens for incoming connections. Use `nerve start --verbose` to trace every packet routed in real-time.
 * **`nerve monitor`**: Launches a terminal-based live dashboard showing all connected clients, uptime, message counts, and traffic stats at a glance.
-* **`nerve dashboard`**: Starts a lightweight local web interface on `http://localhost:8080` that renders a live **Network Topology View** of all connected nodes.
+* **`nerve dashboard [--standalone] [--port PORT]`**: Starts the local web console on `http://localhost:8080` with live **Network Topology View**, LAN transfers, `.nrv` vault, and audit trail. Use `--standalone` when running without the IPC Hub.
+* **`nerve ui [--port PORT]`**: Launches the unified **Enterprise Web Console** directly in standalone mode (PC & mobile browser friendly) for non-technical operators to manage LAN devices, resumable transfers, `.nrv` encryption, and SHA-256 audit logs (`~/.nerve/audit.jsonl`).
 * **`nerve bridge`**: Starts an HTTP/WebSocket proxy on port 50506. This allows web browsers and WebSocket clients to connect and talk directly to the Nerve IPC network. (Requires `websockets` package).
 * **`nerve host`**: Spawns a persistent peer-to-peer host for Direct Device Communication. This allows other devices to discover this machine on the local network.
 * **`nerve scan [IP]`**: Scans the local network for other Nerve devices running `nerve host`. Uses UDP broadcast, or unicast if a specific IP is provided (useful for bypassing AP Isolation on strict routers).
@@ -471,11 +474,19 @@ See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 ---
 
-##  License
+##  Licensing (Dual License — Open Core)
 
-[![License](https://img.shields.io/badge/License-GPLv3-8a2be2.svg)](LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/Community-GPLv3-8a2be2.svg)](LICENSE)
+[![Commercial License](https://img.shields.io/badge/Enterprise-Commercial%20License-10b981.svg)](LICENSE-COMMERCIAL.md)
 
-This software is distributed under the **GNU General Public License v3 (GPL v3)**. See [LICENSE](LICENSE) for more details.
+Alenia Nerve is offered under a **Dual Licensing** model:
+
+1. **Community Edition (`GNU GPL v3`):** Free and open-source under the **GNU General Public License v3 (GPL v3)** — see [LICENSE](LICENSE).
+2. **Commercial Enterprise Edition:** Available for companies, security providers, and government agencies requiring closed-source/proprietary integration without GPL v3 copyleft obligations, institutional SLA guarantees, and on-premise deployment support — see [LICENSE-COMMERCIAL.md](LICENSE-COMMERCIAL.md) (Spanish: [LICENSE-COMMERCIAL.es.md](LICENSE-COMMERCIAL.es.md)).
+
+
+
+
 
 ---
 *Crafted with passion by Alenia Studios to power sovereign software engineers and creators.*

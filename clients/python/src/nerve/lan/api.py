@@ -23,8 +23,12 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import platform
+import re
 import secrets
 import socket
+import subprocess
 import threading
 import time
 from collections.abc import Callable
@@ -50,21 +54,120 @@ from nerve.lan.models import (
     ConnectionResult,
     DiscoveryResult,
     HostStatus,
+    TransferRecord,
     TransferResult,
+    TransferState,
 )
 from nerve.lan.peer_registry import PeerRegistry
-from nerve.lan.util import resolve_auth_token
+from nerve.lan.util import (
+    append_audit_log,
+    detect_platform_name,
+    enable_tcp_keepalive,
+    read_audit_log,
+    resolve_auth_token,
+)
 
 logger = logging.getLogger("nerve.lan.api")
+
+_VIRTUAL_IFACE_PREFIXES = (
+    "lo",
+    "docker",
+    "veth",
+    "br-",
+    "virbr",
+    "wsl",
+    "tun",
+    "tap",
+    "vmnet",
+    "vboxnet",
+)
+
+
+def _is_usable_lan_ipv4(ip: str) -> bool:
+    """Return True if *ip* is a non-loopback, non-APIPA IPv4 address."""
+    if not ip or ip == "0.0.0.0" or ip.startswith("127.") or ip.startswith("169.254."):
+        return False
+    parts = ip.split(".")
+    if len(parts) != 4:
+        return False
+    return all(part.isdigit() and 0 <= int(part) <= 255 for part in parts)
+
+
+def _collect_os_interface_ipv4() -> set[str]:
+    """Inspect OS network interfaces directly for Linux, Android, macOS, and Windows."""
+    found: set[str] = set()
+    system = platform.system()
+
+    if system == "Windows":
+        try:
+            proc = subprocess.run(
+                ["ipconfig"],
+                capture_output=True,
+                text=True,
+                timeout=1.0,
+                check=False,
+            )
+            for match in re.findall(r"\b(\d{1,3}(?:\.\d{1,3}){3})\b", proc.stdout):
+                if _is_usable_lan_ipv4(match):
+                    found.add(match)
+        except (OSError, subprocess.SubprocessError):
+            pass
+        return found
+
+    # Linux / Android (Termux) via `ip -4 -o addr show`
+    try:
+        proc = subprocess.run(
+            ["ip", "-4", "-o", "addr", "show"],
+            capture_output=True,
+            text=True,
+            timeout=1.0,
+            check=False,
+        )
+        if proc.returncode == 0:
+            for line in proc.stdout.splitlines():
+                tokens = line.split()
+                if len(tokens) < 4:
+                    continue
+                iface = tokens[1].rstrip(":")
+                if iface.startswith(_VIRTUAL_IFACE_PREFIXES):
+                    continue
+                ip = tokens[3].split("/", 1)[0]
+                if _is_usable_lan_ipv4(ip):
+                    found.add(ip)
+            return found
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+    # macOS / BSD / Termux fallback via `ifconfig`
+    try:
+        proc = subprocess.run(
+            ["ifconfig"],
+            capture_output=True,
+            text=True,
+            timeout=1.0,
+            check=False,
+        )
+        current_iface = ""
+        for line in proc.stdout.splitlines():
+            if line and not line[0].isspace():
+                current_iface = line.split(":", 1)[0].split()[0]
+                continue
+            if current_iface.startswith(_VIRTUAL_IFACE_PREFIXES):
+                continue
+            match = re.search(r"\binet\s+(?:addr:)?(\d{1,3}(?:\.\d{1,3}){3})\b", line)
+            if match and _is_usable_lan_ipv4(match.group(1)):
+                found.add(match.group(1))
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+    return found
 
 
 def _local_ipv4_addresses() -> set[str]:
     """Return local IPv4 addresses without requiring DNS or Internet.
 
-    Hostname resolution is not a reliable source of interface addresses on
-    offline Windows installations.  The UDP route probe asks the OS which
-    interface it would use for a broadcast destination; it does not transmit
-    a packet and does not require a gateway or Internet access.
+    Combines hostname resolution, UDP route probes (no packet transmitted), and
+    OS interface inspection across Windows, macOS, Linux, and Android/Termux.
     """
     addresses: set[str] = set()
 
@@ -72,20 +175,22 @@ def _local_ipv4_addresses() -> set[str]:
         hostname = socket.gethostname()
         for info in socket.getaddrinfo(hostname, None, socket.AF_INET):
             ip = info[4][0]
-            if ip and not ip.startswith("127.") and ip != "0.0.0.0":
+            if isinstance(ip, str) and _is_usable_lan_ipv4(ip):
                 addresses.add(ip)
-    except OSError:
+    except Exception:
         pass
 
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as route_sock:
-            route_sock.connect(("255.255.255.255", 1))
-            ip = route_sock.getsockname()[0]
-            if isinstance(ip, str) and ip and not ip.startswith("127."):
-                addresses.add(ip)
-    except OSError:
-        pass
+    for probe_target in ("255.255.255.255", "10.255.255.255"):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as route_sock:
+                route_sock.connect((probe_target, 1))
+                ip = route_sock.getsockname()[0]
+                if isinstance(ip, str) and _is_usable_lan_ipv4(ip):
+                    addresses.add(ip)
+        except Exception:
+            pass
 
+    addresses.update(_collect_os_interface_ipv4())
     return addresses
 
 
@@ -113,6 +218,43 @@ class NerveLAN:
         self.events = EventDispatcher()
         self._host: NerveHost | None = None
         self._host_thread: threading.Thread | None = None
+        self._transfers: list[TransferRecord] = []
+        self._transfers_lock = threading.Lock()
+        self._audit_log_path: Path | None = None
+
+    @property
+    def status(self) -> HostStatus:
+        """Return live status of the embedded LAN host."""
+        running = self._host is not None and bool(
+            getattr(self._host, "_running", False)
+        )
+        return HostStatus(
+            running=running,
+            port=self.port or LAN_CONTROL_PORT_DEFAULT,
+        )
+
+    def _record_transfer(self, record: TransferRecord) -> None:
+        with self._transfers_lock:
+            self._transfers.append(record)
+        try:
+            append_audit_log(
+                {
+                    "transfer_id": record.transfer_id,
+                    "direction": record.direction,
+                    "filename": record.filename,
+                    "size": record.size,
+                    "sha256": record.sha256,
+                    "peer": record.peer,
+                    "state": record.state,
+                    "transferred_bytes": record.transferred_bytes,
+                    "resumed_from": record.resumed_from,
+                    "timestamp": record.timestamp,
+                    "error": record.error,
+                },
+                log_path=self._audit_log_path,
+            )
+        except OSError as exc:
+            logger.warning("Failed to append audit log: %s", exc)
 
     def on(self, event_name: str, callback: Callable[..., None]) -> None:
         """Subscribe to a LAN event."""
@@ -201,15 +343,19 @@ class NerveLAN:
         return HostStatus(running=False)
 
     def scan(
-        self, timeout: float = 2.0, target_ip: str | None = None
+        self,
+        timeout: float = 2.0,
+        target_ip: str | None = None,
+        subnet_fallback: bool = False,
     ) -> list[DiscoveryResult]:
         """
         Scan for peers on the local network via UDP broadcast on port 50511.
 
         If *target_ip* is given, a unicast probe is sent directly to that IP
-        instead of (or in addition to) broadcast — useful on networks where
-        routers block broadcast packets between clients (AP/Client Isolation).
-
+        instead of broadcast — useful on networks where routers block broadcast
+        packets between clients (AP/Client Isolation). Known peers from the
+        PeerRegistry are also probed directly via unicast, and *subnet_fallback*
+        enables a fast /24 unicast sweep when needed.
         """
         results: list[DiscoveryResult] = []
         nonce = secrets.token_hex(8)  # unique per scan
@@ -225,14 +371,27 @@ class NerveLAN:
                 # Unicast mode: probe the specific IP directly (bypasses AP Isolation).
                 addrs_to_probe = {target_ip}
             else:
-                # Broadcast mode: keep the global broadcast as a fallback,
-                # then add subnet broadcasts derived from local interfaces.
-                # No DNS lookup or default Internet route is required.
+                # Broadcast mode plus direct probes for known peers (survives AP Isolation).
                 addrs_to_probe = {"255.255.255.255"}
-                for ip in _local_ipv4_addresses():
+                local_ips = _local_ipv4_addresses()
+                for ip in local_ips:
                     parts = ip.split(".")
                     if len(parts) == 4 and all(part.isdigit() for part in parts):
-                        addrs_to_probe.add(f"{parts[0]}.{parts[1]}.{parts[2]}.255")
+                        prefix = f"{parts[0]}.{parts[1]}.{parts[2]}"
+                        addrs_to_probe.add(f"{prefix}.255")
+                        if subnet_fallback:
+                            for host_octet in range(1, 255):
+                                candidate = f"{prefix}.{host_octet}"
+                                if candidate != ip:
+                                    addrs_to_probe.add(candidate)
+
+                try:
+                    for peer in PeerRegistry().list_peers():
+                        peer_ip = peer.last_address.partition(":")[0].strip()
+                        if peer_ip:
+                            addrs_to_probe.add(peer_ip)
+                except Exception:
+                    pass
 
             for addr_str in addrs_to_probe:
                 try:
@@ -296,13 +455,26 @@ class NerveLAN:
             "causes": [],
         }
 
-        try:
-            with _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM) as s:
-                # Doesn't have to be reachable
-                s.connect(("10.255.255.255", 1))
-                local_ip = s.getsockname()[0]
-        except Exception:
+        local_addrs = sorted(_local_ipv4_addresses())
+        if local_addrs:
+            local_ip = local_addrs[0]
+        else:
             local_ip = "unavailable"
+            try:
+                with _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM) as s:
+                    # Doesn't have to be reachable
+                    s.connect(("10.255.255.255", 1))
+                    candidate = s.getsockname()[0]
+                    if candidate:
+                        local_ip = candidate
+            except Exception:
+                try:
+                    # Verify local IPv4 stack via loopback when isolated from LAN/WAN
+                    with _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM) as s:
+                        s.connect(("127.0.0.1", 1))
+                        local_ip = s.getsockname()[0] or "127.0.0.1"
+                except Exception:
+                    local_ip = "unavailable"
 
         if local_ip == "unavailable":
             report["local"]["interface"] = (
@@ -370,22 +542,44 @@ class NerveLAN:
         except Exception as exc:
             return ConnectionResult(success=False, error=f"Unexpected error: {exc}")
 
+    def _resolve_token(self) -> str | None:
+        token = self._auth_token
+        if not token:
+            from nerve.core import load_external_config
+
+            cfg = load_external_config("nerve.config")
+            try:
+                token = resolve_auth_token(None, cfg, allow_interactive=False)
+            except Exception:
+                token = None
+        return token
+
+    def _resolve_target(self, to: str) -> tuple[str, int, PeerRegistry]:
+        reg = PeerRegistry()
+        target_peer = reg.get(to)
+        address = target_peer.last_address if target_peer else to
+        host_str, _, port_str = address.partition(":")
+        ctrl_port = (
+            int(port_str) if port_str else (self.port or LAN_CONTROL_PORT_DEFAULT)
+        )
+        return host_str, ctrl_port, reg
+
     def send(
         self,
         path: str,
         to: str,
         progress_callback: Callable[[int, int], None] | None = None,
+        max_retries: int = 2,
     ) -> TransferResult:
-        """
-        Send a file to a remote peer.
-
-                    config/env — Peer is only used for address lookup.
-        """
-        import platform as _platform
+        """Send a file to a remote peer with automatic chunk-level resume on drop."""
         import socket as _socket
 
         from nerve.lan.connect import LAN_PROTOCOL_VERSION
-        from nerve.lan.transfer import send_file
+        from nerve.lan.transfer import (
+            TransferProtocolError,
+            compute_file_sha256,
+            send_file,
+        )
         from nerve.lan.util import (
             get_or_create_host_identity,
             recv_message,
@@ -402,101 +596,147 @@ class NerveLAN:
                 error="Directory transfer not yet implemented in STANDARD mode.",
             )
 
-        reg = PeerRegistry()
-        target_peer = reg.get(to)
-        if target_peer:
-            address = target_peer.last_address
-        else:
-            address = to
+        host_str, ctrl_port, reg = self._resolve_target(to)
+        token = self._resolve_token()
+        file_size = src.stat().st_size
+        file_sha256 = compute_file_sha256(src)
+        my_id = get_or_create_host_identity(reg._path.parent)
+        platform_name = detect_platform_name()
+        transfer_id = secrets.token_hex(6)
+        last_error = "Transfer failed."
+        last_resume_offset = 0
 
-        # Token comes from constructor arg, config, or env — never from Peer
-        token = self._auth_token
-        if not token:
-            from nerve.core import load_external_config
+        def _fail(err_msg: str) -> TransferResult:
+            self._record_transfer(
+                TransferRecord(
+                    transfer_id=transfer_id,
+                    filename=src.name,
+                    size=file_size,
+                    sha256=file_sha256,
+                    peer=to,
+                    direction="send",
+                    state=TransferState.FAILED.value,
+                    transferred_bytes=0,
+                    timestamp=time.time(),
+                    resumed_from=last_resume_offset,
+                    error=err_msg,
+                )
+            )
+            return TransferResult(success=False, transfer_id=transfer_id, error=err_msg)
 
-            cfg = load_external_config("nerve.config")
+        for attempt in range(max_retries + 1):
+            sock = None
+            dsock = None
             try:
-                token = resolve_auth_token(None, cfg, allow_interactive=False)
-            except Exception:
-                token = None
+                # Control Plane handshake
+                sock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+                sock.settimeout(10.0)
+                sock.connect((host_str, ctrl_port))
+                enable_tcp_keepalive(sock)
 
-        host_str, _, port_str = address.partition(":")
-        ctrl_port = (
-            int(port_str) if port_str else (self.port or LAN_CONTROL_PORT_DEFAULT)
-        )
+                buf: bytearray = bytearray()
+                _hello, buf = recv_message(sock, buf)
 
-        try:
-            # Control Plane handshake
-            sock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
-            sock.settimeout(10.0)
-            sock.connect((host_str, ctrl_port))
+                send_message(
+                    sock,
+                    {
+                        "type": "lan_auth",
+                        "token": token or "",
+                        "client_peer_id": my_id,
+                        "client_hostname": _socket.gethostname(),
+                        "client_platform": platform_name,
+                        "protocol_version": LAN_PROTOCOL_VERSION,
+                    },
+                )
 
-            buf: bytearray = bytearray()
-            _hello, buf = recv_message(sock, buf)
+                auth_res, buf = recv_message(sock, buf)
+                if auth_res.get("status") != "ok":
+                    return _fail("Authentication failed.")
 
-            my_id = get_or_create_host_identity(reg._path.parent)
-            send_message(
-                sock,
-                {
-                    "type": "lan_auth",
-                    "token": token or "",
-                    "client_peer_id": my_id,
-                    "client_hostname": _socket.gethostname(),
-                    "client_platform": _platform.system(),
-                    "protocol_version": LAN_PROTOCOL_VERSION,
-                },
-            )
+                send_message(
+                    sock,
+                    {
+                        "type": "lan_transfer_request",
+                        "filename": src.name,
+                        "size": file_size,
+                        "sha256": file_sha256,
+                    },
+                )
 
-            auth_res, buf = recv_message(sock, buf)
-            if auth_res.get("status") != "ok":
+                req_res, buf = recv_message(sock, buf)
                 sock.close()
-                return TransferResult(success=False, error="Authentication failed.")
+                sock = None
 
-            send_message(
-                sock,
-                {
-                    "type": "lan_transfer_request",
-                    "filename": src.name,
-                    "size": src.stat().st_size,
-                },
-            )
-
-            req_res, buf = recv_message(sock, buf)
-            sock.close()
-
-            if req_res.get("status") == "busy":
-                current = req_res.get("current", "?")
-                max_cap = req_res.get("max", "?")
-                sock.close()
-                return TransferResult(
-                    success=False,
-                    error=(
+                if req_res.get("status") == "busy":
+                    current = req_res.get("current", "?")
+                    max_cap = req_res.get("max", "?")
+                    last_error = (
                         f"Peer is at capacity ({current}/{max_cap} transfer slots in use). "
                         "Retry later."
-                    ),
+                    )
+                    if attempt > 0 and attempt < max_retries:
+                        time.sleep(0.2)
+                        continue
+                    return _fail(last_error)
+
+                if req_res.get("status") != "accepted":
+                    return _fail("Transfer rejected by peer.")
+
+                data_port = req_res.get("port")
+                if not data_port:
+                    return _fail("No data port provided by peer.")
+
+                resume_offset = int(req_res.get("resume_offset", 0) or 0)
+                last_resume_offset = resume_offset
+
+                # Data Plane
+                dsock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+                dsock.settimeout(30.0)
+                dsock.connect((host_str, data_port))
+                enable_tcp_keepalive(dsock)
+
+                try:
+                    send_file(
+                        dsock,
+                        src,
+                        progress_callback=progress_callback,
+                        offset=resume_offset,
+                        precomputed_sha256=file_sha256,
+                    )
+                except (OSError, TimeoutError, TransferProtocolError) as data_exc:
+                    last_error = str(data_exc)
+                    if attempt < max_retries:
+                        time.sleep(0.2)
+                        continue
+                    return _fail(last_error)
+
+                self._record_transfer(
+                    TransferRecord(
+                        transfer_id=transfer_id,
+                        filename=src.name,
+                        size=file_size,
+                        sha256=file_sha256,
+                        peer=to,
+                        direction="send",
+                        state=TransferState.COMPLETED.value,
+                        transferred_bytes=file_size,
+                        timestamp=time.time(),
+                        resumed_from=resume_offset,
+                    )
                 )
+                return TransferResult(success=True, transfer_id=transfer_id)
 
-            if req_res.get("status") != "accepted":
-                return TransferResult(success=False, error="Transfer rejected by peer.")
+            except Exception as exc:
+                return _fail(str(exc))
+            finally:
+                for active_sock in (sock, dsock):
+                    if active_sock is not None:
+                        try:
+                            active_sock.close()
+                        except OSError:
+                            pass
 
-            data_port = req_res.get("port")
-            if not data_port:
-                return TransferResult(
-                    success=False, error="No data port provided by peer."
-                )
-
-            # Data Plane
-            dsock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
-            dsock.settimeout(30.0)
-            dsock.connect((host_str, data_port))
-
-            send_file(dsock, src, progress_callback=progress_callback)
-            dsock.close()
-
-            return TransferResult(success=True)
-
-        except Exception as exc:
-            return TransferResult(success=False, error=str(exc))
+        return _fail(last_error)
 
     def receive(self, receive_dir: str | None = None) -> None:
         """
@@ -566,7 +806,6 @@ class NerveLAN:
           ``max``     (int) — maximum concurrent transfers the peer accepts
           ``error``   (str) — present only on failure
         """
-        import platform as _platform
         import socket as _socket
 
         from nerve.lan.connect import LAN_PROTOCOL_VERSION
@@ -576,29 +815,15 @@ class NerveLAN:
             send_message,
         )
 
-        reg = PeerRegistry()
-        target_peer = reg.get(to)
-        address = target_peer.last_address if target_peer else to
-
-        token = self._auth_token
-        if not token:
-            from nerve.core import load_external_config
-
-            cfg = load_external_config("nerve.config")
-            try:
-                token = resolve_auth_token(None, cfg, allow_interactive=False)
-            except Exception:
-                token = None
-
-        host_str, _, port_str = address.partition(":")
-        ctrl_port = (
-            int(port_str) if port_str else (self.port or LAN_CONTROL_PORT_DEFAULT)
-        )
+        host_str, ctrl_port, reg = self._resolve_target(to)
+        token = self._resolve_token()
+        sock = None
 
         try:
             sock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
             sock.settimeout(5.0)
             sock.connect((host_str, ctrl_port))
+            enable_tcp_keepalive(sock)
 
             buf: bytearray = bytearray()
             _hello, buf = recv_message(sock, buf)
@@ -611,19 +836,17 @@ class NerveLAN:
                     "token": token or "",
                     "client_peer_id": my_id,
                     "client_hostname": _socket.gethostname(),
-                    "client_platform": _platform.system(),
+                    "client_platform": detect_platform_name(),
                     "protocol_version": LAN_PROTOCOL_VERSION,
                 },
             )
 
             auth_res, buf = recv_message(sock, buf)
             if auth_res.get("status") != "ok":
-                sock.close()
                 return {"error": "Authentication failed."}
 
             send_message(sock, {"type": "lan_status"})
             status_res, _ = recv_message(sock, buf)
-            sock.close()
 
             if status_res.get("type") == "lan_status_result":
                 return {
@@ -633,20 +856,108 @@ class NerveLAN:
             return {"error": "Unexpected response type from peer."}
         except Exception as exc:
             return {"error": str(exc)}
+        finally:
+            if sock is not None:
+                try:
+                    sock.close()
+                except OSError:
+                    pass
 
     def get_peers(self) -> list[Any]:
         """Return all known registered peers."""
         return PeerRegistry().list_peers()
 
-    def get_transfers(self) -> list[Any]:
-        return []
+    def get_transfers(self) -> list[TransferRecord]:
+        """Return transfer records captured by this NerveLAN instance."""
+        with self._transfers_lock:
+            return list(self._transfers)
+
+    def get_audit_log(self, limit: int = 100) -> list[dict]:
+        """Return recent SHA-256 chain-of-custody records from the audit log."""
+        return read_audit_log(limit=limit, log_path=self._audit_log_path)
+
+    def pack_container(
+        self, source_path: str, output_path: str, password: str
+    ) -> dict[str, Any]:
+        """Encrypt a file or directory into a .nrv container and record SHA-256 custody."""
+        if not password:
+            return {"success": False, "error": "Password is required."}
+
+        from nerve.lan.transfer import compute_file_sha256
+        from nerve.nrv import pack_nrv
+
+        base, ext = os.path.splitext(output_path)
+        final_out = output_path if ext.lower() == ".nrv" else base + ".nrv"
+
+        try:
+            pack_nrv(source_path, final_out, password)
+            sha256 = compute_file_sha256(final_out)
+            size = Path(final_out).stat().st_size
+            append_audit_log(
+                {
+                    "transfer_id": secrets.token_hex(6),
+                    "direction": "pack",
+                    "filename": Path(final_out).name,
+                    "size": size,
+                    "sha256": sha256,
+                    "peer": "local",
+                    "state": TransferState.COMPLETED.value,
+                    "transferred_bytes": size,
+                    "resumed_from": 0,
+                },
+                log_path=self._audit_log_path,
+            )
+            return {
+                "success": True,
+                "output_path": str(final_out),
+                "sha256": sha256,
+                "size": size,
+            }
+        except Exception as exc:
+            return {"success": False, "error": str(exc)}
+
+    def unpack_container(
+        self, nrv_path: str, output_dir: str, password: str
+    ) -> dict[str, Any]:
+        """Decrypt and verify a .nrv container and record SHA-256 custody."""
+        if not password:
+            return {"success": False, "error": "Password is required."}
+
+        from nerve.lan.transfer import compute_file_sha256
+        from nerve.nrv import unpack_nrv
+
+        try:
+            src = Path(nrv_path)
+            if not src.exists():
+                return {"success": False, "error": f"Container not found: {nrv_path}"}
+            sha256 = compute_file_sha256(src)
+            size = src.stat().st_size
+            unpack_nrv(str(src), output_dir, password)
+            append_audit_log(
+                {
+                    "transfer_id": secrets.token_hex(6),
+                    "direction": "unpack",
+                    "filename": src.name,
+                    "size": size,
+                    "sha256": sha256,
+                    "peer": "local",
+                    "state": TransferState.COMPLETED.value,
+                    "transferred_bytes": size,
+                    "resumed_from": 0,
+                },
+                log_path=self._audit_log_path,
+            )
+            return {
+                "success": True,
+                "output_dir": str(output_dir),
+                "sha256": sha256,
+                "size": size,
+            }
+        except Exception as exc:
+            return {"success": False, "error": str(exc)}
 
     def network_info(self) -> dict:
-        """
-
-        No Internet required. Filters out loopback and 0.0.0.0.
-        """
-        import platform as _platform
+        """Return local hostname, platform, and non-loopback IPv4 addresses."""
         import socket as _socket
 
         hostname = _socket.gethostname()
@@ -654,6 +965,6 @@ class NerveLAN:
 
         return {
             "hostname": hostname,
-            "platform": _platform.system(),
+            "platform": detect_platform_name(),
             "addresses": addresses,
         }

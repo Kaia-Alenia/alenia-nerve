@@ -53,12 +53,82 @@ LAN_DATA_PORT_DEFAULT = 50510
 
 DEFAULT_CHUNK_SIZE = 512 * 1024
 
-# Suffix used for temporary files during receive; never exposed as final output
+# Suffixes used for temporary and resume metadata files during receive
 _TMP_SUFFIX = ".nrv_tmp"
+_TMP_META_SUFFIX = ".nrv_tmp.meta"
 
 
 class TransferProtocolError(Exception):
     """Raised when binary protocol framing or integrity verification fails."""
+
+
+def _get_temp_paths(final_path: Path) -> tuple[Path, Path]:
+    """Return (tmp_path, meta_path) derived consistently from final_path."""
+    tmp_path = final_path.with_suffix(final_path.suffix + _TMP_SUFFIX)
+    meta_path = final_path.with_suffix(final_path.suffix + _TMP_META_SUFFIX)
+    return tmp_path, meta_path
+
+
+def _cleanup_temp_files(tmp_path: Path, meta_path: Path) -> None:
+    """Best-effort removal of partial transfer and resume metadata files."""
+    for path in (tmp_path, meta_path):
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def compute_file_sha256(
+    filepath: str | Path, chunk_size: int = DEFAULT_CHUNK_SIZE
+) -> str:
+    """Compute the SHA-256 hex digest of a file using bounded-memory streaming."""
+    hasher = hashlib.sha256()
+    with open(filepath, "rb") as f:
+        while True:
+            block = f.read(chunk_size)
+            if not block:
+                break
+            hasher.update(block)
+    return hasher.hexdigest()
+
+
+def get_partial_transfer_offset(
+    out_dir: str | Path,
+    filename: str,
+    expected_size: int,
+    expected_sha256: str | None,
+) -> int:
+    """Return resumable byte offset for a matching partial transfer, or 0.
+
+    Verifies that both the partial payload (.nrv_tmp) and its metadata sidecar
+    (.nrv_tmp.meta) exist, match the expected size and SHA-256 digest, and contain
+    a non-empty prefix strictly smaller than expected_size. Stale or mismatched
+    partial artifacts are cleaned up automatically.
+    """
+    if not expected_sha256 or expected_size <= 0:
+        return 0
+
+    final_path = Path(out_dir) / filename
+    tmp_path, meta_path = _get_temp_paths(final_path)
+
+    if not tmp_path.exists() or not meta_path.exists():
+        return 0
+
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        if not isinstance(meta, dict):
+            raise ValueError("Invalid resume metadata structure")
+        if meta.get("sha256") != expected_sha256 or meta.get("size") != expected_size:
+            _cleanup_temp_files(tmp_path, meta_path)
+            return 0
+        partial_size = tmp_path.stat().st_size
+        if 0 < partial_size < expected_size:
+            return partial_size
+        _cleanup_temp_files(tmp_path, meta_path)
+        return 0
+    except (OSError, json.JSONDecodeError, ValueError):
+        _cleanup_temp_files(tmp_path, meta_path)
+        return 0
 
 
 def send_file(
@@ -67,34 +137,31 @@ def send_file(
     metadata: dict | None = None,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     progress_callback: Callable[[int, int], None] | None = None,
+    offset: int = 0,
+    precomputed_sha256: str | None = None,
 ) -> str:
-    """
-    Send a file over *conn* using the Nerve LAN STANDARD binary protocol.
+    """Send a file over *conn* using the Nerve LAN STANDARD binary protocol.
 
-    The SHA-256 hash of the file content is computed and included in the
-    metadata so the receiver can verify integrity.
-
-    Returns the SHA-256 hex digest of the bytes sent.
+    Supports resuming from a byte *offset* when the receiver already holds a
+    verified prefix. Returns the full-file SHA-256 hex digest.
     """
     path = Path(filepath)
     file_size = path.stat().st_size
 
-    # Compute SHA-256 before sending so it can be embedded in metadata.
-    # For very large files this is a second read, but correctness requires it.
-    # Future optimisation: two-pass streaming or separate hash channel.
-    hasher = hashlib.sha256()
-    with open(path, "rb") as f:
-        while True:
-            block = f.read(chunk_size)
-            if not block:
-                break
-            hasher.update(block)
-    file_sha256 = hasher.hexdigest()
+    if offset < 0 or offset > file_size:
+        raise ValueError(f"Invalid resume offset {offset} for file of size {file_size}")
+
+    file_sha256 = (
+        precomputed_sha256
+        if precomputed_sha256 is not None
+        else compute_file_sha256(path, chunk_size)
+    )
 
     meta = dict(metadata) if metadata else {}
     meta["filename"] = path.name
     meta["size"] = file_size
     meta["sha256"] = file_sha256  # receiver uses this for verification
+    meta["offset"] = offset
 
     meta_bytes = json.dumps(meta, ensure_ascii=False).encode("utf-8")
 
@@ -105,9 +172,11 @@ def send_file(
     # 2. Metadata
     conn.sendall(meta_bytes)
 
-    # 3. Stream chunks
-    bytes_sent = 0
+    # 3. Stream remaining chunks from offset
+    bytes_sent = offset
     with open(path, "rb") as f:
+        if offset > 0:
+            f.seek(offset)
         while True:
             chunk = f.read(chunk_size)
             if not chunk:
@@ -129,14 +198,15 @@ def receive_file(
     out_dir: str | Path,
     progress_callback: Callable[[str, int, int], None] | None = None,
     conflict_policy: str = "error",
+    allow_resume: bool = True,
 ) -> tuple[Path | None, dict, str]:
-    """
-    Receive a file over *conn* using the Nerve LAN STANDARD binary protocol.
+    """Receive a file over *conn* using the Nerve LAN STANDARD binary protocol.
 
-      1. Write chunks to <filename>.nrv_tmp
-      2. After EOF: compare computed SHA-256 against metadata 'sha256'
-      3. On match: rename temp → final (atomic on POSIX, best-effort on Windows)
-      4. On mismatch: delete temp, raise TransferProtocolError("HASH_MISMATCH")
+      1. Write chunks to <filename>.nrv_tmp (resuming at offset when negotiated)
+      2. Preserve non-empty partial chunks with .nrv_tmp.meta on connection drop
+      3. After EOF: verify full-file SHA-256 against metadata 'sha256'
+      4. On match: rename temp -> final and remove .nrv_tmp.meta
+      5. On mismatch: clean up temp artifacts, raise TransferProtocolError
 
     conflict_policy: 'error' | 'overwrite' | 'rename' | 'skip'
 
@@ -161,8 +231,12 @@ def receive_file(
     meta = json.loads(meta_bytes.decode("utf-8"))
 
     filename = meta.get("filename", "received_file")
-    expected_size = meta.get("size", 0)
+    expected_size = int(meta.get("size", 0))
     expected_sha256: str | None = meta.get("sha256")  # may be absent in old protocol
+    offset = int(meta.get("offset", 0))
+
+    if offset < 0:
+        raise TransferProtocolError(f"Invalid negative offset: {offset}")
 
     out_dir_path = Path(out_dir)
     out_dir_path.mkdir(parents=True, exist_ok=True)
@@ -190,14 +264,49 @@ def receive_file(
         else:
             raise ValueError(f"Unknown conflict_policy: {conflict_policy!r}")
 
-    tmp_path = final_path.with_suffix(final_path.suffix + _TMP_SUFFIX)
+    tmp_path, meta_path = _get_temp_paths(final_path)
 
-    hasher = hashlib.sha256()
-    bytes_received = 0
+    if offset > 0:
+        if not allow_resume:
+            raise TransferProtocolError("RESUME_STATE_INVALID: resume is disabled")
+        if not tmp_path.exists() or tmp_path.stat().st_size < offset:
+            raise TransferProtocolError(
+                f"RESUME_STATE_INVALID: missing or truncated partial file for offset {offset}"
+            )
+        if meta_path.exists() and expected_sha256 is not None:
+            try:
+                stored_meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                if stored_meta.get("sha256") != expected_sha256:
+                    raise TransferProtocolError(
+                        "RESUME_STATE_INVALID: partial metadata SHA-256 mismatch"
+                    )
+            except (OSError, json.JSONDecodeError) as exc:
+                raise TransferProtocolError(
+                    f"RESUME_STATE_INVALID: unreadable resume metadata ({exc})"
+                ) from exc
 
-    # 3. Stream chunks → temp file
+        file_mode = "r+b"
+        bytes_received = offset
+    else:
+        file_mode = "wb"
+        bytes_received = 0
+        if allow_resume and expected_sha256 is not None:
+            meta_payload = {
+                "filename": filename,
+                "size": expected_size,
+                "sha256": expected_sha256,
+            }
+            meta_path.write_text(json.dumps(meta_payload), encoding="utf-8")
+
+    hasher = hashlib.sha256() if offset == 0 else None
+
+    # 3. Stream chunks -> temp file
     try:
-        with open(tmp_path, "wb") as f:
+        with open(tmp_path, file_mode) as f:
+            if offset > 0:
+                f.seek(offset)
+                f.truncate(offset)
+
             while True:
                 chunk_len_data = _recv_exactly(conn, CHUNK_HEADER_SIZE)
                 (chunk_length,) = struct.unpack(CHUNK_HEADER_FORMAT, chunk_len_data)
@@ -207,39 +316,42 @@ def receive_file(
 
                 chunk = _recv_exactly(conn, chunk_length)
                 f.write(chunk)
-                hasher.update(chunk)
+                if hasher is not None:
+                    hasher.update(chunk)
 
                 bytes_received += chunk_length
                 if progress_callback:
                     progress_callback(filename, bytes_received, expected_size)
     except Exception:
-        # Best-effort cleanup of the temp file on any receive error
-        try:
-            tmp_path.unlink(missing_ok=True)
-        except OSError:
-            pass
+        # Preserve non-empty resumable artifacts on network failure; clean empty/disabled temp files
+        keep_partial = (
+            allow_resume
+            and expected_sha256 is not None
+            and tmp_path.exists()
+            and tmp_path.stat().st_size > 0
+        )
+        if not keep_partial:
+            _cleanup_temp_files(tmp_path, meta_path)
         raise
 
-    computed_sha256 = hasher.hexdigest()
+    if hasher is not None:
+        computed_sha256 = hasher.hexdigest()
+    else:
+        computed_sha256 = compute_file_sha256(tmp_path, DEFAULT_CHUNK_SIZE)
 
     # 4. Integrity verification
     if expected_sha256 is not None and computed_sha256 != expected_sha256:
-        try:
-            tmp_path.unlink(missing_ok=True)
-        except OSError:
-            pass
+        _cleanup_temp_files(tmp_path, meta_path)
         raise TransferProtocolError(
             f"HASH_MISMATCH: expected {expected_sha256}, got {computed_sha256}"
         )
 
-    # 5. Atomic rename temp → final
+    # 5. Atomic rename temp -> final
     try:
         os.replace(tmp_path, final_path)
+        meta_path.unlink(missing_ok=True)
     except OSError as exc:
-        try:
-            tmp_path.unlink(missing_ok=True)
-        except OSError:
-            pass
+        _cleanup_temp_files(tmp_path, meta_path)
         raise TransferProtocolError(f"DISK_WRITE_ERROR: {exc}") from exc
 
     return final_path, meta, computed_sha256

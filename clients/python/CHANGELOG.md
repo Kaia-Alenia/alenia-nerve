@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 
 
+## [7.1.0] — 2026-11-19
+### Added
+- Resumable chunked LAN file transfers with `.nrv_tmp.meta` verification and automatic retry.
+- Cross-platform TCP keepalive, Android/Termux platform detection, and improved IPv4 interface/isolation scanning.
+- Enterprise `NerveLAN` SDK methods (`get_transfers`, `get_audit_log`, `pack_container`, `unpack_container`) and SHA-256 audit log (`~/.nerve/audit.jsonl`).
+- Unified Enterprise Web Console (`nerve ui` and `nerve dashboard --standalone`).
+
 ## [7.0.0] — 2026-09-09
 ### Changed
 - Synchronized the Python client version with the main Nerve release.

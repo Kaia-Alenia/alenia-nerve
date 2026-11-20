@@ -47,3 +47,40 @@ export class NexusClient extends EventEmitter {
 }
 
 export function loadExternalConfig(configPath?: string): Record<string, any>;
+
+export class NerveLanClient {
+  baseUrl: string;
+  constructor(baseUrl?: string);
+  lanStatus(): Promise<Record<string, any>>;
+  lanScan(options?: { target_ip?: string; timeout?: number; subnet_fallback?: boolean }): Promise<Record<string, any>>;
+  lanConnect(ip: string, options?: { name?: string; token?: string }): Promise<Record<string, any>>;
+  lanSend(filePath: string, to: string): Promise<Record<string, any>>;
+  lanAudit(limit?: number): Promise<Record<string, any>>;
+  packNrv(sourcePath: string, outputPath: string, password: string): Promise<Record<string, any>>;
+  unpackNrv(nrvPath: string, outputDir: string, password: string): Promise<Record<string, any>>;
+}
+
+export function lanStatus(baseUrl?: string): Promise<Record<string, any>>;
+export function lanScan(
+  options?: { target_ip?: string; timeout?: number; subnet_fallback?: boolean },
+  baseUrl?: string
+): Promise<Record<string, any>>;
+export function lanConnect(
+  ip: string,
+  options?: { name?: string; token?: string },
+  baseUrl?: string
+): Promise<Record<string, any>>;
+export function lanSend(filePath: string, to: string, baseUrl?: string): Promise<Record<string, any>>;
+export function lanAudit(limit?: number, baseUrl?: string): Promise<Record<string, any>>;
+export function packNrv(
+  sourcePath: string,
+  outputPath: string,
+  password: string,
+  baseUrl?: string
+): Promise<Record<string, any>>;
+export function unpackNrv(
+  nrvPath: string,
+  outputDir: string,
+  password: string,
+  baseUrl?: string
+): Promise<Record<string, any>>;

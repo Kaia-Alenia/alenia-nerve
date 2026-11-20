@@ -20,22 +20,47 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
+from urllib.parse import urlparse
 
 from nerve import __version__
 from nerve.core import NexusClient
+from nerve.lan.api import NerveLAN
+from nerve.lan.rest_server import handle_lan_get, handle_lan_post
 
-LATEST_DATA: dict[str, Any] = {"metrics": {}, "clients": []}
+LATEST_DATA: dict[str, Any] = {"metrics": {}, "clients": [], "hub_connected": False}
 DASHBOARD_DIR = os.path.join(os.path.dirname(__file__), "dashboard")
 
 
 class DashboardHandler(BaseHTTPRequestHandler):
+    lan_api: NerveLAN | None = None
+
+    def _get_lan_api(self) -> NerveLAN:
+        if self.lan_api is None:
+            type(self).lan_api = NerveLAN()
+        return self.lan_api
+
+    def _send_json(self, data: dict[str, Any], status_code: int = 200) -> None:
+        self.send_response(status_code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode("utf-8"))
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
     def do_GET(self):
-        if self.path == "/api/metrics":
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps(LATEST_DATA).encode("utf-8"))
-        elif self.path == "/" or self.path == "/index.html":
+        parsed = urlparse(self.path)
+        path = parsed.path
+
+        if path == "/api/metrics":
+            self._send_json(LATEST_DATA)
+            return
+        if path == "/" or path == "/index.html":
             index_path = os.path.join(DASHBOARD_DIR, "index.html")
             if not os.path.exists(index_path):
                 self.send_response(404)
@@ -49,9 +74,42 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
             self.wfile.write(content)
-        else:
-            self.send_response(404)
-            self.end_headers()
+            return
+
+        lan_res = handle_lan_get(self._get_lan_api(), path, parsed.query)
+        if lan_res is not None:
+            status_code, payload = lan_res
+            self._send_json(payload, status_code=status_code)
+            return
+
+        self.send_response(404)
+        self.end_headers()
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        content_length = int(self.headers.get("Content-Length", 0))
+        body = (
+            self.rfile.read(content_length).decode("utf-8") if content_length else "{}"
+        )
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            self._send_json({"error": "Invalid JSON"}, status_code=400)
+            return
+
+        try:
+            lan_res = handle_lan_post(self._get_lan_api(), parsed.path, data)
+        except Exception as exc:
+            self._send_json({"error": str(exc)}, status_code=500)
+            return
+
+        if lan_res is not None:
+            status_code, payload = lan_res
+            self._send_json(payload, status_code=status_code)
+            return
+
+        self.send_response(404)
+        self.end_headers()
 
     def log_message(self, format, *args):
         pass
@@ -64,8 +122,9 @@ def data_fetcher_loop(client: NexusClient):
             clients = client.list_clients()
             LATEST_DATA["metrics"] = metrics
             LATEST_DATA["clients"] = clients
+            LATEST_DATA["hub_connected"] = True
         except Exception:
-            pass
+            LATEST_DATA["hub_connected"] = False
         time.sleep(1.0)
 
 
@@ -102,26 +161,39 @@ def _probe_hub(timeout: float = 2.0) -> bool:
             pass
 
 
-def run_dashboard(port: int = 8080):
+def run_dashboard(port: int = 8080, require_hub: bool = True):
     print(f"\033[95m[NERVE CLI]\033[0m Starting Dashboard on http://localhost:{port}")
 
-    if not _probe_hub():
+    hub_available = _probe_hub()
+    if not hub_available and require_hub:
         print(
             "\033[91m[NERVE CLI]\033[0m Could not connect to Hub: hub is not running or unreachable."
         )
         print("Is the Nerve Hub running? Run 'nerve start' in another terminal.")
         sys.exit(1)
 
-    client = NexusClient()
-    client.connect("nerve-dashboard")
+    client: NexusClient | None = None
+    if hub_available:
+        client = NexusClient()
+        client.connect("nerve-dashboard")
+        LATEST_DATA["hub_connected"] = True
+        fetcher_thread = threading.Thread(
+            target=data_fetcher_loop, args=(client,), daemon=True
+        )
+        fetcher_thread.start()
+    else:
+        LATEST_DATA["hub_connected"] = False
+        print(
+            "\033[93m[NERVE CLI]\033[0m IPC Hub offline — running Web UI in standalone LAN/NRV mode."
+        )
 
-    fetcher_thread = threading.Thread(
-        target=data_fetcher_loop, args=(client,), daemon=True
-    )
-    fetcher_thread.start()
+    lan_instance = NerveLAN()
+
+    class UnifiedDashboardHandler(DashboardHandler):
+        lan_api = lan_instance
 
     try:
-        server = HTTPServer(("0.0.0.0", port), DashboardHandler)
+        server = HTTPServer(("0.0.0.0", port), UnifiedDashboardHandler)
         print("\033[92m[NERVE CLI]\033[0m Dashboard running. Press Ctrl+C to stop.")
         server.serve_forever()
     except KeyboardInterrupt:
@@ -129,7 +201,10 @@ def run_dashboard(port: int = 8080):
     except Exception as e:
         print(f"\033[91m[NERVE CLI]\033[0m Server error: {e}")
     finally:
-        client.disconnect()
+        if client is not None:
+            client.disconnect()
+        if lan_instance.status.running:
+            lan_instance.stop()
 
 
 def format_bytes(b: int) -> str:

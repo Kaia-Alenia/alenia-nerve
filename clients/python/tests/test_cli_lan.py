@@ -73,3 +73,25 @@ def test_cli_receive() -> None:
         main()
         mock_recv.assert_called_once_with(receive_dir="/tmp")
         mock_exit.assert_called_once_with(0)
+
+
+def test_cli_ui_standalone() -> None:
+    with (
+        patch("sys.argv", ["nerve", "ui", "--port", "8099"]),
+        patch("nerve.cli.run_dashboard") as mock_dash,
+        patch("sys.exit") as mock_exit,
+    ):
+        main()
+        mock_dash.assert_called_once_with(port=8099, require_hub=False)
+        mock_exit.assert_called_once_with(0)
+
+
+def test_cli_dashboard_standalone_flag() -> None:
+    with (
+        patch("sys.argv", ["nerve", "dashboard", "--standalone"]),
+        patch("nerve.cli.run_dashboard") as mock_dash,
+        patch("sys.exit") as mock_exit,
+    ):
+        main()
+        mock_dash.assert_called_once_with(port=8080, require_hub=False)
+        mock_exit.assert_called_once_with(0)

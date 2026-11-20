@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 
 
+## [7.1.0] — 2026-11-19
+### Added
+- `LanClient` HTTP helper methods (`LanStatus`, `LanScan`, `LanConnect`, `LanSend`, `LanAudit`, `PackNrv`, `UnpackNrv`) using the Go standard library.
+
 ## [7.0.0] — 2026-09-09
 ### Changed
 - Synchronized the Go client documentation with the main Nerve release.

@@ -23,41 +23,128 @@ import json
 import logging
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import urlparse
+from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 from nerve.lan.api import NerveLAN
 
 logger = logging.getLogger(__name__)
 
 
+def handle_lan_get(
+    lan_api: NerveLAN, path: str, query: str = ""
+) -> tuple[int, dict[str, Any]] | None:
+    """Dispatch shared LAN/NRV GET routes; returns (status, payload) or None."""
+    if path == "/api/lan/status":
+        st = lan_api.status
+        return 200, {
+            "status": "running" if st.running else "stopped",
+            "running": st.running,
+            "port": st.port,
+            "error": st.error,
+        }
+    if path == "/api/lan/peers":
+        peers = [p.__dict__ for p in lan_api.get_peers()]
+        return 200, {"peers": peers}
+    if path == "/api/lan/transfers":
+        transfers = [t.__dict__ for t in lan_api.get_transfers()]
+        return 200, {"transfers": transfers}
+    if path == "/api/lan/audit":
+        params = parse_qs(query)
+        try:
+            limit = int(params.get("limit", ["100"])[0])
+        except ValueError:
+            limit = 100
+        return 200, {"audit": lan_api.get_audit_log(limit=limit)}
+    if path == "/api/lan/network_info":
+        return 200, lan_api.network_info()
+    return None
+
+
+def handle_lan_post(
+    lan_api: NerveLAN, path: str, data: dict[str, Any]
+) -> tuple[int, dict[str, Any]] | None:
+    """Dispatch shared LAN/NRV POST routes; returns (status, payload) or None."""
+    if path == "/api/lan/start":
+        st = lan_api.start()
+        return 200, {"success": st.running, "status": st.__dict__}
+    if path == "/api/lan/stop":
+        st = lan_api.stop()
+        return 200, {"success": not st.running, "status": st.__dict__}
+    if path == "/api/lan/scan":
+        target_ip = data.get("target_ip")
+        timeout = float(data.get("timeout", 2.0))
+        subnet_fallback = bool(data.get("subnet_fallback", False))
+        peers = lan_api.scan(
+            timeout=timeout, target_ip=target_ip, subnet_fallback=subnet_fallback
+        )
+        return 200, {"peers": [p.__dict__ for p in peers]}
+    if path == "/api/lan/connect":
+        ip = data.get("ip")
+        if not ip:
+            return 400, {"error": "Missing 'ip'"}
+        res = lan_api.connect(ip, name=data.get("name"), token=data.get("token"))
+        return 200, {"peer": res.__dict__, "success": res.success}
+    if path == "/api/lan/send":
+        to = data.get("to")
+        file_path = data.get("file_path")
+        if not to or not file_path:
+            return 400, {"error": "Missing 'to' or 'file_path'"}
+        t_status = lan_api.send(file_path, to)
+        return 200, {"transfer": t_status.__dict__, "success": t_status.success}
+    if path == "/api/nrv/pack":
+        source_path = data.get("source_path")
+        output_path = data.get("output_path")
+        password = data.get("password")
+        if not source_path or not output_path or not password:
+            return 400, {"error": "Missing 'source_path', 'output_path', or 'password'"}
+        return 200, lan_api.pack_container(source_path, output_path, password)
+    if path == "/api/nrv/unpack":
+        nrv_path = data.get("nrv_path")
+        output_dir = data.get("output_dir")
+        password = data.get("password")
+        if not nrv_path or not output_dir or not password:
+            return 400, {"error": "Missing 'nrv_path', 'output_dir', or 'password'"}
+        return 200, lan_api.unpack_container(nrv_path, output_dir, password)
+    if path == "/api/nrv/genpass":
+        mode = data.get("mode", "passphrase")
+        if mode == "random":
+            from nerve.genpass import generate_random_password
+
+            length = int(data.get("length", 20))
+            pwd, ent = generate_random_password(length=length)
+        else:
+            from nerve.genpass import generate_passphrase
+
+            words = int(data.get("words", 5))
+            pwd, ent = generate_passphrase(words=words)
+        return 200, {"password": pwd, "entropy": ent, "mode": mode}
+    return None
+
+
 class LANRestHandler(BaseHTTPRequestHandler):
-    """
-    HTTP Handler for LAN API requests.
-    """
+    """HTTP Handler for LAN API requests."""
 
     lan_api: NerveLAN = None  # type: ignore
 
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
     def do_GET(self):
         parsed = urlparse(self.path)
-        path = parsed.path
-
-        if path == "/api/lan/status":
-            self._send_json({"status": self.lan_api.status.value})
-        elif path == "/api/lan/peers":
-            peers = [p.__dict__ for p in self.lan_api.get_peers()]
-            self._send_json({"peers": peers})
-        elif path == "/api/lan/transfers":
-            transfers = [t.__dict__ for t in self.lan_api.get_transfers()]
-            self._send_json({"transfers": transfers})
-        elif path == "/api/lan/network_info":
-            self._send_json(self.lan_api.network_info())
-        else:
+        result = handle_lan_get(self.lan_api, parsed.path, parsed.query)
+        if result is None:
             self.send_error(404, "Not Found")
+            return
+        status_code, payload = result
+        self._send_json(payload, status_code=status_code)
 
     def do_POST(self):
         parsed = urlparse(self.path)
-        path = parsed.path
-
         content_length = int(self.headers.get("Content-Length", 0))
         body = (
             self.rfile.read(content_length).decode("utf-8") if content_length else "{}"
@@ -70,40 +157,18 @@ class LANRestHandler(BaseHTTPRequestHandler):
             return
 
         try:
-            if path == "/api/lan/start":
-                self.lan_api.start()
-                self._send_json({"success": True})
-            elif path == "/api/lan/stop":
-                self.lan_api.stop()
-                self._send_json({"success": True})
-            elif path == "/api/lan/scan":
-                target_ip = data.get("target_ip")
-                timeout = data.get("timeout", 2.0)
-                peers = self.lan_api.scan(timeout=timeout, target_ip=target_ip)
-                self._send_json({"peers": [p.__dict__ for p in peers]})
-            elif path == "/api/lan/connect":
-                ip = data.get("ip")
-                if not ip:
-                    self.send_error(400, "Missing 'ip'")
-                    return
-                peer = self.lan_api.connect(ip)
-                self._send_json({"peer": peer.__dict__})
-            elif path == "/api/lan/send":
-                to = data.get("to")
-                file_path = data.get("file_path")
-                if not to or not file_path:
-                    self.send_error(400, "Missing 'to' or 'file_path'")
-                    return
-                t_status = self.lan_api.send(to, file_path)
-                self._send_json({"transfer": t_status.__dict__})
-            else:
+            result = handle_lan_post(self.lan_api, parsed.path, data)
+            if result is None:
                 self.send_error(404, "Not Found")
+                return
+            status_code, payload = result
+            self._send_json(payload, status_code=status_code)
         except Exception as e:
-            logger.error(f"REST API Error: {e}", exc_info=True)
+            logger.error("REST API Error: %s", e, exc_info=True)
             self.send_error(500, str(e))
 
-    def _send_json(self, data: dict):
-        self.send_response(200)
+    def _send_json(self, data: dict, status_code: int = 200):
+        self.send_response(status_code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()

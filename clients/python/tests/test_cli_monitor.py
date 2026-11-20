@@ -77,3 +77,62 @@ def test_data_fetcher_loop_exception():
             pass
 
     sleep_mock.assert_called_once_with(1.0)
+
+
+def test_dashboard_handler_serves_lan_and_nrv_endpoints(tmp_path, monkeypatch):
+    """DashboardHandler exposes unified /api/lan/* and /api/nrv/* endpoints."""
+    import json
+    import socket
+    import threading
+    import urllib.request
+    from http.server import HTTPServer
+
+    from nerve.cli_monitor import DashboardHandler
+    from nerve.lan.api import NerveLAN
+
+    audit_path = tmp_path / "audit.jsonl"
+    monkeypatch.setattr("nerve.lan.util.default_audit_log_path", lambda: audit_path)
+
+    lan = NerveLAN(verbose=False)
+    lan._audit_log_path = audit_path
+
+    class TestHandler(DashboardHandler):
+        lan_api = lan
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+
+    server = HTTPServer(("127.0.0.1", port), TestHandler)
+    th = threading.Thread(target=server.serve_forever, daemon=True)
+    th.start()
+
+    try:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        base = f"http://127.0.0.1:{port}"
+
+        with opener.open(f"{base}/api/lan/status", timeout=3) as resp:
+            status_body = json.loads(resp.read().decode("utf-8"))
+        assert status_body["running"] is False
+        assert status_body["status"] == "stopped"
+
+        gen_req = urllib.request.Request(
+            f"{base}/api/nrv/genpass",
+            data=json.dumps({"mode": "passphrase", "words": 4}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with opener.open(gen_req, timeout=3) as resp:
+            gen_body = json.loads(resp.read().decode("utf-8"))
+        assert len(gen_body["password"].split("-")) == 4
+        assert gen_body["entropy"] > 0
+
+        with opener.open(f"{base}/", timeout=3) as resp:
+            html = resp.read().decode("utf-8")
+        assert "view-lan" in html
+        assert "view-vault" in html
+        assert "view-audit" in html
+    finally:
+        server.shutdown()
+        server.server_close()
+        th.join(timeout=2)

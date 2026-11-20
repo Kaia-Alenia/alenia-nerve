@@ -141,9 +141,11 @@ Busca la dirección IPv4 privada del adaptador que realmente conecta ambos equip
 
 * **Transferencias Nativas en Terminal:** Transferencias directas `Linux <-> Windows` y `Windows <-> Windows` listas para usar.
 * **Motor de Doble Arquitectura:** Utiliza **Unix Domain Sockets (UDS)** de latencia ultrabaja para IPC local, y pivota dinámicamente a **Flujos Binarios TCP** al salir a la red LAN.
-* **Streaming Real (Sin Inflar Memoria):** Los archivos masivos se dividen en fragmentos binarios `.nrv` sobre la marcha. Nerve no cargará un archivo de 10GB en tu memoria RAM.
+* **Streaming Real y Reanudación por Chunks:** Los archivos masivos se transmiten en fragmentos binarios sin inflar la memoria RAM. Si se corta la red LAN o Wi-Fi a mitad del envío, Nerve conserva los chunks verificados (`.nrv_tmp` + `.nrv_tmp.meta`), negocia el byte exacto al reconectar y continúa únicamente con los chunks pendientes.
+* **Conectividad Multiplataforma y Android/Termux:** Sondeos TCP Keepalive nativos por sistema operativo, detección directa de interfaces (`ip`, `ifconfig`, `ipconfig`) y sondeo unicast a peers registrados para operar de forma confiable entre Windows, Linux, macOS y Android/Termux incluso con aislamiento AP.
+* **Bitácora de Auditoría Criptográfica SHA-256:** Cada transferencia LAN y operación `.nrv` (`pack`/`unpack`) se registra con su huella SHA-256, peer, offset reanudado y fecha en `~/.nerve/audit.jsonl`.
 * **Seguro por Defecto:** Las conexiones LAN requieren un token de autenticación configurado en `nerve.config` o `NERVE_AUTH_TOKEN`; `nerve connect` también acepta `--token`. A menos que ejecutes `nerve host`, Nerve permanece completamente silencioso y aislado.
-* **SDKs Políglotas:** ¿Necesitas conectar un backend en Rust a un pipeline de datos en Python localmente? Nerve proporciona clientes oficiales para orquestar microservicios locales con reconexión automática y latidos en segundo plano.
+* **SDKs Políglotas y API LAN Empresarial:** Incluye `NerveLAN` en Python y clientes ligeros HTTP/REST (`NerveLanClient` / `LanClient`) en Python, Rust, Go y JavaScript.
 
 ---
 
@@ -294,7 +296,8 @@ Una vez instalado, el comando `nerve` proporciona un conjunto de herramientas pa
 
 * **`nerve start`**: Inicia el **NexusHub** — el enrutador central de mensajes para tu red local. Se ejecuta de inmediato sin necesidad de configuración y escucha las conexiones entrantes. Usa `nerve start --verbose` para rastrear en tiempo real cada paquete enrutado.
 * **`nerve monitor`**: Lanza un panel interactivo en terminal que muestra todos los clientes conectados, tiempo de actividad, conteo de mensajes y estadísticas de tráfico en un solo vistazo.
-* **`nerve dashboard`**: Inicia una interfaz web local ligera en `http://localhost:8080` que renderiza una **Vista de Topología de Red** en vivo con todos los nodos conectados.
+* **`nerve dashboard [--standalone] [--port PORT]`**: Inicia la interfaz web local en `http://localhost:8080` con **Vista de Topología de Red**, transferencias LAN, bóveda `.nrv` y auditoría. Usa `--standalone` si deseas iniciarla sin el Hub IPC.
+* **`nerve ui [--port PORT]`**: Lanza directamente la **Consola Web Empresarial Unificada** en modo standalone (accesible desde navegador en PC y móvil) para operar transferencias reanudables, cifrado `.nrv` y bitácora SHA-256 (`~/.nerve/audit.jsonl`) sin usar terminal.
 * **`nerve bridge`**: Inicia un proxy HTTP/WebSocket en el puerto 50506. Esto permite que navegadores web y clientes WebSocket se conecten y hablen directamente con la red IPC de Nerve. (Requiere el paquete `websockets`).
 * **`nerve host`**: Inicia un host persistente de igual a igual (peer-to-peer) para la Comunicación Directa entre Dispositivos. Esto permite que otros dispositivos descubran esta máquina en la red local.
 * **`nerve scan [IP]`**: Escanea la red local en busca de otros dispositivos Nerve ejecutando `nerve host`. Usa broadcast UDP, o unicast si se proporciona una IP específica (útil para eludir el aislamiento AP en routers estrictos).
@@ -478,11 +481,19 @@ Consulta [CHANGELOG.md](CHANGELOG.md) para ver el historial completo de versione
 
 ---
 
-##  Licencia
+##  Licenciamiento (Licencia Dual — Open Core)
 
-[![Licencia](https://img.shields.io/badge/Licencia-GPLv3-8a2be2.svg)](LICENSE)
+[![Licencia: GPL v3](https://img.shields.io/badge/Community-GPLv3-8a2be2.svg)](LICENSE)
+[![Licencia Comercial](https://img.shields.io/badge/Enterprise-Licencia%20Comercial-10b981.svg)](LICENSE-COMMERCIAL.es.md)
 
-Este software se distribuye bajo la **Licencia Pública General de GNU v3 (GPL v3)**. Consulta [LICENSE](LICENSE) para más detalles.
+Alenia Nerve se distribuye bajo un modelo de **Licencia Dual**:
+
+1. **Edición Community (`GNU GPL v3`):** Gratuita y de código abierto bajo la **Licencia Pública General de GNU v3 (GPL v3)** — consulta [LICENSE](LICENSE).
+2. **Edición Comercial Enterprise:** Para empresas, firmas de seguridad privada y dependencias de gobierno que requieren integración propietaria sin obligaciones copyleft de GPL v3, garantías institucionales SLA y despliegue *on-premise* — consulta [LICENSE-COMMERCIAL.es.md](LICENSE-COMMERCIAL.es.md) (Inglés: [LICENSE-COMMERCIAL.md](LICENSE-COMMERCIAL.md)).
+
+
+
+
 
 ---
 *Elaborado con pasión por Alenia Studios para impulsar a creadores e ingenieros de software soberano.*

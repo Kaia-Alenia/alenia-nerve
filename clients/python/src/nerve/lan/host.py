@@ -34,6 +34,7 @@ import json
 import logging
 import os
 import platform
+import secrets
 import socket
 import threading
 import time
@@ -43,8 +44,15 @@ from typing import Any
 from nerve.core import load_external_config
 from nerve.lan.connect import LAN_CONTROL_PORT_DEFAULT, LAN_PROTOCOL_VERSION
 from nerve.lan.peer_registry import _registry_path
-from nerve.lan.transfer import LAN_DATA_PORT_DEFAULT, receive_file
+from nerve.lan.transfer import (
+    LAN_DATA_PORT_DEFAULT,
+    get_partial_transfer_offset,
+    receive_file,
+)
 from nerve.lan.util import (
+    append_audit_log,
+    detect_platform_name,
+    enable_tcp_keepalive,
     get_or_create_host_identity,
     recv_message,
     resolve_auth_token,
@@ -440,7 +448,7 @@ class NerveHost:
                 # depend on DNS or an Internet-backed registry.
                 "peer_id": self._peer_id,
                 "hostname": socket.gethostname(),
-                "platform": platform.system(),
+                "platform": detect_platform_name(),
                 "version": __version__,
                 "control_port": self._lan_port,
                 "transfer_port": self._data_port,
@@ -488,6 +496,7 @@ class NerveHost:
         self, conn: socket.socket, addr: tuple[str, int]
     ) -> None:
         """Receive a single file transfer from the Data Plane connection."""
+        enable_tcp_keepalive(conn)
         self._vprint(
             f"Data plane connection opened from {addr[0]}:{addr[1]}",
             YELLOW,
@@ -513,17 +522,52 @@ class NerveHost:
                     )
 
         try:
-            receive_file(
+            final_path, meta, computed_sha256 = receive_file(
                 conn,
                 self._receive_dir,
                 progress_callback=_on_progress,
                 conflict_policy="rename",
             )
+            if final_path is not None:
+                try:
+                    file_size = int(meta.get("size", 0) or final_path.stat().st_size)
+                    append_audit_log(
+                        {
+                            "transfer_id": secrets.token_hex(6),
+                            "direction": "receive",
+                            "filename": final_path.name,
+                            "size": file_size,
+                            "sha256": computed_sha256,
+                            "peer": addr[0],
+                            "state": "COMPLETED",
+                            "transferred_bytes": file_size,
+                            "resumed_from": int(meta.get("offset", 0) or 0),
+                        }
+                    )
+                except OSError as audit_exc:
+                    logger.warning("Failed to append receive audit log: %s", audit_exc)
             self._vprint(
                 f"File received from {addr[0]}:{addr[1]} → {self._receive_dir}",
                 GREEN,
             )
         except Exception as exc:
+            try:
+                append_audit_log(
+                    {
+                        "transfer_id": secrets.token_hex(6),
+                        "direction": "receive",
+                        "filename": "unknown",
+                        "size": 0,
+                        "sha256": "",
+                        "peer": addr[0],
+                        "state": "FAILED",
+                        "transferred_bytes": 0,
+                        "resumed_from": 0,
+                        "error": str(exc),
+                    }
+                )
+            except OSError:
+                pass
             self._vprint(
                 f"Data plane error from {addr[0]}:{addr[1]}: {exc}",
                 RED,
@@ -596,6 +640,7 @@ class NerveHost:
         self._vprint(f"Control plane connection from {peer_addr}", YELLOW)
         try:
             conn.settimeout(_PEER_HANDSHAKE_TIMEOUT)
+            enable_tcp_keepalive(conn)
         except OSError:
             with self._lock:
                 self._active_peer_sockets.discard(conn)
@@ -610,7 +655,7 @@ class NerveHost:
                     "type": "lan_hello",
                     "peer_id": self._peer_id,
                     "hostname": socket.gethostname(),
-                    "platform": platform.system(),
+                    "platform": detect_platform_name(),
                     "protocol_version": LAN_PROTOCOL_VERSION,
                 },
             )
@@ -634,7 +679,7 @@ class NerveHost:
                     "status": "ok",
                     "peer_id": self._peer_id,
                     "hostname": socket.gethostname(),
-                    "platform": platform.system(),
+                    "platform": detect_platform_name(),
                     "protocol_version": LAN_PROTOCOL_VERSION,
                 },
             )
@@ -676,7 +721,8 @@ class NerveHost:
 
             elif req.get("type") == "lan_transfer_request":
                 filename = req.get("filename", "?")
-                filesize = req.get("size", 0)
+                filesize = int(req.get("size", 0) or 0)
+                file_sha256 = req.get("sha256")
                 size_kb = filesize / 1024 if filesize else 0
                 with self._transfer_lock:
                     current = self._active_transfers
@@ -700,9 +746,17 @@ class NerveHost:
                     self._active_transfers += 1
                     active_now = self._active_transfers
 
+                resume_offset = get_partial_transfer_offset(
+                    self._receive_dir, filename, filesize, file_sha256
+                )
+                resume_note = (
+                    f" (resuming from {resume_offset} bytes)"
+                    if resume_offset > 0
+                    else ""
+                )
                 self._vprint(
                     f"Transfer ACCEPTED: {filename} ({size_kb:.1f} KB) from {client_host} — "
-                    f"slot {active_now}/{self._max_concurrent_transfers}",
+                    f"slot {active_now}/{self._max_concurrent_transfers}{resume_note}",
                     GREEN,
                 )
                 send_message(
@@ -711,6 +765,7 @@ class NerveHost:
                         "type": "lan_transfer_result",
                         "status": "accepted",
                         "port": self._data_port,
+                        "resume_offset": resume_offset,
                     },
                 )
 

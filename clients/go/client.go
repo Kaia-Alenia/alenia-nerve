@@ -8,10 +8,13 @@ package nerve
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"os"
 	"runtime"
 	"strings"
@@ -360,4 +363,130 @@ func (c *NexusClient) writeJSON(v interface{}) error {
 	}
 	_, err = fmt.Fprintf(conn, "%s\n", data)
 	return err
+}
+
+// DefaultLANRestURL is the default endpoint for the local Nerve LAN REST server.
+const DefaultLANRestURL = "http://127.0.0.1:50508"
+
+// LanClient provides lightweight HTTP helpers for the local Nerve LAN and .nrv REST API.
+type LanClient struct {
+	BaseURL    string
+	HTTPClient *http.Client
+}
+
+// NewLanClient creates a LanClient targeting baseURL (or DefaultLANRestURL if empty).
+func NewLanClient(baseURL string) *LanClient {
+	if baseURL == "" {
+		baseURL = DefaultLANRestURL
+	}
+	return &LanClient{
+		BaseURL:    strings.TrimRight(baseURL, "/"),
+		HTTPClient: &http.Client{Timeout: 15 * time.Second},
+	}
+}
+
+func (l *LanClient) doRequest(method, apiPath string, body interface{}) (map[string]interface{}, error) {
+	var bodyReader io.Reader
+	if body != nil {
+		encoded, err := json.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+		bodyReader = bytes.NewReader(encoded)
+	}
+	req, err := http.NewRequest(method, l.BaseURL+apiPath, bodyReader)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := l.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]interface{})
+	if len(raw) > 0 {
+		if err := json.Unmarshal(raw, &out); err != nil {
+			return nil, err
+		}
+	}
+	if resp.StatusCode >= 400 {
+		if msg, ok := out["error"].(string); ok && msg != "" {
+			return out, fmt.Errorf("nerve: HTTP %d: %s", resp.StatusCode, msg)
+		}
+		return out, fmt.Errorf("nerve: HTTP %d", resp.StatusCode)
+	}
+	return out, nil
+}
+
+// LanStatus fetches the current LAN host status from the local REST server.
+func (l *LanClient) LanStatus() (map[string]interface{}, error) {
+	return l.doRequest(http.MethodGet, "/api/lan/status", nil)
+}
+
+// LanScan scans the LAN for Nerve peers using broadcast and optional unicast targetIP.
+func (l *LanClient) LanScan(targetIP string, timeoutSec float64, subnetFallback bool) (map[string]interface{}, error) {
+	payload := map[string]interface{}{"subnet_fallback": subnetFallback}
+	if targetIP != "" {
+		payload["target_ip"] = targetIP
+	}
+	if timeoutSec > 0 {
+		payload["timeout"] = timeoutSec
+	}
+	return l.doRequest(http.MethodPost, "/api/lan/scan", payload)
+}
+
+// LanConnect authenticates and registers a remote LAN peer.
+func (l *LanClient) LanConnect(ip, name, token string) (map[string]interface{}, error) {
+	payload := map[string]interface{}{"ip": ip}
+	if name != "" {
+		payload["name"] = name
+	}
+	if token != "" {
+		payload["token"] = token
+	}
+	return l.doRequest(http.MethodPost, "/api/lan/connect", payload)
+}
+
+// LanSend dispatches a resumable file transfer to a remote peer.
+func (l *LanClient) LanSend(filePath, to string) (map[string]interface{}, error) {
+	return l.doRequest(http.MethodPost, "/api/lan/send", map[string]interface{}{
+		"file_path": filePath,
+		"to":        to,
+	})
+}
+
+// LanAudit fetches recent SHA-256 chain-of-custody audit log entries.
+func (l *LanClient) LanAudit(limit int) (map[string]interface{}, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	return l.doRequest(http.MethodGet, fmt.Sprintf("/api/lan/audit?limit=%d", limit), nil)
+}
+
+// PackNrv creates an encrypted .nrv container via the local REST server.
+func (l *LanClient) PackNrv(sourcePath, outputPath, password string) (map[string]interface{}, error) {
+	return l.doRequest(http.MethodPost, "/api/nrv/pack", map[string]interface{}{
+		"source_path": sourcePath,
+		"output_path": outputPath,
+		"password":    password,
+	})
+}
+
+// UnpackNrv decrypts an .nrv container via the local REST server.
+func (l *LanClient) UnpackNrv(nrvPath, outputDir, password string) (map[string]interface{}, error) {
+	return l.doRequest(http.MethodPost, "/api/nrv/unpack", map[string]interface{}{
+		"nrv_path":   nrvPath,
+		"output_dir": outputDir,
+		"password":   password,
+	})
 }

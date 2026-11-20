@@ -3,6 +3,10 @@
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 
+## [7.1.0] — 2026-11-19
+### Agregado
+- Helpers HTTP/REST ligeros (`NerveLanClient`, `lanStatus`, `lanScan`, `lanConnect`, `lanSend`, `lanAudit`, `packNrv`, `unpackNrv`) y declaraciones TypeScript actualizadas en `index.d.ts`.
+
 ## [7.0.0] — 2026-09-09
 ### Cambiado
 - Sincronizada la versión del cliente JavaScript con la release principal de Nerve.

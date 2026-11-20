@@ -47,7 +47,9 @@ Contact: contact.aleniastudios@gmail.com
   nerve start             Start the Nerve Hub (blocking)
   nerve start --verbose   Start with detailed message routing logs
   nerve monitor           View real-time hub statistics in the terminal
-  nerve dashboard         Start the web dashboard on http://localhost:8080
+  nerve dashboard [--standalone] [--port PORT]
+                          Start the web dashboard on http://localhost:8080
+  nerve ui [--port PORT]  Start unified Enterprise Web Console (LAN + .nrv + Audit)
   nerve bridge            Start the HTTP/WebSocket bridge on port 50506
   nerve pack <src> <out>          Pack a file into a secure .nrv container
   nerve unpack <nrv> <out>        Unpack a .nrv container
@@ -135,11 +137,21 @@ def main() -> None:
 
     elif args[0] == "dashboard":
         port = 8080
+        standalone = "--standalone" in args
         if "--port" in args:
             idx = args.index("--port")
             if len(args) > idx + 1:
                 port = int(args[idx + 1])
-        run_dashboard(port=port)
+        run_dashboard(port=port, require_hub=not standalone)
+        sys.exit(0)
+
+    elif args[0] == "ui":
+        port = 8080
+        if "--port" in args:
+            idx = args.index("--port")
+            if len(args) > idx + 1:
+                port = int(args[idx + 1])
+        run_dashboard(port=port, require_hub=False)
         sys.exit(0)
 
     elif args[0] == "bridge":

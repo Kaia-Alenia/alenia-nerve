@@ -779,6 +779,199 @@
                 display: none;
             }
         }
+
+        .view-tabs {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: rgba(12, 14, 22, 0.85);
+            padding: 0.25rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .tab-btn {
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-family: var(--font-sans);
+            font-size: 0.78rem;
+            font-weight: 600;
+            padding: 0.4rem 0.75rem;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, var(--accent-primary), #4f46e5);
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+        }
+
+        .view-panel.hidden {
+            display: none !important;
+        }
+
+        .enterprise-wrap {
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .enterprise-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .ent-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.9rem;
+            box-shadow: var(--shadow-subtle);
+        }
+
+        .ent-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            border-bottom: 1px solid var(--border-subtle);
+            padding-bottom: 0.75rem;
+        }
+
+        .ent-card-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .ent-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 0.35rem;
+        }
+
+        .ent-input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 0.55rem 0.75rem;
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            outline: none;
+        }
+
+        .ent-input:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        .ent-row {
+            display: flex;
+            gap: 0.65rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .ent-feedback {
+            font-family: var(--font-mono);
+            font-size: 0.76rem;
+            padding: 0.55rem 0.75rem;
+            border-radius: var(--radius-sm);
+            background: rgba(12, 14, 22, 0.8);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-muted);
+            word-break: break-all;
+        }
+
+        .ent-feedback.ok {
+            border-color: rgba(16, 185, 129, 0.4);
+            color: #6ee7b7;
+        }
+
+        .ent-feedback.err {
+            border-color: rgba(244, 63, 94, 0.4);
+            color: #fda4af;
+        }
+
+        .ent-table-wrap {
+            overflow-x: auto;
+        }
+
+        .ent-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+        }
+
+        .ent-table th,
+        .ent-table td {
+            text-align: left;
+            padding: 0.55rem 0.65rem;
+            border-bottom: 1px solid var(--border-subtle);
+            font-family: var(--font-mono);
+        }
+
+        .ent-table th {
+            color: var(--text-muted);
+            font-family: var(--font-sans);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .pill-badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: var(--radius-full);
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: rgba(99, 102, 241, 0.18);
+            color: #c7d2fe;
+        }
+
+        .pill-badge.ok {
+            background: rgba(16, 185, 129, 0.18);
+            color: #6ee7b7;
+        }
+
+        .pill-badge.err {
+            background: rgba(244, 63, 94, 0.18);
+            color: #fda4af;
+        }
+
+        @media (max-width: 900px) {
+            header {
+                height: auto;
+                padding: 0.65rem 1rem;
+                flex-wrap: wrap;
+                gap: 0.65rem;
+            }
+
+            .view-tabs {
+                order: 3;
+                width: 100%;
+                overflow-x: auto;
+            }
+        }
     </style>
 </head>
 
@@ -796,10 +989,17 @@
             </div>
             <div>
                 <div class="brand-title">
-                    NERVE IPC <span class="brand-tag">HUB MONITOR</span>
+                    NERVE <span class="brand-tag">ENTERPRISE CONSOLE</span>
                 </div>
             </div>
         </div>
+
+        <nav class="view-tabs" aria-label="Nerve Workspace Views">
+            <button class="tab-btn active" data-view="hub" onclick="enterprise.switchView('hub')">IPC Hub</button>
+            <button class="tab-btn" data-view="lan" onclick="enterprise.switchView('lan')">LAN Transfer</button>
+            <button class="tab-btn" data-view="vault" onclick="enterprise.switchView('vault')">.nrv Vault</button>
+            <button class="tab-btn" data-view="audit" onclick="enterprise.switchView('audit')">Audit Trail</button>
+        </nav>
 
         <div class="header-actions">
             <div class="status-badge connecting" id="conn-status">
@@ -816,6 +1016,7 @@
         </div>
     </header>
 
+    <div id="view-hub" class="view-panel">
     <section class="metrics-banner">
         <div class="metric-card">
             <div class="metric-top">
@@ -1000,6 +1201,197 @@
             </div>
         </section>
     </main>
+    </div>
+
+    <div id="view-lan" class="view-panel hidden enterprise-wrap">
+        <div class="enterprise-grid">
+            <div class="ent-card">
+                <div class="ent-card-header">
+                    <span class="ent-card-title">LAN Host &amp; Network Identity</span>
+                    <span class="pill-badge" id="lan-host-badge">Checking...</span>
+                </div>
+                <div id="lan-net-info" class="ent-feedback">Loading local addresses...</div>
+                <div class="ent-row">
+                    <button class="btn btn-primary" onclick="enterprise.startHost()">Start Host</button>
+                    <button class="btn" onclick="enterprise.stopHost()">Stop Host</button>
+                    <button class="btn" onclick="enterprise.refreshLan()">Refresh</button>
+                </div>
+                <div id="lan-host-feedback" class="ent-feedback" style="display:none;"></div>
+            </div>
+
+            <div class="ent-card">
+                <div class="ent-card-header">
+                    <span class="ent-card-title">Discover LAN Peers</span>
+                    <button class="btn btn-primary" onclick="enterprise.scanPeers()">Scan Network</button>
+                </div>
+                <div class="ent-row">
+                    <div style="flex:1; min-width:160px;">
+                        <label class="ent-label" for="lan-scan-ip">Direct IP (optional, bypasses AP isolation)</label>
+                        <input id="lan-scan-ip" class="ent-input" type="text" placeholder="e.g. 192.168.1.50">
+                    </div>
+                    <label style="display:flex; align-items:center; gap:0.4rem; font-size:0.78rem; color:var(--text-muted); margin-top:1.1rem;">
+                        <input id="lan-scan-subnet" type="checkbox">
+                        <span>Subnet Sweep (/24)</span>
+                    </label>
+                </div>
+                <div id="lan-scan-results" class="ent-feedback">Click "Scan Network" to discover Windows, Linux, macOS, and Android devices.</div>
+            </div>
+
+            <div class="ent-card">
+                <div class="ent-card-header">
+                    <span class="ent-card-title">Register / Connect Peer</span>
+                </div>
+                <div>
+                    <label class="ent-label" for="lan-conn-ip">Peer IP[:PORT]</label>
+                    <input id="lan-conn-ip" class="ent-input" type="text" placeholder="192.168.1.50">
+                </div>
+                <div class="ent-row">
+                    <div style="flex:1;">
+                        <label class="ent-label" for="lan-conn-name">Alias (optional)</label>
+                        <input id="lan-conn-name" class="ent-input" type="text" placeholder="office-linux">
+                    </div>
+                    <div style="flex:1;">
+                        <label class="ent-label" for="lan-conn-token">Auth Token</label>
+                        <input id="lan-conn-token" class="ent-input" type="password" placeholder="Optional if in nerve.config">
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="enterprise.connectPeer()">Authenticate &amp; Save Peer</button>
+                <div id="lan-conn-feedback" class="ent-feedback" style="display:none;"></div>
+            </div>
+
+            <div class="ent-card">
+                <div class="ent-card-header">
+                    <span class="ent-card-title">Send File (Resumable Chunks + SHA-256)</span>
+                </div>
+                <div>
+                    <label class="ent-label" for="lan-send-path">Source File Path</label>
+                    <input id="lan-send-path" class="ent-input" type="text" placeholder="/path/to/evidence.nrv">
+                </div>
+                <div>
+                    <label class="ent-label" for="lan-send-to">Target Peer Alias or IP</label>
+                    <input id="lan-send-to" class="ent-input" type="text" placeholder="office-linux or 192.168.1.50">
+                </div>
+                <button class="btn btn-primary" onclick="enterprise.sendFile()">Send with Chunk Resume</button>
+                <div id="lan-send-feedback" class="ent-feedback" style="display:none;"></div>
+            </div>
+        </div>
+
+        <div class="ent-card">
+            <div class="ent-card-header">
+                <span class="ent-card-title">Registered Peers &amp; Session Transfers</span>
+            </div>
+            <div class="ent-table-wrap">
+                <table class="ent-table">
+                    <thead>
+                        <tr>
+                            <th>Peer Alias</th>
+                            <th>Address</th>
+                            <th>Platform</th>
+                            <th>Peer ID</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lan-peers-tbody"></tbody>
+                </table>
+            </div>
+            <div class="ent-table-wrap" style="margin-top:0.75rem;">
+                <table class="ent-table">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Peer</th>
+                            <th>Size</th>
+                            <th>Resumed From</th>
+                            <th>SHA-256</th>
+                            <th>State</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lan-transfers-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-vault" class="view-panel hidden enterprise-wrap">
+        <div class="ent-card">
+            <div class="ent-card-header">
+                <span class="ent-card-title">Diceware Passphrase Generator</span>
+                <button class="btn btn-primary" onclick="enterprise.generatePassphrase()">Generate 5-Word Passphrase</button>
+            </div>
+            <div id="vault-genpass-out" class="ent-feedback">Generate a high-entropy passphrase to protect .nrv containers (AES-256-GCM + Argon2id).</div>
+        </div>
+
+        <div class="enterprise-grid">
+            <div class="ent-card">
+                <div class="ent-card-header">
+                    <span class="ent-card-title">Encrypt &amp; Pack (.nrv Container)</span>
+                </div>
+                <div>
+                    <label class="ent-label" for="vault-pack-src">Source File or Folder Path</label>
+                    <input id="vault-pack-src" class="ent-input" type="text" placeholder="/path/to/sensitive_folder">
+                </div>
+                <div>
+                    <label class="ent-label" for="vault-pack-out">Output .nrv Path</label>
+                    <input id="vault-pack-out" class="ent-input" type="text" placeholder="/path/to/package.nrv">
+                </div>
+                <div>
+                    <label class="ent-label" for="vault-pack-pass">Encryption Password</label>
+                    <input id="vault-pack-pass" class="ent-input" type="password" placeholder="Strong passphrase">
+                </div>
+                <button class="btn btn-primary" onclick="enterprise.packNrv()">Encrypt to .nrv</button>
+                <div id="vault-pack-feedback" class="ent-feedback" style="display:none;"></div>
+            </div>
+
+            <div class="ent-card">
+                <div class="ent-card-header">
+                    <span class="ent-card-title">Decrypt &amp; Unpack (.nrv Container)</span>
+                </div>
+                <div>
+                    <label class="ent-label" for="vault-unpack-src">Container .nrv Path</label>
+                    <input id="vault-unpack-src" class="ent-input" type="text" placeholder="/path/to/package.nrv">
+                </div>
+                <div>
+                    <label class="ent-label" for="vault-unpack-out">Destination Directory</label>
+                    <input id="vault-unpack-out" class="ent-input" type="text" placeholder="/path/to/extracted">
+                </div>
+                <div>
+                    <label class="ent-label" for="vault-unpack-pass">Decryption Password</label>
+                    <input id="vault-unpack-pass" class="ent-input" type="password" placeholder="Container passphrase">
+                </div>
+                <button class="btn btn-primary" onclick="enterprise.unpackNrv()">Verify &amp; Decrypt</button>
+                <div id="vault-unpack-feedback" class="ent-feedback" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-audit" class="view-panel hidden enterprise-wrap">
+        <div class="ent-card">
+            <div class="ent-card-header">
+                <span class="ent-card-title">Chain-of-Custody Audit Trail (SHA-256)</span>
+                <div class="ent-row">
+                    <input id="audit-filter" class="ent-input" style="width:220px;" type="text" placeholder="Filter file, peer, or hash..." oninput="enterprise.renderAuditTable()">
+                    <button class="btn btn-primary" onclick="enterprise.refreshAudit()">Refresh Audit Log</button>
+                </div>
+            </div>
+            <div class="ent-table-wrap">
+                <table class="ent-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Action</th>
+                            <th>Filename</th>
+                            <th>Size</th>
+                            <th>Resumed Offset</th>
+                            <th>SHA-256 Digest</th>
+                            <th>Peer</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="audit-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
     <div class="modal-overlay" id="error-modal">
         <div class="modal-card">
@@ -1130,6 +1522,15 @@
                     const data = await res.json();
 
                     document.getElementById('error-modal').classList.remove('active');
+                    if (data.hub_connected === false) {
+                        this.elStatus.className = 'status-badge connecting';
+                        this.elStatusText.textContent = 'Standalone (LAN Ready)';
+                        if (window.enterprise && !window.enterprise.userSelectedView) {
+                            window.enterprise.switchView('lan', false);
+                        }
+                        return;
+                    }
+
                     this.elStatus.className = 'status-badge';
                     this.elStatusText.textContent = 'Hub Connected';
 
@@ -1596,8 +1997,272 @@
             }
         }
 
+        class EnterpriseConsole {
+            constructor() {
+                this.activeView = 'hub';
+                this.userSelectedView = false;
+                this.auditEntries = [];
+            }
+
+            _esc(val) {
+                return String(val ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
+
+            _setFeedback(id, text, ok = true) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.style.display = 'block';
+                el.className = `ent-feedback ${ok ? 'ok' : 'err'}`;
+                el.textContent = text;
+            }
+
+            switchView(viewName, manual = true) {
+                if (manual) this.userSelectedView = true;
+                this.activeView = viewName;
+                document.querySelectorAll('.tab-btn').forEach((btn) => {
+                    btn.classList.toggle('active', btn.dataset.view === viewName);
+                });
+                ['hub', 'lan', 'vault', 'audit'].forEach((name) => {
+                    const panel = document.getElementById(`view-${name}`);
+                    if (panel) panel.classList.toggle('hidden', name !== viewName);
+                });
+                if (viewName === 'lan') this.refreshLan();
+                if (viewName === 'audit') this.refreshAudit();
+            }
+
+            async _post(url, body) {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body || {}),
+                });
+                const payload = await res.json();
+                if (!res.ok) throw new Error(payload.error || `HTTP ${res.status}`);
+                return payload;
+            }
+
+            async refreshLan() {
+                try {
+                    const [stRes, netRes, peersRes, txRes] = await Promise.all([
+                        fetch('/api/lan/status').then((r) => r.json()),
+                        fetch('/api/lan/network_info').then((r) => r.json()),
+                        fetch('/api/lan/peers').then((r) => r.json()),
+                        fetch('/api/lan/transfers').then((r) => r.json()),
+                    ]);
+
+                    const badge = document.getElementById('lan-host-badge');
+                    badge.textContent = stRes.running ? `Running :${stRes.port}` : 'Stopped';
+                    badge.className = `pill-badge ${stRes.running ? 'ok' : ''}`;
+
+                    const addrs = (netRes.addresses || []).join(', ') || 'No non-loopback IPv4 detected';
+                    document.getElementById('lan-net-info').textContent =
+                        `Host: ${netRes.hostname || '-'} | Platform: ${netRes.platform || '-'} | LAN IPv4: ${addrs}`;
+
+                    const peers = peersRes.peers || [];
+                    document.getElementById('lan-peers-tbody').innerHTML = peers.length
+                        ? peers.map((p) => `<tr>
+                            <td>${this._esc(p.name)}</td>
+                            <td>${this._esc(p.last_address)}</td>
+                            <td>${this._esc(p.platform)}</td>
+                            <td>${this._esc((p.peer_id || '').slice(0, 12))}</td>
+                            <td><button class="btn" onclick="enterprise.pickPeer('${this._esc(p.name)}', '${this._esc(p.last_address)}')">Select</button></td>
+                        </tr>`).join('')
+                        : '<tr><td colspan="5" style="color:var(--text-dim)">No registered peers yet.</td></tr>';
+
+                    const txs = txRes.transfers || [];
+                    document.getElementById('lan-transfers-tbody').innerHTML = txs.length
+                        ? txs.slice().reverse().map((t) => `<tr>
+                            <td>${this._esc(t.filename)}</td>
+                            <td>${this._esc(t.peer)}</td>
+                            <td>${this._esc(t.size)} B</td>
+                            <td>${this._esc(t.resumed_from)} B</td>
+                            <td title="${this._esc(t.sha256)}">${this._esc((t.sha256 || '').slice(0, 16))}...</td>
+                            <td><span class="pill-badge ${t.state === 'COMPLETED' ? 'ok' : 'err'}">${this._esc(t.state)}</span></td>
+                        </tr>`).join('')
+                        : '<tr><td colspan="6" style="color:var(--text-dim)">No transfers recorded in this session.</td></tr>';
+                } catch (err) {
+                    this._setFeedback('lan-host-feedback', `LAN refresh failed: ${err.message}`, false);
+                }
+            }
+
+            pickPeer(name, addr) {
+                const hostOnly = String(addr || '').split(':')[0];
+                document.getElementById('lan-conn-ip').value = hostOnly;
+                document.getElementById('lan-send-to').value = name || hostOnly;
+            }
+
+            async startHost() {
+                try {
+                    const res = await this._post('/api/lan/start', {});
+                    this._setFeedback('lan-host-feedback', res.success ? 'LAN Host started.' : (res.status?.error || 'Could not start LAN Host.'), !!res.success);
+                    this.refreshLan();
+                } catch (err) {
+                    this._setFeedback('lan-host-feedback', err.message, false);
+                }
+            }
+
+            async stopHost() {
+                try {
+                    await this._post('/api/lan/stop', {});
+                    this._setFeedback('lan-host-feedback', 'LAN Host stopped.', true);
+                    this.refreshLan();
+                } catch (err) {
+                    this._setFeedback('lan-host-feedback', err.message, false);
+                }
+            }
+
+            async scanPeers() {
+                const targetIp = document.getElementById('lan-scan-ip').value.trim() || null;
+                const subnetFallback = document.getElementById('lan-scan-subnet').checked;
+                const outEl = document.getElementById('lan-scan-results');
+                outEl.textContent = 'Scanning local network...';
+                try {
+                    const res = await this._post('/api/lan/scan', {
+                        target_ip: targetIp,
+                        subnet_fallback: subnetFallback,
+                    });
+                    const peers = res.peers || [];
+                    if (!peers.length) {
+                        outEl.textContent = 'No Nerve hosts responded. Verify nerve host is running and firewall allows UDP 50511 / TCP 50507.';
+                        return;
+                    }
+                    outEl.innerHTML = peers.map((p) => `
+                        <div class="ent-row" style="justify-content:space-between; padding:0.25rem 0;">
+                            <span><strong>${this._esc(p.peer_name)}</strong> (${this._esc(p.address)}) [${this._esc(p.platform)}]</span>
+                            <button class="btn" onclick="enterprise.pickPeer('${this._esc(p.address)}', '${this._esc(p.address)}')">Use IP</button>
+                        </div>
+                    `).join('');
+                } catch (err) {
+                    outEl.textContent = `Scan error: ${err.message}`;
+                }
+            }
+
+            async connectPeer() {
+                const ip = document.getElementById('lan-conn-ip').value.trim();
+                const name = document.getElementById('lan-conn-name').value.trim() || null;
+                const token = document.getElementById('lan-conn-token').value.trim() || null;
+                try {
+                    const res = await this._post('/api/lan/connect', { ip, name, token });
+                    if (res.success) {
+                        this._setFeedback('lan-conn-feedback', `Connected and saved peer '${res.peer.peer_name}' (${res.peer.address}).`, true);
+                        this.refreshLan();
+                    } else {
+                        this._setFeedback('lan-conn-feedback', res.peer?.error || 'Connection failed.', false);
+                    }
+                } catch (err) {
+                    this._setFeedback('lan-conn-feedback', err.message, false);
+                }
+            }
+
+            async sendFile() {
+                const filePath = document.getElementById('lan-send-path').value.trim();
+                const to = document.getElementById('lan-send-to').value.trim();
+                this._setFeedback('lan-send-feedback', 'Transferring file (with chunk resume protection)...', true);
+                try {
+                    const res = await this._post('/api/lan/send', { file_path: filePath, to });
+                    if (res.success) {
+                        this._setFeedback('lan-send-feedback', `Transfer completed (ID: ${res.transfer?.transfer_id || 'ok'}).`, true);
+                    } else {
+                        this._setFeedback('lan-send-feedback', res.transfer?.error || 'Transfer failed.', false);
+                    }
+                    this.refreshLan();
+                } catch (err) {
+                    this._setFeedback('lan-send-feedback', err.message, false);
+                }
+            }
+
+            async generatePassphrase() {
+                try {
+                    const res = await this._post('/api/nrv/genpass', { mode: 'passphrase', words: 5 });
+                    document.getElementById('vault-pack-pass').value = res.password;
+                    const msg = `Generated passphrase (${Number(res.entropy || 0).toFixed(1)} bits): ${res.password}`;
+                    this._setFeedback('vault-genpass-out', msg, true);
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(res.password).catch(() => {});
+                    }
+                } catch (err) {
+                    this._setFeedback('vault-genpass-out', err.message, false);
+                }
+            }
+
+            async packNrv() {
+                const source_path = document.getElementById('vault-pack-src').value.trim();
+                const output_path = document.getElementById('vault-pack-out').value.trim();
+                const password = document.getElementById('vault-pack-pass').value;
+                try {
+                    const res = await this._post('/api/nrv/pack', { source_path, output_path, password });
+                    if (res.success) {
+                        this._setFeedback('vault-pack-feedback', `Encrypted container created: ${res.output_path} | SHA-256: ${res.sha256}`, true);
+                    } else {
+                        this._setFeedback('vault-pack-feedback', res.error || 'Pack failed.', false);
+                    }
+                } catch (err) {
+                    this._setFeedback('vault-pack-feedback', err.message, false);
+                }
+            }
+
+            async unpackNrv() {
+                const nrv_path = document.getElementById('vault-unpack-src').value.trim();
+                const output_dir = document.getElementById('vault-unpack-out').value.trim();
+                const password = document.getElementById('vault-unpack-pass').value;
+                try {
+                    const res = await this._post('/api/nrv/unpack', { nrv_path, output_dir, password });
+                    if (res.success) {
+                        this._setFeedback('vault-unpack-feedback', `Verified & extracted to ${res.output_dir} | SHA-256: ${res.sha256}`, true);
+                    } else {
+                        this._setFeedback('vault-unpack-feedback', res.error || 'Unpack failed.', false);
+                    }
+                } catch (err) {
+                    this._setFeedback('vault-unpack-feedback', err.message, false);
+                }
+            }
+
+            async refreshAudit() {
+                try {
+                    const res = await fetch('/api/lan/audit?limit=100').then((r) => r.json());
+                    this.auditEntries = res.audit || [];
+                    this.renderAuditTable();
+                } catch (err) {
+                    document.getElementById('audit-tbody').innerHTML =
+                        `<tr><td colspan="8" style="color:var(--accent-rose)">Failed to load audit log: ${this._esc(err.message)}</td></tr>`;
+                }
+            }
+
+            renderAuditTable() {
+                const q = (document.getElementById('audit-filter')?.value || '').toLowerCase();
+                const filtered = this.auditEntries.filter((e) =>
+                    !q ||
+                    String(e.filename || '').toLowerCase().includes(q) ||
+                    String(e.peer || '').toLowerCase().includes(q) ||
+                    String(e.sha256 || '').toLowerCase().includes(q) ||
+                    String(e.direction || '').toLowerCase().includes(q)
+                );
+                document.getElementById('audit-tbody').innerHTML = filtered.length
+                    ? filtered.map((e) => {
+                        const dt = e.timestamp ? new Date(e.timestamp * 1000).toLocaleString() : '-';
+                        return `<tr>
+                            <td>${this._esc(dt)}</td>
+                            <td><span class="pill-badge">${this._esc(e.direction)}</span></td>
+                            <td>${this._esc(e.filename)}</td>
+                            <td>${this._esc(e.size)} B</td>
+                            <td>${this._esc(e.resumed_from || 0)} B</td>
+                            <td title="${this._esc(e.sha256)}">${this._esc((e.sha256 || '').slice(0, 20))}...</td>
+                            <td>${this._esc(e.peer)}</td>
+                            <td><span class="pill-badge ${e.state === 'COMPLETED' ? 'ok' : 'err'}">${this._esc(e.state)}</span></td>
+                        </tr>`;
+                    }).join('')
+                    : '<tr><td colspan="8" style="color:var(--text-dim)">No chain-of-custody entries found.</td></tr>';
+            }
+        }
+
         let app;
+        let enterprise;
         window.addEventListener('load', () => {
+            enterprise = new EnterpriseConsole();
             app = new DashboardApp();
             window.topologyCanvas = new NetworkTopologyCanvas('topology-canvas', app);
         });

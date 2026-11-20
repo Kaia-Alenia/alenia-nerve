@@ -31,11 +31,12 @@ Behavior:
 
 from __future__ import annotations
 
-import platform
 import socket
 
 from nerve.lan.peer_registry import Peer, PeerRegistry, peer_from_handshake
 from nerve.lan.util import (
+    detect_platform_name,
+    enable_tcp_keepalive,
     get_or_create_host_identity,
     recv_message,
     resolve_auth_token,
@@ -129,6 +130,7 @@ def connect_and_register(
     try:
         try:
             sock.connect((host, port))
+            enable_tcp_keepalive(sock)
         except (ConnectionRefusedError, OSError) as exc:
             raise LanConnectionError(
                 f"Cannot connect to Nerve host at {host}:{port} — {exc}\n"
@@ -151,7 +153,7 @@ def connect_and_register(
                 "token": resolved_token,
                 "client_peer_id": client_peer_id,
                 "client_hostname": socket.gethostname(),
-                "client_platform": platform.system(),
+                "client_platform": detect_platform_name(),
                 "protocol_version": LAN_PROTOCOL_VERSION,
             },
         )

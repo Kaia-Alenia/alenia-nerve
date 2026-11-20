@@ -21,6 +21,7 @@ import threading
 from pathlib import Path
 
 from nerve.lan.transfer import (
+    _TMP_META_SUFFIX,
     _TMP_SUFFIX,
     CHUNK_HEADER_FORMAT,
     HEADER_FORMAT,
@@ -28,6 +29,8 @@ from nerve.lan.transfer import (
     TYPE_FILE,
     VERSION,
     TransferProtocolError,
+    compute_file_sha256,
+    get_partial_transfer_offset,
     receive_file,
     send_file,
 )
@@ -350,3 +353,133 @@ def test_transfer_premature_close(tmp_path: Path):
     t.join(timeout=5)
     assert "error" in results
     assert "Connection closed prematurely" in str(results["error"])
+
+
+def test_transfer_resume_from_partial_chunks(tmp_path: Path) -> None:
+    """Receiver keeps non-empty partial chunks and resumes from exact offset."""
+    chunk_size = 32 * 1024
+    test_file = tmp_path / "resumable.bin"
+    payload = bytes((i % 251) for i in range(chunk_size * 4))
+    test_file.write_bytes(payload)
+    full_sha256 = compute_file_sha256(test_file, chunk_size)
+
+    out_dir = tmp_path / "recv"
+    out_dir.mkdir()
+
+    # Phase 1: send 2 of 4 chunks then drop connection
+    port1 = _find_free_port()
+    server1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server1.bind(("127.0.0.1", port1))
+    server1.listen(1)
+    first_attempt: dict = {}
+
+    def recv_first() -> None:
+        conn, _ = server1.accept()
+        try:
+            receive_file(conn, out_dir)
+        except TransferProtocolError as exc:
+            first_attempt["error"] = str(exc)
+        finally:
+            conn.close()
+            server1.close()
+
+    t1 = threading.Thread(target=recv_first)
+    t1.start()
+
+    c1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    c1.connect(("127.0.0.1", port1))
+    meta = {
+        "filename": "resumable.bin",
+        "size": len(payload),
+        "sha256": full_sha256,
+        "offset": 0,
+    }
+    meta_bytes = json.dumps(meta).encode("utf-8")
+    c1.sendall(
+        struct.pack(HEADER_FORMAT, MAGIC, VERSION, TYPE_FILE, 0, len(meta_bytes))
+    )
+    c1.sendall(meta_bytes)
+    for idx in range(2):
+        part = payload[idx * chunk_size : (idx + 1) * chunk_size]
+        c1.sendall(struct.pack(CHUNK_HEADER_FORMAT, len(part)) + part)
+    c1.close()
+    t1.join(timeout=5)
+
+    assert "error" in first_attempt
+    tmp_file = out_dir / ("resumable.bin" + _TMP_SUFFIX)
+    meta_file = out_dir / ("resumable.bin" + _TMP_META_SUFFIX)
+    assert tmp_file.exists()
+    assert meta_file.exists()
+    assert tmp_file.stat().st_size == chunk_size * 2
+
+    resume_offset = get_partial_transfer_offset(
+        out_dir, "resumable.bin", len(payload), full_sha256
+    )
+    assert resume_offset == chunk_size * 2
+
+    # Phase 2: resume from offset and verify full integrity
+    port2 = _find_free_port()
+    server2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server2.bind(("127.0.0.1", port2))
+    server2.listen(1)
+    second_attempt: dict = {}
+
+    def recv_second() -> None:
+        conn, _ = server2.accept()
+        try:
+            out_path, recv_meta, recv_hash = receive_file(conn, out_dir)
+            second_attempt["out_path"] = out_path
+            second_attempt["meta"] = recv_meta
+            second_attempt["hash"] = recv_hash
+        except Exception as exc:
+            second_attempt["error"] = exc
+        finally:
+            conn.close()
+            server2.close()
+
+    t2 = threading.Thread(target=recv_second)
+    t2.start()
+
+    c2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    c2.connect(("127.0.0.1", port2))
+    sent_progress: list[int] = []
+    sent_hash = send_file(
+        c2,
+        test_file,
+        chunk_size=chunk_size,
+        offset=resume_offset,
+        precomputed_sha256=full_sha256,
+        progress_callback=lambda sent, _total: sent_progress.append(sent),
+    )
+    c2.close()
+    t2.join(timeout=5)
+
+    assert "error" not in second_attempt, (
+        f"Resume failed: {second_attempt.get('error')}"
+    )
+    assert sent_hash == full_sha256
+    assert second_attempt["hash"] == full_sha256
+    assert second_attempt["meta"]["offset"] == resume_offset
+    assert second_attempt["out_path"].read_bytes() == payload
+    assert sent_progress == [chunk_size * 3, chunk_size * 4]
+    assert not tmp_file.exists()
+    assert not meta_file.exists()
+
+
+def test_transfer_resume_invalidated_when_source_hash_changes(tmp_path: Path) -> None:
+    """Partial artifacts must be discarded if the source file SHA-256 changes."""
+    out_dir = tmp_path / "recv"
+    out_dir.mkdir()
+
+    tmp_file = out_dir / ("changed.bin" + _TMP_SUFFIX)
+    meta_file = out_dir / ("changed.bin" + _TMP_META_SUFFIX)
+    tmp_file.write_bytes(b"partial-old-bytes")
+    meta_file.write_text(
+        json.dumps({"filename": "changed.bin", "size": 100, "sha256": "a" * 64}),
+        encoding="utf-8",
+    )
+
+    offset = get_partial_transfer_offset(out_dir, "changed.bin", 100, "b" * 64)
+    assert offset == 0
+    assert not tmp_file.exists()
+    assert not meta_file.exists()

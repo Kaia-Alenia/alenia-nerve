@@ -31,8 +31,11 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import socket
 import tempfile
+import threading
+import time
 import uuid
 from pathlib import Path
 
@@ -204,3 +207,105 @@ def resolve_auth_token(
         "Starting temporary session with this token..."
     )
     return new_token
+
+
+def detect_platform_name() -> str:
+    """Return the normalized host platform name, distinguishing Android/Termux."""
+    if (
+        "ANDROID_ROOT" in os.environ
+        or "TERMUX_VERSION" in os.environ
+        or "/com.termux/" in os.environ.get("PREFIX", "")
+    ):
+        return "Android"
+    return platform.system()
+
+
+def enable_tcp_keepalive(
+    sock: socket.socket, idle: int = 15, interval: int = 5, count: int = 3
+) -> None:
+    """Enable OS-appropriate TCP keepalive probes to survive Wi-Fi and NAT drops."""
+    try:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+    except (OSError, AttributeError):
+        return
+
+    system = platform.system()
+    if system == "Windows":
+        if hasattr(sock, "ioctl") and hasattr(sock, "SIO_KEEPALIVE_VALS"):
+            try:
+                sock.ioctl(
+                    socket.SIO_KEEPALIVE_VALS,
+                    (1, idle * 1000, interval * 1000),
+                )
+            except (OSError, AttributeError):
+                pass
+    elif system == "Darwin":
+        tcp_keepalive = getattr(socket, "TCP_KEEPALIVE", None)
+        if tcp_keepalive is not None:
+            try:
+                sock.setsockopt(socket.IPPROTO_TCP, tcp_keepalive, idle)
+            except (OSError, AttributeError):
+                pass
+    else:
+        for opt_name, val in (
+            ("TCP_KEEPIDLE", idle),
+            ("TCP_KEEPINTVL", interval),
+            ("TCP_KEEPCNT", count),
+        ):
+            opt = getattr(socket, opt_name, None)
+            if opt is not None:
+                try:
+                    sock.setsockopt(socket.IPPROTO_TCP, opt, val)
+                except (OSError, AttributeError):
+                    pass
+
+
+_AUDIT_LOG_LOCK = threading.Lock()
+
+
+def default_audit_log_path() -> Path:
+    """Return the default persistent audit trail path (~/.nerve/audit.jsonl)."""
+    return Path.home() / ".nerve" / "audit.jsonl"
+
+
+def append_audit_log(entry: dict, log_path: Path | None = None) -> Path:
+    """Append a structured SHA-256 custody record as JSON Lines."""
+    target = Path(log_path) if log_path is not None else default_audit_log_path()
+    record = dict(entry)
+    record.setdefault("timestamp", time.time())
+    line = json.dumps(record, ensure_ascii=False) + "\n"
+
+    with _AUDIT_LOG_LOCK:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with open(target, "a", encoding="utf-8") as fh:
+            fh.write(line)
+            fh.flush()
+    return target
+
+
+def read_audit_log(limit: int = 100, log_path: Path | None = None) -> list[dict]:
+    """Read the most recent audit records (newest first) from the JSONL log."""
+    target = Path(log_path) if log_path is not None else default_audit_log_path()
+    if not target.exists():
+        return []
+
+    records: list[dict] = []
+    with _AUDIT_LOG_LOCK:
+        try:
+            with open(target, "r", encoding="utf-8") as fh:
+                for raw_line in fh:
+                    raw_line = raw_line.strip()
+                    if not raw_line:
+                        continue
+                    try:
+                        parsed = json.loads(raw_line)
+                        if isinstance(parsed, dict):
+                            records.append(parsed)
+                    except json.JSONDecodeError:
+                        continue
+        except OSError:
+            return []
+
+    if limit <= 0:
+        return list(reversed(records))
+    return list(reversed(records[-limit:]))

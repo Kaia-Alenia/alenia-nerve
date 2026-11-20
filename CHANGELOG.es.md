@@ -3,6 +3,17 @@
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 
+## [7.1.0] — 2026-11-19
+### Agregado
+- **Transferencias LAN Reanudables por Chunks** (`transfer.py`, `host.py`, `api.py`): Conserva fragmentos verificados (`.nrv_tmp` + `.nrv_tmp.meta`), negocia `resume_offset` al reconectar y verifica SHA-256 completo al finalizar.
+- **Conectividad Multiplataforma y Android/Termux** (`util.py`, `connect.py`, `api.py`): Sondeos TCP Keepalive nativos por SO, detección `Android` en Termux, inspección directa de interfaces, diagnóstico offline sin falsos negativos y sondeo unicast a peers registrados ante aislamiento AP.
+- **SDK LAN Empresarial y Bitácora de Auditoría SHA-256** (`models.py`, `util.py`, `api.py`, `rest_server.py`, clientes políglotas): Añadido `TransferRecord`, bitácora persistente `~/.nerve/audit.jsonl`, `NerveLAN.pack_container()`/`unpack_container()`, endpoints REST ampliados y helpers HTTP (`NerveLanClient` / `LanClient`) en JavaScript, Go y Rust.
+- **Consola Web Empresarial Unificada (`nerve ui`)** (`cli.py`, `cli_monitor.py`, `dashboard/index.html`): Consola web standalone con Hub IPC, Transferencias LAN, Bóveda `.nrv` y Bitácora SHA-256.
+- **Licenciamiento Dual (Open Core)**: Añadidos `LICENSE-COMMERCIAL.md` y `LICENSE-COMMERCIAL.es.md` junto con `GNU GPL v3`.
+
+### Solucionado
+- **Servidor REST** (`rest_server.py`): Corregido el orden de parámetros en `POST /api/lan/send` y la serialización de estado en `GET /api/lan/status`.
+
 ## [7.0.0] — 2026-09-09
 ### Agregado
 - Documentada la arquitectura LAN offline-first, incluyendo plano de control, plano de datos, firewall, consulta de IP local y flujos Android/Termux.

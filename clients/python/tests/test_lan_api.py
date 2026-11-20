@@ -258,3 +258,221 @@ def test_send_directory_returns_honest_error(tmp_path: Any) -> None:
     assert not result.success
     assert result.error is not None
     assert "Directory" in result.error or "directory" in result.error.lower()
+
+
+def test_enable_tcp_keepalive_and_platform_detection(monkeypatch: Any) -> None:
+    """Platform detection handles Android/Termux and keepalive configures real sockets."""
+    import socket
+
+    from nerve.lan.util import detect_platform_name, enable_tcp_keepalive
+
+    monkeypatch.setenv("TERMUX_VERSION", "0.118.0")
+    assert detect_platform_name() == "Android"
+
+    monkeypatch.delenv("TERMUX_VERSION", raising=False)
+    monkeypatch.delenv("ANDROID_ROOT", raising=False)
+    monkeypatch.setenv("PREFIX", "/usr")
+    assert detect_platform_name() != "Android"
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        enable_tcp_keepalive(s)
+        assert s.getsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE) != 0
+
+
+def test_scan_probes_known_peers_on_isolation() -> None:
+    """scan() sends direct UDP probes to registered peers to bypass AP isolation."""
+    from nerve.lan.peer_registry import Peer
+
+    known_peer = Peer(
+        peer_id="android-peer-1",
+        name="pixel",
+        hostname="pixel",
+        platform="Android",
+        last_address="192.168.43.15:50507",
+        last_seen=time.time(),
+    )
+
+    mock_reg = MagicMock()
+    mock_reg.list_peers.return_value = [known_peer]
+
+    mock_sock = MagicMock()
+    mock_sock.recvfrom.side_effect = TimeoutError()
+
+    lan = NerveLAN(verbose=False)
+    with (
+        patch("nerve.lan.api.PeerRegistry", return_value=mock_reg),
+        patch("nerve.lan.api._local_ipv4_addresses", return_value={"192.168.43.2"}),
+        patch("socket.socket", return_value=mock_sock),
+    ):
+        lan.scan(timeout=0.05)
+
+    probed_targets = {call.args[1][0] for call in mock_sock.sendto.call_args_list}
+    assert "192.168.43.15" in probed_targets
+    assert "192.168.43.255" in probed_targets
+
+
+def test_nerve_sdk_exports() -> None:
+    """Top-level nerve and nerve.lan expose enterprise SDK types and audit helpers."""
+    import nerve
+    import nerve.lan
+
+    expected = [
+        "NerveLAN",
+        "NerveHost",
+        "ConnectionResult",
+        "DiscoveryResult",
+        "TransferResult",
+        "TransferRecord",
+        "HostStatus",
+        "ProgressEvent",
+        "TransferState",
+        "read_audit_log",
+    ]
+    for name in expected:
+        assert hasattr(nerve, name), f"nerve missing {name}"
+        assert hasattr(nerve.lan, name), f"nerve.lan missing {name}"
+
+
+def test_lan_api_transfers_and_audit_log(tmp_path: Any, monkeypatch: Any) -> None:
+    """NerveLAN records SHA-256 custody entries for .nrv pack/unpack and transfers."""
+    audit_path = tmp_path / "audit.jsonl"
+    monkeypatch.setattr("nerve.lan.util.default_audit_log_path", lambda: audit_path)
+
+    src_file = tmp_path / "evidence.txt"
+    src_file.write_text("chain-of-custody-payload", encoding="utf-8")
+    nrv_out = tmp_path / "evidence.nrv"
+    unpack_dir = tmp_path / "unpacked"
+
+    lan = NerveLAN(verbose=False)
+    lan._audit_log_path = audit_path
+
+    pack_res = lan.pack_container(str(src_file), str(nrv_out), "secret-pass-123")
+    assert pack_res["success"] is True
+    assert len(pack_res["sha256"]) == 64
+
+    unpack_res = lan.unpack_container(str(nrv_out), str(unpack_dir), "secret-pass-123")
+    assert unpack_res["success"] is True
+    assert (unpack_dir / "evidence.txt").read_text(
+        encoding="utf-8"
+    ) == "chain-of-custody-payload"
+
+    # Simulate an outgoing transfer record via mock send_file + sockets
+    with (
+        patch("socket.socket") as mock_socket_cls,
+        patch("nerve.lan.util.get_or_create_host_identity", return_value="sender-id"),
+        patch("nerve.lan.api.PeerRegistry") as mock_reg_cls,
+        patch("nerve.lan.transfer.send_file", return_value=pack_res["sha256"]),
+    ):
+        mock_reg = MagicMock()
+        mock_reg.get.return_value = None
+        mock_reg._path = tmp_path / "peers.json"
+        mock_reg_cls.return_value = mock_reg
+
+        ctrl_sock = MagicMock()
+        data_sock = MagicMock()
+        mock_socket_cls.side_effect = [ctrl_sock, data_sock]
+
+        with patch(
+            "nerve.lan.util.recv_message",
+            side_effect=[
+                ({"type": "lan_hello"}, bytearray()),
+                ({"type": "lan_auth_result", "status": "ok"}, bytearray()),
+                (
+                    {
+                        "type": "lan_transfer_result",
+                        "status": "accepted",
+                        "port": 50510,
+                        "resume_offset": 0,
+                    },
+                    bytearray(),
+                ),
+            ],
+        ):
+            send_res = lan.send(str(nrv_out), to="192.168.1.55")
+
+    assert send_res.success is True
+    assert send_res.transfer_id is not None
+
+    transfers = lan.get_transfers()
+    assert len(transfers) == 1
+    assert transfers[0].filename == "evidence.nrv"
+    assert transfers[0].sha256 == pack_res["sha256"]
+    assert transfers[0].state == "COMPLETED"
+
+    audit_entries = lan.get_audit_log(limit=10)
+    assert len(audit_entries) == 3
+    directions = {entry["direction"] for entry in audit_entries}
+    assert directions == {"pack", "unpack", "send"}
+
+
+def test_rest_server_endpoints(tmp_path: Any, monkeypatch: Any) -> None:
+    """NerveLANRestServer serves status, audit, pack/unpack, and send in right order."""
+    import json
+    import socket as _socket
+    import urllib.request
+
+    from nerve.lan.models import TransferResult
+    from nerve.lan.rest_server import NerveLANRestServer
+
+    audit_path = tmp_path / "audit.jsonl"
+    monkeypatch.setattr("nerve.lan.util.default_audit_log_path", lambda: audit_path)
+
+    with _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+
+    lan = NerveLAN(verbose=False)
+    lan._audit_log_path = audit_path
+    server = NerveLANRestServer(lan, host="127.0.0.1", port=port)
+    server.start()
+
+    try:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        base = f"http://127.0.0.1:{port}"
+        with opener.open(f"{base}/api/lan/status", timeout=3) as resp:
+            status_body = json.loads(resp.read().decode("utf-8"))
+        assert status_body["status"] == "stopped"
+        assert status_body["running"] is False
+
+        src = tmp_path / "doc.txt"
+        src.write_text("enterprise-secret", encoding="utf-8")
+        out_nrv = tmp_path / "doc.nrv"
+        pack_req = urllib.request.Request(
+            f"{base}/api/nrv/pack",
+            data=json.dumps(
+                {
+                    "source_path": str(src),
+                    "output_path": str(out_nrv),
+                    "password": "vault-password",
+                }
+            ).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with opener.open(pack_req, timeout=5) as resp:
+            pack_body = json.loads(resp.read().decode("utf-8"))
+        assert pack_body["success"] is True
+
+        with opener.open(f"{base}/api/lan/audit?limit=5", timeout=3) as resp:
+            audit_body = json.loads(resp.read().decode("utf-8"))
+        assert len(audit_body["audit"]) == 1
+        assert audit_body["audit"][0]["direction"] == "pack"
+
+        with patch.object(
+            lan, "send", return_value=TransferResult(success=True, transfer_id="tx-1")
+        ) as mock_send:
+            send_req = urllib.request.Request(
+                f"{base}/api/lan/send",
+                data=json.dumps({"to": "peer-a", "file_path": str(out_nrv)}).encode(
+                    "utf-8"
+                ),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with opener.open(send_req, timeout=3) as resp:
+                send_body = json.loads(resp.read().decode("utf-8"))
+        mock_send.assert_called_once_with(str(out_nrv), "peer-a")
+        assert send_body["success"] is True
+        assert send_body["transfer"]["transfer_id"] == "tx-1"
+    finally:
+        server.stop()

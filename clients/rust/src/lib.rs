@@ -7,7 +7,8 @@
 
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufRead, BufReader as StdBufReader};
+use std::io::{BufRead, BufReader as StdBufReader, Read, Write};
+use std::net::TcpStream as StdTcpStream;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -605,6 +606,191 @@ impl SyncNexusClient {
                 }
             });
         }
+    }
+}
+
+pub struct NerveLanClient {
+    base_url: String,
+}
+
+impl Default for NerveLanClient {
+    fn default() -> Self {
+        Self::new("http://127.0.0.1:50508")
+    }
+}
+
+impl NerveLanClient {
+    pub fn new(base_url: &str) -> Self {
+        let trimmed = base_url.trim_end_matches('/').to_string();
+        Self {
+            base_url: if trimmed.is_empty() {
+                "http://127.0.0.1:50508".to_string()
+            } else {
+                trimmed
+            },
+        }
+    }
+
+    fn request(
+        &self,
+        method: &str,
+        api_path: &str,
+        body: Option<serde_json::Value>,
+    ) -> Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>> {
+        let authority = self
+            .base_url
+            .strip_prefix("http://")
+            .unwrap_or(&self.base_url)
+            .split('/')
+            .next()
+            .unwrap_or("127.0.0.1:50508");
+        let addr = if authority.contains(':') {
+            authority.to_string()
+        } else {
+            format!("{}:80", authority)
+        };
+
+        let mut stream = StdTcpStream::connect(&addr)?;
+        stream.set_read_timeout(Some(Duration::from_secs(15)))?;
+        stream.set_write_timeout(Some(Duration::from_secs(15)))?;
+
+        let payload = body.map(|b| b.to_string());
+        let mut req = format!(
+            "{} {} HTTP/1.1\r\nHost: {}\r\nAccept: application/json\r\nConnection: close\r\n",
+            method, api_path, authority
+        );
+        if let Some(ref p) = payload {
+            req.push_str("Content-Type: application/json\r\n");
+            req.push_str(&format!("Content-Length: {}\r\n", p.len()));
+        }
+        req.push_str("\r\n");
+        if let Some(ref p) = payload {
+            req.push_str(p);
+        }
+
+        stream.write_all(req.as_bytes())?;
+        stream.flush()?;
+
+        let mut raw = String::new();
+        stream.read_to_string(&mut raw)?;
+
+        let (head, body_str) = raw
+            .split_once("\r\n\r\n")
+            .or_else(|| raw.split_once("\n\n"))
+            .ok_or("Invalid HTTP response from Nerve LAN REST server")?;
+
+        let status_code: u16 = head
+            .lines()
+            .next()
+            .and_then(|line| line.split_whitespace().nth(1))
+            .and_then(|code| code.parse::<u16>().ok())
+            .unwrap_or(500);
+
+        let parsed: serde_json::Value = if body_str.trim().is_empty() {
+            serde_json::json!({})
+        } else {
+            serde_json::from_str(body_str)?
+        };
+
+        if status_code >= 400 {
+            let err_msg = parsed
+                .get("error")
+                .and_then(|v| v.as_str())
+                .unwrap_or("HTTP request failed");
+            return Err(format!("Nerve HTTP {}: {}", status_code, err_msg).into());
+        }
+        Ok(parsed)
+    }
+
+    pub fn lan_status(
+        &self,
+    ) -> Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>> {
+        self.request("GET", "/api/lan/status", None)
+    }
+
+    pub fn lan_scan(
+        &self,
+        target_ip: Option<&str>,
+        timeout: Option<f64>,
+        subnet_fallback: bool,
+    ) -> Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>> {
+        let mut payload = serde_json::json!({ "subnet_fallback": subnet_fallback });
+        if let Some(ip) = target_ip {
+            payload["target_ip"] = serde_json::Value::String(ip.to_string());
+        }
+        if let Some(t) = timeout {
+            payload["timeout"] = serde_json::json!(t);
+        }
+        self.request("POST", "/api/lan/scan", Some(payload))
+    }
+
+    pub fn lan_connect(
+        &self,
+        ip: &str,
+        name: Option<&str>,
+        token: Option<&str>,
+    ) -> Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>> {
+        let mut payload = serde_json::json!({ "ip": ip });
+        if let Some(n) = name {
+            payload["name"] = serde_json::Value::String(n.to_string());
+        }
+        if let Some(t) = token {
+            payload["token"] = serde_json::Value::String(t.to_string());
+        }
+        self.request("POST", "/api/lan/connect", Some(payload))
+    }
+
+    pub fn lan_send(
+        &self,
+        file_path: &str,
+        to: &str,
+    ) -> Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>> {
+        self.request(
+            "POST",
+            "/api/lan/send",
+            Some(serde_json::json!({ "file_path": file_path, "to": to })),
+        )
+    }
+
+    pub fn lan_audit(
+        &self,
+        limit: usize,
+    ) -> Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>> {
+        self.request("GET", &format!("/api/lan/audit?limit={}", limit), None)
+    }
+
+    pub fn pack_nrv(
+        &self,
+        source_path: &str,
+        output_path: &str,
+        password: &str,
+    ) -> Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>> {
+        self.request(
+            "POST",
+            "/api/nrv/pack",
+            Some(serde_json::json!({
+                "source_path": source_path,
+                "output_path": output_path,
+                "password": password,
+            })),
+        )
+    }
+
+    pub fn unpack_nrv(
+        &self,
+        nrv_path: &str,
+        output_dir: &str,
+        password: &str,
+    ) -> Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>> {
+        self.request(
+            "POST",
+            "/api/nrv/unpack",
+            Some(serde_json::json!({
+                "nrv_path": nrv_path,
+                "output_dir": output_dir,
+                "password": password,
+            })),
+        )
     }
 }
 

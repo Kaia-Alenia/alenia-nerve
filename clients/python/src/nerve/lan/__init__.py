@@ -45,13 +45,17 @@ from nerve.lan.events import (
     TRANSFER_STARTED,
     TRANSFER_VERIFYING,
 )
+from nerve.lan.host import NerveHost
 from nerve.lan.models import (
     ConnectionResult,
     DiscoveryResult,
     HostStatus,
     ProgressEvent,
+    TransferRecord,
     TransferResult,
+    TransferState,
 )
+from nerve.lan.util import read_audit_log
 
 __all__ = [
     # Events
@@ -72,11 +76,15 @@ __all__ = [
     "TRANSFER_REQUESTED",
     "TRANSFER_STARTED",
     "TRANSFER_VERIFYING",
-    # Models
+    # Core & Models
     "ConnectionResult",
     "DiscoveryResult",
     "HostStatus",
+    "NerveHost",
     "NerveLAN",
     "ProgressEvent",
+    "TransferRecord",
     "TransferResult",
+    "TransferState",
+    "read_audit_log",
 ]

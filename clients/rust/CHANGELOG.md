@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 
 
+## [7.1.0] — 2026-11-19
+### Added
+- `NerveLanClient` HTTP helper methods (`lan_status`, `lan_scan`, `lan_connect`, `lan_send`, `lan_audit`, `pack_nrv`, `unpack_nrv`) with zero new crate dependencies.
+
 ## [7.0.0] — 2026-09-09
 ### Changed
 - Synchronized the Rust client version with the main Nerve release.
